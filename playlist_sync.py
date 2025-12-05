@@ -76,10 +76,12 @@ def load_playlists_config():
                 config['source_playlists'] = []
             if 'destination_playlist' not in config:
                 config['destination_playlist'] = ''
+            if 'tracking_playlists' not in config:
+                config['tracking_playlists'] = []
             return config
     except Exception as e:
         print(f"❌ Fout bij laden playlist configuratie: {e}")
-        return {"source_playlists": [], "destination_playlist": ""}
+        return {"source_playlists": [], "destination_playlist": "", "tracking_playlists": []}
 
 # Laad playlist configuratie bij start
 playlists_config = load_playlists_config()
@@ -91,6 +93,9 @@ HISTORISCHE_DATA_FILE = 'historische_data.json'
 
 # Bestand voor het bijhouden van afspeelgeschiedenis en play counts
 PLAY_COUNTS_FILE = 'play_counts.json'
+
+# Bestand voor het bijhouden van start datum voor tracking playlists
+TRACKING_START_DATE_FILE = 'tracking_start_date.json'
 
 # Schakel dit in om nieuwe releases van gevolgde artiesten op te halen
 CHECK_ARTIST_RELEASES = True
@@ -624,6 +629,147 @@ def show_top_tracks(sp):
         except Exception as e:
             print(f"{Colors.BRIGHT_RED}❌ Fout: {e}{Colors.RESET}")
 
+def load_tracking_start_date():
+    """Laadt de start datum voor tracking playlists uit het JSON-bestand."""
+    if not os.path.exists(TRACKING_START_DATE_FILE):
+        return None
+    
+    try:
+        with open(TRACKING_START_DATE_FILE, 'r') as f:
+            data = json.load(f)
+            # Converteer string datum terug naar datetime object
+            if 'start_date' in data:
+                return datetime.fromisoformat(data['start_date'])
+            return None
+    except Exception as e:
+        print(f"Fout bij laden tracking start datum: {e}")
+        return None
+
+def save_tracking_start_date(start_date):
+    """Slaat de start datum voor tracking playlists op in het JSON-bestand."""
+    try:
+        # Converteer datetime object naar string voor JSON-serialisatie
+        data = {
+            'start_date': start_date.isoformat() if isinstance(start_date, datetime) else start_date,
+            'last_updated': datetime.now().isoformat()
+        }
+        with open(TRACKING_START_DATE_FILE, 'w') as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print(f"Fout bij opslaan tracking start datum: {e}")
+
+def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_info=False, debug=False):
+    """Haalt tracks op die sinds een specifieke datum zijn toegevoegd aan de playlist.
+    
+    Args:
+        sp: Spotify client
+        playlist_id: ID van de playlist
+        since_date: datetime object - alleen tracks toegevoegd na deze datum
+        return_track_info: Als True, retourneert ook track informatie (naam, artiesten, added_at)
+        debug: Als True, toon debug informatie
+    
+    Returns:
+        Als return_track_info=False: set van track URIs
+        Als return_track_info=True: dict met URI als key en {'name': ..., 'artists': ..., 'added_at': ...} als value
+    """
+    track_data = {} if return_track_info else set()
+    items_without_added_at = 0
+    items_processed = 0
+    
+    try:
+        # Haal playlist items op met added_at datum
+        # Let op: added_at is alleen beschikbaar voor playlists die je bezit of waar je collaborator bent
+        results = sp.playlist_items(playlist_id, fields='items.added_at,items.track.uri,items.track.name,items.track.artists,items.track.id,next', limit=100)
+        
+        if debug:
+            print(f"{Colors.DIM}   Debug: API response keys: {list(results.keys()) if results else 'None'}{Colors.RESET}")
+            if results and 'items' in results:
+                print(f"{Colors.DIM}   Debug: Aantal items in eerste batch: {len(results['items'])}{Colors.RESET}")
+                if len(results['items']) > 0:
+                    first_item = results['items'][0]
+                    print(f"{Colors.DIM}   Debug: Eerste item keys: {list(first_item.keys())}{Colors.RESET}")
+                    print(f"{Colors.DIM}   Debug: Eerste item added_at: {first_item.get('added_at', 'NIET AANWEZIG')}{Colors.RESET}")
+        
+        while results:
+            for item in results['items']:
+                items_processed += 1
+                
+                # Controleer of track bestaat
+                track = item.get('track')
+                if not track or not track.get('uri'):
+                    if debug:
+                        print(f"{Colors.DIM}   Debug: Item {items_processed} heeft geen track of URI{Colors.RESET}")
+                    continue
+                
+                # Controleer wanneer de track is toegevoegd
+                added_at_str = item.get('added_at')
+                
+                if not added_at_str:
+                    items_without_added_at += 1
+                    if debug and items_without_added_at <= 3:
+                        track_name = track.get('name', 'Unknown')
+                        print(f"{Colors.BRIGHT_YELLOW}   ⚠️  Track '{track_name}' heeft geen added_at veld{Colors.RESET}")
+                        print(f"{Colors.DIM}      Dit kan betekenen dat je geen rechten hebt om deze informatie te zien{Colors.RESET}")
+                    # Als geen added_at, neem de track op (voor veiligheid)
+                    uri = track['uri']
+                    if return_track_info:
+                        artists = ', '.join([artist['name'] for artist in track.get('artists', [])])
+                        track_data[uri] = {
+                            'name': track.get('name', 'Unknown'),
+                            'artists': artists,
+                            'added_at': None  # Geen datum beschikbaar
+                        }
+                    else:
+                        track_data.add(uri)
+                    continue
+                
+                try:
+                    # Parse de ISO 8601 datum
+                    added_at = datetime.fromisoformat(added_at_str.replace('Z', '+00:00'))
+                    # Converteer naar local timezone voor vergelijking
+                    if added_at.tzinfo:
+                        added_at = added_at.astimezone().replace(tzinfo=None)
+                    
+                    if debug and len(track_data) < 5:
+                        track_name = track.get('name', 'Unknown')
+                        print(f"{Colors.DIM}   Debug: Track '{track_name}' - added_at: {added_at.strftime('%Y-%m-%d %H:%M:%S')}, since_date: {since_date.strftime('%Y-%m-%d %H:%M:%S')}{Colors.RESET}")
+                    
+                    # Alleen tracks die na of gelijk aan de since_date zijn toegevoegd
+                    # Let op: we stoppen NIET vroegtijdig omdat de volgorde niet altijd perfect is
+                    if added_at >= since_date:
+                        uri = track['uri']
+                        if return_track_info:
+                            artists = ', '.join([artist['name'] for artist in track.get('artists', [])])
+                            track_data[uri] = {
+                                'name': track.get('name', 'Unknown'),
+                                'artists': artists,
+                                'added_at': added_at_str
+                            }
+                        else:
+                            track_data.add(uri)
+                    
+                except (ValueError, AttributeError) as e:
+                    if debug:
+                        print(f"{Colors.BRIGHT_YELLOW}   ⚠️  Kon datum niet parsen: {added_at_str} - {e}{Colors.RESET}")
+                    # Als parsing mislukt, negeer deze track
+                    continue
+            
+            if results:
+                results = sp.next(results) if results.get('next') else None
+        
+        if debug:
+            print(f"{Colors.DIM}   Debug: Totaal items verwerkt: {items_processed}, zonder added_at: {items_without_added_at}{Colors.RESET}")
+        
+        return track_data
+    except SpotifyException as e:
+        print(f"❌ Spotify API fout bij ophalen tracks: {e}")
+        if e.http_status == 403:
+            print(f"{Colors.BRIGHT_YELLOW}   ⚠️  Geen toegang tot added_at informatie. Mogelijk geen rechten voor deze playlist.{Colors.RESET}")
+        raise
+    except Exception as e:
+        print(f"❌ Onverwachte fout bij ophalen tracks: {e}")
+        raise
+
 def export_playlist_to_csv(sp, playlist_id, output_file=None):
     """Exporteert een playlist naar een CSV bestand."""
     try:
@@ -689,6 +835,210 @@ def export_playlist_to_csv(sp, playlist_id, output_file=None):
     except Exception as e:
         print(f"❌ Onverwachte fout bij exporteren: {e}")
 
+def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=None):
+    """Exporteert nieuwe tracks die sinds een specifieke datum zijn toegevoegd aan playlists.
+    
+    Args:
+        sp: Spotify client
+        playlist_ids: List van playlist ID's om te controleren
+        since_date: datetime object - als None, wordt de opgeslagen start datum gebruikt of vandaag - 7 dagen
+        output_file: Optionele bestandsnaam voor CSV export
+    """
+    try:
+        # Laad opgeslagen start datum
+        saved_start_date = load_tracking_start_date()
+        
+        # Bepaal sinds welke datum we moeten kijken
+        if since_date is None:
+            # Gebruik de opgeslagen start datum, of standaard 7 dagen terug
+            if saved_start_date:
+                since_date = saved_start_date
+            else:
+                since_date = datetime.now() - timedelta(days=7)
+                print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen start datum gevonden. Gebruik standaard: {since_date.strftime('%Y-%m-%d')}{Colors.RESET}")
+        
+        # Vandaag is de einddatum
+        today = datetime.now()
+        
+        # Waarschuwing als start datum gelijk is aan vandaag (geen bereik)
+        if since_date.date() == today.date():
+            print(f"{Colors.BRIGHT_YELLOW}⚠️  Start datum is vandaag. Er worden alleen tracks van vandaag gecontroleerd.{Colors.RESET}")
+            print(f"{Colors.DIM}   Als je tracks van eerdere dagen wilt zien, stel een eerdere start datum in.{Colors.RESET}\n")
+        
+        print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}")
+        print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}🔍  Nieuwe Tracks Van {since_date.strftime('%Y-%m-%d')} Tot {today.strftime('%Y-%m-%d')}  🔍{Colors.RESET}")
+        print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}\n")
+        
+        all_new_tracks = []
+        playlist_info_map = {}
+        
+        # Doorloop elke playlist
+        for playlist_id in playlist_ids:
+            try:
+                # Haal playlist naam op
+                playlist_info = sp.playlist(playlist_id, fields='name')
+                playlist_name = playlist_info['name']
+                playlist_info_map[playlist_id] = playlist_name
+                
+                print(f"{Colors.BRIGHT_CYAN}📋 Controleer playlist: {Colors.BRIGHT_WHITE}{playlist_name}{Colors.RESET}")
+                print(f"{Colors.DIM}   Periode: {since_date.strftime('%Y-%m-%d %H:%M:%S')} tot {today.strftime('%Y-%m-%d %H:%M:%S')}{Colors.RESET}")
+                
+                # Eerst checken of we toegang hebben tot added_at door een test query te doen
+                try:
+                    test_results = sp.playlist_items(playlist_id, fields='items.added_at,items.track.uri', limit=1)
+                    has_added_at_access = False
+                    if test_results and 'items' in test_results and len(test_results['items']) > 0:
+                        first_item = test_results['items'][0]
+                        if 'added_at' in first_item and first_item['added_at'] is not None:
+                            has_added_at_access = True
+                    
+                    if not has_added_at_access:
+                        print(f"{Colors.BRIGHT_RED}   ❌ GEEN TOEGANG TOT added_at VELD!{Colors.RESET}")
+                        print(f"{Colors.BRIGHT_YELLOW}   ⚠️  De Spotify API geeft geen 'added_at' informatie voor deze playlist.{Colors.RESET}")
+                        print(f"{Colors.DIM}   Mogelijke oorzaken:{Colors.RESET}")
+                        print(f"{Colors.DIM}   - Je bent niet de eigenaar van deze playlist{Colors.RESET}")
+                        print(f"{Colors.DIM}   - Je hebt geen collaborator rechten{Colors.RESET}")
+                        print(f"{Colors.DIM}   - De playlist is public maar je hebt geen schrijfrechten{Colors.RESET}")
+                        print(f"{Colors.DIM}   Oplossing: Zorg dat je eigenaar of collaborator bent van de playlist.{Colors.RESET}")
+                        continue
+                except Exception as e:
+                    print(f"{Colors.BRIGHT_YELLOW}   ⚠️  Kon toegang tot added_at niet verifiëren: {e}{Colors.RESET}")
+                
+                # Gebruik alleen datum (zonder tijd) voor vergelijking
+                since_date_only = since_date.date()
+                today_date_only = today.date()
+                
+                # Haal nieuwe tracks op sinds de start datum (gebruik start van dag voor query)
+                since_date_for_query = since_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                # Gebruik debug mode om te zien wat er gebeurt
+                new_tracks = get_playlist_tracks_since_date(sp, playlist_id, since_date_for_query, return_track_info=True, debug=True)
+                
+                print(f"{Colors.DIM}   Totaal tracks gevonden na {since_date_only}: {len(new_tracks)}{Colors.RESET}")
+                
+                # Filter tracks die tussen start_date en today zijn toegevoegd
+                filtered_tracks = {}
+                tracks_before_start = 0
+                tracks_after_today = 0
+                tracks_in_range = 0
+                
+                for uri, track_info in new_tracks.items():
+                    added_at_str = track_info.get('added_at', '')
+                    if added_at_str:
+                        try:
+                            added_at = datetime.fromisoformat(added_at_str.replace('Z', '+00:00'))
+                            if added_at.tzinfo:
+                                added_at = added_at.astimezone().replace(tzinfo=None)
+                            
+                            # Gebruik alleen datum voor vergelijking
+                            added_at_date_only = added_at.date()
+                            
+                            # Debug output voor eerste paar tracks
+                            if tracks_in_range < 3:
+                                print(f"{Colors.DIM}      Track: {track_info['name']} - Added: {added_at.strftime('%Y-%m-%d %H:%M:%S')} (datum: {added_at_date_only}){Colors.RESET}")
+                            
+                            # Alleen tracks tussen start_date en today (inclusief beide datums)
+                            if since_date_only <= added_at_date_only <= today_date_only:
+                                filtered_tracks[uri] = track_info
+                                tracks_in_range += 1
+                            elif added_at_date_only < since_date_only:
+                                tracks_before_start += 1
+                            else:
+                                tracks_after_today += 1
+                        except (ValueError, AttributeError) as e:
+                            # Als parsing mislukt, neem de track op (voor veiligheid)
+                            print(f"{Colors.BRIGHT_YELLOW}      ⚠️  Kon datum niet parsen voor track {track_info.get('name', 'Unknown')}: {e}{Colors.RESET}")
+                            filtered_tracks[uri] = track_info
+                    else:
+                        # Als geen added_at, neem de track op
+                        filtered_tracks[uri] = track_info
+                
+                # Debug output
+                if tracks_before_start > 0 or tracks_after_today > 0:
+                    print(f"{Colors.DIM}   Debug: {tracks_before_start} voor start datum, {tracks_after_today} na vandaag, {tracks_in_range} in bereik{Colors.RESET}")
+                
+                if filtered_tracks:
+                    print(f"{Colors.BRIGHT_GREEN}   ✅ {len(filtered_tracks)} nieuwe tracks gevonden in bereik{Colors.RESET}")
+                    for uri, track_info in list(filtered_tracks.items())[:5]:  # Toon eerste 5
+                        track_display = f"{track_info['artists']} - {track_info['name']}"
+                        if len(track_display) > 60:
+                            track_display = track_display[:57] + "..."
+                        print(f"{Colors.DIM}      • {track_display}{Colors.RESET}")
+                    if len(filtered_tracks) > 5:
+                        print(f"{Colors.DIM}      ... en {len(filtered_tracks) - 5} meer{Colors.RESET}")
+                    
+                    for uri, track_info in filtered_tracks.items():
+                        all_new_tracks.append({
+                            'Track': f"{track_info['artists']} - {track_info['name']}",
+                            '': ''  # Blank field
+                        })
+                else:
+                    print(f"{Colors.DIM}   🤷 Geen nieuwe tracks in deze periode{Colors.RESET}")
+                    if len(new_tracks) > 0:
+                        print(f"{Colors.BRIGHT_YELLOW}   ⚠️  Maar {len(new_tracks)} tracks gevonden buiten het bereik{Colors.RESET}")
+                
+            except SpotifyException as e:
+                print(f"{Colors.BRIGHT_RED}   ❌ Fout bij ophalen playlist {playlist_id}: {e}{Colors.RESET}")
+                if e.http_status == 404:
+                    print(f"{Colors.BRIGHT_YELLOW}      Playlist niet gevonden{Colors.RESET}")
+                elif e.http_status == 403:
+                    print(f"{Colors.BRIGHT_YELLOW}      Geen toegang tot deze playlist{Colors.RESET}")
+                continue
+            except Exception as e:
+                print(f"{Colors.BRIGHT_RED}   ❌ Onverwachte fout: {e}{Colors.RESET}")
+                continue
+        
+        # Exporteer naar CSV
+        if all_new_tracks:
+            # Genereer bestandsnaam als niet opgegeven
+            if not output_file:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                output_file = f"new_tracks_{since_date.strftime('%Y%m%d')}_to_{today.strftime('%Y%m%d')}_{timestamp}.csv"
+            
+            # Zorg dat bestandsnaam eindigt op .csv
+            if not output_file.endswith('.csv'):
+                output_file = output_file + '.csv'
+            
+            # Schrijf naar CSV
+            with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = ['Track', '']  # Track en een lege kolom
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(all_new_tracks)
+            
+            print(f"\n{Colors.BOLD}{Colors.BRIGHT_GREEN}{'═'*70}{Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.BRIGHT_GREEN}✅ {len(all_new_tracks)} nieuwe tracks geëxporteerd naar: {output_file}{Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.BRIGHT_GREEN}{'═'*70}{Colors.RESET}")
+            print(f"{Colors.DIM}   Bestandslocatie: {os.path.abspath(output_file)}{Colors.RESET}")
+        else:
+            print(f"\n{Colors.BRIGHT_YELLOW}⚠️  Geen nieuwe tracks gevonden om te exporteren.{Colors.RESET}")
+        
+        # Update start datum naar vandaag (voor volgende keer)
+        today = datetime.now()
+        save_tracking_start_date(today)
+        print(f"\n{Colors.BRIGHT_GREEN}✅ Start datum bijgewerkt naar vandaag ({today.strftime('%Y-%m-%d')}){Colors.RESET}")
+        print(f"{Colors.DIM}   De volgende keer worden tracks vanaf deze datum gecontroleerd.{Colors.RESET}")
+        
+        # Belangrijke informatie over Spotify API beperkingen
+        if len(all_new_tracks) == 0:
+            print(f"\n{Colors.BOLD}{Colors.BRIGHT_YELLOW}{'═'*70}{Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.BRIGHT_YELLOW}ℹ️  BELANGRIJKE INFORMATIE OVER SPOTIFY API{Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.BRIGHT_YELLOW}{'═'*70}{Colors.RESET}")
+            print(f"{Colors.BRIGHT_WHITE}De Spotify API geeft alleen 'added_at' informatie voor:{Colors.RESET}")
+            print(f"{Colors.DIM}  ✓ Playlists die je zelf bezit{Colors.RESET}")
+            print(f"{Colors.DIM}  ✓ Collaborative playlists waar je collaborator bent{Colors.RESET}")
+            print(f"\n{Colors.BRIGHT_YELLOW}Voor andere playlists (bijv. public playlists van anderen):{Colors.RESET}")
+            print(f"{Colors.DIM}  ✗ Geen 'added_at' informatie beschikbaar{Colors.RESET}")
+            print(f"{Colors.DIM}  ✗ Kan niet bepalen wanneer tracks zijn toegevoegd{Colors.RESET}")
+            print(f"\n{Colors.BRIGHT_CYAN}Oplossing:{Colors.RESET}")
+            print(f"{Colors.DIM}  • Zorg dat je eigenaar of collaborator bent van de playlists{Colors.RESET}")
+            print(f"{Colors.DIM}  • Of gebruik een andere methode (bijv. vergelijken met vorige staat){Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.BRIGHT_YELLOW}{'═'*70}{Colors.RESET}\n")
+        
+    except Exception as e:
+        print(f"{Colors.BRIGHT_RED}❌ Onverwachte fout bij exporteren nieuwe tracks: {e}{Colors.RESET}")
+        import traceback
+        print(f"{Colors.DIM}   Traceback: {traceback.format_exc()}{Colors.RESET}")
+
 def show_menu():
     """Toont het hoofdmenu en retourneert de keuze van de gebruiker."""
     print("\n" + "="*60)
@@ -701,16 +1051,17 @@ def show_menu():
     print("  4. Exporteer playlist naar CSV")
     print("  5. Toon meest beluisterde tracks (week/maand/jaar)")
     print("  6. Beheer playlist configuratie")
+    print("  7. Exporteer nieuwe tracks sinds datum naar CSV")
     print("  0. Afsluiten")
     print("\n" + "-"*60)
     
     while True:
         try:
-            choice = input("Voer je keuze in (0-6): ").strip()
-            if choice in ['0', '1', '2', '3', '4', '5', '6']:
+            choice = input("Voer je keuze in (0-7): ").strip()
+            if choice in ['0', '1', '2', '3', '4', '5', '6', '7']:
                 return int(choice)
             else:
-                print("❌ Ongeldige keuze. Voer 0, 1, 2, 3, 4, 5 of 6 in.")
+                print("❌ Ongeldige keuze. Voer 0, 1, 2, 3, 4, 5, 6 of 7 in.")
         except KeyboardInterrupt:
             print("\n\nAfsluiten...")
             sys.exit(0)
@@ -1310,8 +1661,53 @@ def sync_artist_releases(sp):
     save_historical_data(historische_nummers)
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_GREEN}✅ Artiest releases synchronisatie voltooid!{Colors.RESET}\n")
 
+def run_export_new_tracks():
+    """Voert de export nieuwe tracks functie direct uit (voor command-line gebruik)."""
+    sp = get_spotify_client()
+    
+    # Laad configuratie
+    playlists_config = load_playlists_config()
+    tracking_playlists = playlists_config.get('tracking_playlists', [])
+    
+    if not tracking_playlists:
+        print(f"{Colors.BRIGHT_RED}❌ Geen tracking playlists geconfigureerd.{Colors.RESET}")
+        print(f"{Colors.DIM}   Voeg eerst playlists toe via het menu (optie 7) of via de configuratie.{Colors.RESET}")
+        return
+    
+    print(f"{Colors.BRIGHT_CYAN}Gebruik {len(tracking_playlists)} opgeslagen tracking playlists{Colors.RESET}")
+    
+    # Laad start datum
+    saved_start_date = load_tracking_start_date()
+    since_date = None  # Wordt in functie geladen
+    
+    # Genereer automatische bestandsnaam
+    output_file = None
+    
+    # Exporteer nieuwe tracks
+    export_new_tracks_since_date(sp, tracking_playlists, since_date, output_file)
+
 def main():
     """Hoofdfunctie met menu systeem."""
+    # Check voor command-line argumenten
+    if len(sys.argv) > 1:
+        if sys.argv[1] == '--export' or sys.argv[1] == '-e':
+            # Voer export direct uit
+            run_export_new_tracks()
+            return
+        elif sys.argv[1] == '--help' or sys.argv[1] == '-h':
+            print("\n🎵 Spotify Playlist Manager")
+            print("=" * 60)
+            print("\nGebruik:")
+            print("  python playlist_sync.py              - Start interactief menu")
+            print("  python playlist_sync.py --export    - Exporteer nieuwe tracks direct")
+            print("  python playlist_sync.py -e          - Zelfde als --export")
+            print("  python playlist_sync.py --help      - Toon deze help")
+            print("\nOpties:")
+            print("  --export, -e    Voer export nieuwe tracks uit met opgeslagen instellingen")
+            print("  --help, -h      Toon deze help tekst")
+            print()
+            return
+    
     while True:
         choice = show_menu()
         
@@ -1374,6 +1770,256 @@ def main():
         elif choice == 6:
             # Beheer playlist configuratie
             manage_playlists_config()
+        elif choice == 7:
+            # Exporteer nieuwe tracks sinds datum naar CSV
+            sp = get_spotify_client()
+            
+            print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}📥  Exporteer Nieuwe Tracks Sinds Datum  📥{Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}\n")
+            
+            # Laad configuratie
+            playlists_config = load_playlists_config()
+            tracking_playlists = playlists_config.get('tracking_playlists', [])
+            
+            # Vraag welke playlists te gebruiken
+            print(f"{Colors.BRIGHT_WHITE}Huidige tracking playlists ({len(tracking_playlists)}):{Colors.RESET}")
+            if tracking_playlists:
+                for idx, pl_id in enumerate(tracking_playlists, 1):
+                    try:
+                        playlist_info = sp.playlist(pl_id, fields='name')
+                        playlist_name = playlist_info['name']
+                        print(f"  {idx}. {Colors.BRIGHT_WHITE}{playlist_name}{Colors.RESET} {Colors.DIM}({pl_id}){Colors.RESET}")
+                    except:
+                        print(f"  {idx}. {Colors.DIM}{pl_id} (niet gevonden){Colors.RESET}")
+            else:
+                print(f"  {Colors.DIM}(geen playlists geconfigureerd){Colors.RESET}")
+            
+            print(f"\n{Colors.BRIGHT_CYAN}Opties:{Colors.RESET}")
+            if tracking_playlists:
+                print(f"  {Colors.BRIGHT_GREEN}u.{Colors.RESET} Gebruik tracking playlists ({len(tracking_playlists)} playlists)")
+            print(f"  {Colors.BRIGHT_BLUE}m.{Colors.RESET} Handmatig playlist ID's invoeren")
+            print(f"  {Colors.BRIGHT_MAGENTA}c.{Colors.RESET} Beheer tracking playlists")
+            print(f"  {Colors.DIM}q.{Colors.RESET} Terug naar hoofdmenu")
+            
+            while True:
+                try:
+                    option = input(f"\n{Colors.BRIGHT_CYAN}Voer je keuze in ({'u/' if tracking_playlists else ''}m/c/q): {Colors.RESET}").strip().lower()
+                    
+                    if option == 'q':
+                        break
+                    elif option == 'u' and tracking_playlists:
+                        selected_playlists = tracking_playlists
+                        break
+                    elif option == 'm':
+                        # Handmatig playlist ID's invoeren
+                        print(f"\n{Colors.BRIGHT_WHITE}Voer playlist ID's in (gescheiden door komma's):{Colors.RESET}")
+                        playlist_input = input(f"{Colors.BRIGHT_CYAN}Playlist ID's: {Colors.RESET}").strip()
+                        selected_playlists = [pl_id.strip() for pl_id in playlist_input.split(',') if pl_id.strip()]
+                        if not selected_playlists:
+                            print(f"{Colors.BRIGHT_RED}❌ Geen playlist ID's ingevoerd.{Colors.RESET}")
+                            continue
+                        
+                        # Vraag of gebruiker deze playlists wil opslaan
+                        save_option = input(f"{Colors.BRIGHT_CYAN}Wil je deze playlists opslaan voor volgende keer? (j/n): {Colors.RESET}").strip().lower()
+                        if save_option == 'j':
+                            # Voeg nieuwe playlists toe aan tracking_playlists (zonder duplicaten)
+                            playlists_config = load_playlists_config()
+                            tracking_playlists = playlists_config.get('tracking_playlists', [])
+                            for pl_id in selected_playlists:
+                                if pl_id not in tracking_playlists:
+                                    tracking_playlists.append(pl_id)
+                            playlists_config['tracking_playlists'] = tracking_playlists
+                            with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
+                                json.dump(playlists_config, f, indent=4)
+                            print(f"{Colors.BRIGHT_GREEN}✅ {len(selected_playlists)} playlist(s) opgeslagen!{Colors.RESET}")
+                        break
+                    elif option == 'c':
+                        # Beheer tracking playlists
+                        while True:
+                            playlists_config = load_playlists_config()
+                            tracking_playlists = playlists_config.get('tracking_playlists', [])
+                            
+                            print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}")
+                            print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}⚙️  Beheer Tracking Playlists  ⚙️{Colors.RESET}")
+                            print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}\n")
+                            
+                            print(f"{Colors.BRIGHT_WHITE}Huidige tracking playlists ({len(tracking_playlists)}):{Colors.RESET}")
+                            if tracking_playlists:
+                                for idx, pl_id in enumerate(tracking_playlists, 1):
+                                    try:
+                                        playlist_info = sp.playlist(pl_id, fields='name')
+                                        playlist_name = playlist_info['name']
+                                        print(f"  {idx}. {Colors.BRIGHT_WHITE}{playlist_name}{Colors.RESET} {Colors.DIM}({pl_id}){Colors.RESET}")
+                                    except:
+                                        print(f"  {idx}. {Colors.DIM}{pl_id} (niet gevonden){Colors.RESET}")
+                            else:
+                                print(f"  {Colors.DIM}(geen){Colors.RESET}")
+                            
+                            print(f"\n{Colors.BRIGHT_WHITE}Wat wil je doen?{Colors.RESET}")
+                            print(f"  {Colors.BRIGHT_GREEN}1.{Colors.RESET} Voeg playlist toe")
+                            print(f"  {Colors.BRIGHT_RED}2.{Colors.RESET} Verwijder playlist")
+                            print(f"  {Colors.DIM}0.{Colors.RESET} Terug")
+                            
+                            try:
+                                action = input(f"\n{Colors.BRIGHT_CYAN}Voer je keuze in (0-2): {Colors.RESET}").strip()
+                                
+                                if action == '0':
+                                    break
+                                elif action == '1':
+                                    # Voeg playlist toe
+                                    playlist_id = input(f"{Colors.BRIGHT_GREEN}Voer playlist ID in om toe te voegen: {Colors.RESET}").strip()
+                                    if playlist_id and playlist_id not in tracking_playlists:
+                                        try:
+                                            playlist_info = sp.playlist(playlist_id, fields='name')
+                                            playlist_name = playlist_info['name']
+                                            print(f"{Colors.BRIGHT_CYAN}   Gevonden: {Colors.BRIGHT_WHITE}{playlist_name}{Colors.RESET}")
+                                            confirm = input(f"{Colors.BRIGHT_GREEN}Toevoegen? (j/n): {Colors.RESET}").strip().lower()
+                                            if confirm == 'j':
+                                                tracking_playlists.append(playlist_id)
+                                                playlists_config['tracking_playlists'] = tracking_playlists
+                                                with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
+                                                    json.dump(playlists_config, f, indent=4)
+                                                print(f"{Colors.BRIGHT_GREEN}✅ Playlist '{playlist_name}' toegevoegd!{Colors.RESET}\n")
+                                            else:
+                                                print(f"{Colors.DIM}Geannuleerd.{Colors.RESET}\n")
+                                        except Exception as e:
+                                            print(f"{Colors.BRIGHT_YELLOW}⚠️  Kon playlist niet verifiëren: {e}{Colors.RESET}")
+                                            confirm = input(f"{Colors.BRIGHT_YELLOW}Toch toevoegen? (j/n): {Colors.RESET}").strip().lower()
+                                            if confirm == 'j':
+                                                tracking_playlists.append(playlist_id)
+                                                playlists_config['tracking_playlists'] = tracking_playlists
+                                                with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
+                                                    json.dump(playlists_config, f, indent=4)
+                                                print(f"{Colors.BRIGHT_GREEN}✅ Playlist toegevoegd!{Colors.RESET}\n")
+                                    elif playlist_id in tracking_playlists:
+                                        print(f"{Colors.BRIGHT_YELLOW}⚠️  Deze playlist staat al in de lijst.{Colors.RESET}\n")
+                                    else:
+                                        print(f"{Colors.BRIGHT_RED}❌ Ongeldige playlist ID.{Colors.RESET}\n")
+                                
+                                elif action == '2':
+                                    # Verwijder playlist
+                                    if not tracking_playlists:
+                                        print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen playlists om te verwijderen.{Colors.RESET}\n")
+                                        continue
+                                    
+                                    print(f"{Colors.BRIGHT_RED}Welke playlist wil je verwijderen?{Colors.RESET}")
+                                    playlist_names = {}
+                                    for idx, pl_id in enumerate(tracking_playlists, 1):
+                                        try:
+                                            playlist_info = sp.playlist(pl_id, fields='name')
+                                            playlist_name = playlist_info['name']
+                                            playlist_names[pl_id] = playlist_name
+                                            print(f"  {idx}. {Colors.BRIGHT_WHITE}{playlist_name}{Colors.RESET} {Colors.DIM}({pl_id}){Colors.RESET}")
+                                        except:
+                                            print(f"  {idx}. {Colors.DIM}{pl_id} (niet gevonden){Colors.RESET}")
+                                    
+                                    try:
+                                        idx = int(input(f"{Colors.BRIGHT_RED}Voer nummer in (1-{len(tracking_playlists)}): {Colors.RESET}").strip())
+                                        if 1 <= idx <= len(tracking_playlists):
+                                            removed_id = tracking_playlists.pop(idx - 1)
+                                            removed_name = playlist_names.get(removed_id, removed_id)
+                                            playlists_config['tracking_playlists'] = tracking_playlists
+                                            with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
+                                                json.dump(playlists_config, f, indent=4)
+                                            if removed_name != removed_id:
+                                                print(f"{Colors.BRIGHT_GREEN}✅ Playlist '{removed_name}' verwijderd!{Colors.RESET}\n")
+                                            else:
+                                                print(f"{Colors.BRIGHT_GREEN}✅ Playlist '{removed_id}' verwijderd!{Colors.RESET}\n")
+                                        else:
+                                            print(f"{Colors.BRIGHT_RED}❌ Ongeldig nummer.{Colors.RESET}\n")
+                                    except ValueError:
+                                        print(f"{Colors.BRIGHT_RED}❌ Voer een geldig nummer in.{Colors.RESET}\n")
+                                
+                                else:
+                                    print(f"{Colors.BRIGHT_RED}❌ Ongeldige keuze.{Colors.RESET}\n")
+                            
+                            except KeyboardInterrupt:
+                                print(f"\n\n{Colors.DIM}Terug...{Colors.RESET}")
+                                break
+                            except Exception as e:
+                                print(f"{Colors.BRIGHT_RED}❌ Fout: {e}{Colors.RESET}\n")
+                        
+                        # Na beheer, vraag of gebruiker wil doorgaan
+                        continue_option = input(f"\n{Colors.BRIGHT_CYAN}Wil je doorgaan met exporteren? (j/n): {Colors.RESET}").strip().lower()
+                        if continue_option != 'j':
+                            break
+                        # Herlaad configuratie na beheer
+                        playlists_config = load_playlists_config()
+                        tracking_playlists = playlists_config.get('tracking_playlists', [])
+                        if not tracking_playlists:
+                            print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen tracking playlists geconfigureerd.{Colors.RESET}")
+                            break
+                        selected_playlists = tracking_playlists
+                        break
+                    else:
+                        print(f"{Colors.BRIGHT_RED}❌ Ongeldige keuze.{Colors.RESET}")
+                
+                except KeyboardInterrupt:
+                    print(f"\n\n{Colors.DIM}Terug naar hoofdmenu...{Colors.RESET}")
+                    break
+            
+            if option == 'q':
+                continue
+            
+            if 'selected_playlists' not in locals():
+                continue
+            
+            # Toon huidige start datum en vraag om datum instellingen
+            saved_start_date = load_tracking_start_date()
+            today = datetime.now()
+            
+            print(f"\n{Colors.BRIGHT_WHITE}Datum instellingen:{Colors.RESET}")
+            if saved_start_date:
+                print(f"{Colors.DIM}   Huidige start datum: {saved_start_date.strftime('%Y-%m-%d %H:%M:%S')}{Colors.RESET}")
+                print(f"{Colors.DIM}   Vandaag: {today.strftime('%Y-%m-%d %H:%M:%S')}{Colors.RESET}")
+                print(f"{Colors.DIM}   Er worden tracks gecontroleerd tussen deze twee datums.{Colors.RESET}")
+            else:
+                print(f"{Colors.DIM}   Geen start datum ingesteld. Standaard: 7 dagen terug.{Colors.RESET}")
+            
+            print(f"\n{Colors.BRIGHT_CYAN}Opties:{Colors.RESET}")
+            print(f"  {Colors.BRIGHT_GREEN}1.{Colors.RESET} Gebruik opgeslagen start datum ({saved_start_date.strftime('%Y-%m-%d') if saved_start_date else '7 dagen terug'})")
+            print(f"  {Colors.BRIGHT_BLUE}2.{Colors.RESET} Stel nieuwe start datum in")
+            
+            since_date = None
+            date_option = None
+            while True:
+                try:
+                    date_option = input(f"\n{Colors.BRIGHT_CYAN}Voer je keuze in (1/2): {Colors.RESET}").strip()
+                    
+                    if date_option == '1':
+                        # Gebruik opgeslagen start datum
+                        since_date = None  # Wordt in functie geladen
+                        break
+                    elif date_option == '2':
+                        # Vraag om nieuwe start datum
+                        date_str = input(f"{Colors.BRIGHT_CYAN}Voer nieuwe start datum in (YYYY-MM-DD): {Colors.RESET}").strip()
+                        try:
+                            since_date = datetime.strptime(date_str, '%Y-%m-%d')
+                            # Sla de nieuwe start datum op
+                            save_tracking_start_date(since_date)
+                            print(f"{Colors.BRIGHT_GREEN}✅ Start datum ingesteld op: {since_date.strftime('%Y-%m-%d')}{Colors.RESET}")
+                            break
+                        except ValueError:
+                            print(f"{Colors.BRIGHT_RED}❌ Ongeldige datum formaat. Gebruik YYYY-MM-DD{Colors.RESET}")
+                            continue
+                    else:
+                        print(f"{Colors.BRIGHT_RED}❌ Ongeldige keuze. Voer 1 of 2 in.{Colors.RESET}")
+                
+                except KeyboardInterrupt:
+                    print(f"\n\n{Colors.DIM}Geannuleerd...{Colors.RESET}")
+                    break
+            
+            if date_option is None or (date_option == '2' and since_date is None):
+                continue
+            
+            # Vraag om bestandsnaam (optioneel)
+            output_file = input(f"\n{Colors.BRIGHT_CYAN}Bestandsnaam (Enter voor automatisch): {Colors.RESET}").strip()
+            if not output_file:
+                output_file = None
+            
+            # Exporteer nieuwe tracks
+            export_new_tracks_since_date(sp, selected_playlists, since_date, output_file)
 
 if __name__ == "__main__":
     main()
