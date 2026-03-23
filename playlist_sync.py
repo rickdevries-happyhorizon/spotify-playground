@@ -815,11 +815,16 @@ def export_playlist_to_csv(sp, playlist_id, output_file=None):
         
         # Schrijf naar CSV
         if tracks_data:
+            # Sorteer tracks alfabetisch
+            tracks_data = sorted(tracks_data, key=lambda x: x['Track'].lower())
             with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
                 fieldnames = ['Track']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
-                writer.writerows(tracks_data)
+                for i, row in enumerate(tracks_data):
+                    writer.writerow(row)
+                    if (i + 1) % 5 == 0:
+                        writer.writerow(dict.fromkeys(fieldnames, ''))  # Lege regel na elke 5 rijen
             
             print(f"✅ {len(tracks_data)} tracks geëxporteerd naar: {output_file}")
             print(f"   Bestandslocatie: {os.path.abspath(output_file)}")
@@ -989,6 +994,8 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=
         
         # Exporteer naar CSV
         if all_new_tracks:
+            # Sorteer tracks alfabetisch
+            all_new_tracks = sorted(all_new_tracks, key=lambda x: x['Track'].lower())
             # Genereer bestandsnaam als niet opgegeven
             if not output_file:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -1003,7 +1010,10 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=
                 fieldnames = ['Track', '']  # Track en een lege kolom
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
-                writer.writerows(all_new_tracks)
+                for i, row in enumerate(all_new_tracks):
+                    writer.writerow(row)
+                    if (i + 1) % 5 == 0:
+                        writer.writerow(dict.fromkeys(fieldnames, ''))  # Lege regel na elke 5 rijen
             
             print(f"\n{Colors.BOLD}{Colors.BRIGHT_GREEN}{'═'*70}{Colors.RESET}")
             print(f"{Colors.BOLD}{Colors.BRIGHT_GREEN}✅ {len(all_new_tracks)} nieuwe tracks geëxporteerd naar: {output_file}{Colors.RESET}")
