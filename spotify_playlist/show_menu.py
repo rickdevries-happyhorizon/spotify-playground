@@ -1,0 +1,31 @@
+import sys
+
+
+def show_menu():
+    """Toont het hoofdmenu en retourneert de keuze van de gebruiker."""
+    print("\n" + "="*60)
+    print("🎵 Spotify Playlist Manager")
+    print("="*60)
+    print("\nKies een optie:")
+    print("  1. Synchroniseer playlists (check bron-playlists)")
+    print("  2. Haal nieuwe releases op van gevolgde artiesten")
+    print("  3. Synchroniseer alles (playlists + artiest releases)")
+    print("  4. Exporteer playlist naar CSV")
+    print("  5. Toon meest beluisterde tracks (week/maand/jaar)")
+    print("  6. Beheer playlist configuratie")
+    print("  7. Exporteer nieuwe tracks sinds datum naar CSV")
+    print("  0. Afsluiten")
+    print("\n" + "-"*60)
+
+    while True:
+        try:
+            choice = input("Voer je keuze in (0-7): ").strip()
+            if choice in ['0', '1', '2', '3', '4', '5', '6', '7']:
+                return int(choice)
+            else:
+                print("❌ Ongeldige keuze. Voer 0, 1, 2, 3, 4, 5, 6 of 7 in.")
+        except KeyboardInterrupt:
+            print("\n\nAfsluiten...")
+            sys.exit(0)
+        except Exception as e:
+            print(f"❌ Fout: {e}")
