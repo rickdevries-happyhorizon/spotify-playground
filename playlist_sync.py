@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 import socket
@@ -6,6 +5,17 @@ import warnings
 import csv
 import time
 from datetime import datetime, timedelta
+
+from db_store import (
+    load_playlists_config,
+    save_playlists_config,
+    load_historical_data,
+    save_historical_data,
+    load_play_counts,
+    save_play_counts,
+    load_tracking_start_date,
+    save_tracking_start_date,
+)
 
 # Controleer of spotipy geïnstalleerd is
 try:
@@ -41,61 +51,10 @@ REDIRECT_URI = 'http://127.0.0.1:8888/' # Wijzig dit alleen als je het ook in Sp
 SCOPE = 'playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public user-follow-read user-top-read user-read-recently-played'
 CACHE_FILE = ".spotipy_cache"
 
-# Configuratie bestand voor playlists
-PLAYLISTS_CONFIG_FILE = 'playlists_config.json'
-
-def load_playlists_config():
-    """Laadt de playlist configuratie uit het JSON-bestand."""
-    if not os.path.exists(PLAYLISTS_CONFIG_FILE):
-        # Maak een standaard configuratie bestand aan met huidige waarden
-        default_config = {
-            "source_playlists": [
-                "0GeM8Z4TU46H9DwlQ2R6Jy",
-                "6Pbk82RPOKWD7k6dNcqq9f",
-                "0HoiaN3OGkIZLJc7OhcCaG",
-                "69j6wZIJgNvmllNqK6FLK7",
-                "85f96f89b95848ba",
-                "49jfZzu0Zk8zz2SyJnsbMW",
-                "6zOWXbfnmNcR5ms1hOpLOQ",
-                "4zqyutXjSPo9KoJ3XnWR0J",
-                "27a5auxbr7BIYtCe67GMPy"
-            ],
-            "destination_playlist": "276Ghex8uAA30DmuQoMzhg"
-        }
-        with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
-            json.dump(default_config, f, indent=4)
-        print(f"⚠️  Configuratie bestand {PLAYLISTS_CONFIG_FILE} aangemaakt.")
-        print(f"   Je kunt nu playlist ID's beheren via dit bestand.")
-        return default_config
-    
-    try:
-        with open(PLAYLISTS_CONFIG_FILE, 'r') as f:
-            config = json.load(f)
-            # Valideer configuratie
-            if 'source_playlists' not in config:
-                config['source_playlists'] = []
-            if 'destination_playlist' not in config:
-                config['destination_playlist'] = ''
-            if 'tracking_playlists' not in config:
-                config['tracking_playlists'] = []
-            return config
-    except Exception as e:
-        print(f"❌ Fout bij laden playlist configuratie: {e}")
-        return {"source_playlists": [], "destination_playlist": "", "tracking_playlists": []}
-
 # Laad playlist configuratie bij start
 playlists_config = load_playlists_config()
 MIJN_DOEL_PLAYLIST_ID = playlists_config.get('destination_playlist', '')
 BRON_PLAYLISTS = playlists_config.get('source_playlists', [])
-
-# Bestand waarin de status van de laatst gesynchroniseerde nummers wordt opgeslagen
-HISTORISCHE_DATA_FILE = 'historische_data.json'
-
-# Bestand voor het bijhouden van afspeelgeschiedenis en play counts
-PLAY_COUNTS_FILE = 'play_counts.json'
-
-# Bestand voor het bijhouden van start datum voor tracking playlists
-TRACKING_START_DATE_FILE = 'tracking_start_date.json'
 
 # Schakel dit in om nieuwe releases van gevolgde artiesten op te halen
 CHECK_ARTIST_RELEASES = True
@@ -111,29 +70,6 @@ def is_port_available(port):
             return True
         except OSError:
             return False
-
-def load_historical_data():
-    """Laadt de eerder opgeslagen nummers uit het JSON-bestand."""
-    if not os.path.exists(HISTORISCHE_DATA_FILE):
-        print("Geen historisch bestand gevonden. Start met lege gegevens.")
-        return {pl_id: set() for pl_id in BRON_PLAYLISTS}
-
-    try:
-        with open(HISTORISCHE_DATA_FILE, 'r') as f:
-            geladen_data = json.load(f)
-            # Converteer de opgeslagen lijsten terug naar sets
-            return {k: set(v) for k, v in geladen_data.items()}
-    except Exception as e:
-        print(f"Fout bij laden historisch bestand: {e}")
-        return {pl_id: set() for pl_id in BRON_PLAYLISTS}
-
-def save_historical_data(data):
-    """Slaat de huidige nummers op in het JSON-bestand."""
-    # Converteer sets naar lijsten voor JSON-serialisatie
-    op_te_slaan_data = {k: list(v) for k, v in data.items()}
-    with open(HISTORISCHE_DATA_FILE, 'w') as f:
-        json.dump(op_te_slaan_data, f, indent=4)
-    print(f"\n✅ Historische gegevens opgeslagen in {HISTORISCHE_DATA_FILE}")
 
 def get_recent_playlist_tracks(sp, playlist_id, days_back=7, return_track_info=False):
     """Haalt alleen tracks op die in de laatste X dagen zijn toegevoegd aan de playlist.
@@ -369,26 +305,6 @@ def get_all_artist_releases(sp, days_back=30):
     
     print(f"\n   Totaal {len(all_new_releases)} nieuwe releases gevonden van {checked_count} artiesten")
     return all_new_releases
-
-def load_play_counts():
-    """Laadt de play counts uit het JSON-bestand."""
-    if not os.path.exists(PLAY_COUNTS_FILE):
-        return {}
-    
-    try:
-        with open(PLAY_COUNTS_FILE, 'r') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Fout bij laden play counts: {e}")
-        return {}
-
-def save_play_counts(play_counts):
-    """Slaat de play counts op in het JSON-bestand."""
-    try:
-        with open(PLAY_COUNTS_FILE, 'w') as f:
-            json.dump(play_counts, f, indent=4)
-    except Exception as e:
-        print(f"Fout bij opslaan play counts: {e}")
 
 def update_recently_played(sp):
     """Update de play counts met recent afgespeelde tracks."""
@@ -628,35 +544,6 @@ def show_top_tracks(sp):
             break
         except Exception as e:
             print(f"{Colors.BRIGHT_RED}❌ Fout: {e}{Colors.RESET}")
-
-def load_tracking_start_date():
-    """Laadt de start datum voor tracking playlists uit het JSON-bestand."""
-    if not os.path.exists(TRACKING_START_DATE_FILE):
-        return None
-    
-    try:
-        with open(TRACKING_START_DATE_FILE, 'r') as f:
-            data = json.load(f)
-            # Converteer string datum terug naar datetime object
-            if 'start_date' in data:
-                return datetime.fromisoformat(data['start_date'])
-            return None
-    except Exception as e:
-        print(f"Fout bij laden tracking start datum: {e}")
-        return None
-
-def save_tracking_start_date(start_date):
-    """Slaat de start datum voor tracking playlists op in het JSON-bestand."""
-    try:
-        # Converteer datetime object naar string voor JSON-serialisatie
-        data = {
-            'start_date': start_date.isoformat() if isinstance(start_date, datetime) else start_date,
-            'last_updated': datetime.now().isoformat()
-        }
-        with open(TRACKING_START_DATE_FILE, 'w') as f:
-            json.dump(data, f, indent=4)
-    except Exception as e:
-        print(f"Fout bij opslaan tracking start datum: {e}")
 
 def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_info=False, debug=False):
     """Haalt tracks op die sinds een specifieke datum zijn toegevoegd aan de playlist.
@@ -1086,12 +973,29 @@ def get_playlist_name(sp, playlist_id):
     except:
         return None
 
+
+def parse_spotify_playlist_id(text: str) -> str:
+    """Haal playlist-ID uit ruwe invoer: alleen ID, spotify:playlist:… of open.spotify.com/playlist/…"""
+    s = (text or "").strip()
+    if not s:
+        return ""
+    if s.startswith("spotify:playlist:"):
+        return s.replace("spotify:playlist:", "").split("?")[0].strip()
+    if "open.spotify.com" in s and "/playlist/" in s:
+        tail = s.split("/playlist/", 1)[-1]
+        return tail.split("?")[0].split("/")[0].strip()
+    return s
+
+
 def manage_playlists_config():
     """Beheert de playlist configuratie via een interactief menu."""
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}⚙️  Playlist Configuratie Beheer  ⚙️{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}\n")
-    
+    print(
+        f"{Colors.DIM}Tip: bij playlist-ID kun je ook een Spotify-link plakken (open.spotify.com of spotify:playlist:…).{Colors.RESET}\n"
+    )
+
     # Authenticeer voor het ophalen van playlist namen
     sp = None
     try:
@@ -1148,7 +1052,8 @@ def manage_playlists_config():
                 break
             elif action == '1':
                 # Voeg bron-playlist toe
-                playlist_id = input(f"{Colors.BRIGHT_GREEN}Voer playlist ID in om toe te voegen: {Colors.RESET}").strip()
+                raw = input(f"{Colors.BRIGHT_GREEN}Voer playlist ID of Spotify-link in om toe te voegen: {Colors.RESET}").strip()
+                playlist_id = parse_spotify_playlist_id(raw)
                 if playlist_id and playlist_id not in source_playlists:
                     # Probeer playlist naam op te halen
                     playlist_name = None
@@ -1165,8 +1070,7 @@ def manage_playlists_config():
                     
                     source_playlists.append(playlist_id)
                     config['source_playlists'] = source_playlists
-                    with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
-                        json.dump(config, f, indent=4)
+                    save_playlists_config(config)
                     
                     if playlist_name:
                         print(f"{Colors.BRIGHT_GREEN}✅ Playlist '{playlist_name}' toegevoegd!{Colors.RESET}\n")
@@ -1208,8 +1112,7 @@ def manage_playlists_config():
                         removed_id = source_playlists.pop(idx - 1)
                         removed_name = playlist_names.get(removed_id, removed_id)
                         config['source_playlists'] = source_playlists
-                        with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
-                            json.dump(config, f, indent=4)
+                        save_playlists_config(config)
                         if removed_name != removed_id:
                             print(f"{Colors.BRIGHT_GREEN}✅ Playlist '{removed_name}' verwijderd!{Colors.RESET}\n")
                         else:
@@ -1221,7 +1124,8 @@ def manage_playlists_config():
             
             elif action == '3':
                 # Stel doel-playlist in
-                playlist_id = input(f"{Colors.BRIGHT_BLUE}Voer doel-playlist ID in: {Colors.RESET}").strip()
+                raw = input(f"{Colors.BRIGHT_BLUE}Voer doel-playlist ID of Spotify-link in: {Colors.RESET}").strip()
+                playlist_id = parse_spotify_playlist_id(raw)
                 if playlist_id:
                     # Probeer playlist naam op te halen
                     playlist_name = None
@@ -1232,8 +1136,7 @@ def manage_playlists_config():
                             print(f"{Colors.BRIGHT_CYAN}   Gevonden: {Colors.BRIGHT_WHITE}{playlist_name}{Colors.RESET}")
                     
                     config['destination_playlist'] = playlist_id
-                    with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
-                        json.dump(config, f, indent=4)
+                    save_playlists_config(config)
                     
                     if playlist_name:
                         print(f"{Colors.BRIGHT_GREEN}✅ Doel-playlist ingesteld: '{playlist_name}'!{Colors.RESET}\n")
@@ -1494,16 +1397,16 @@ def sync_playlists(sp):
     
     # Valideer configuratie
     if not BRON_PLAYLISTS:
-        print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen bron-playlists geconfigureerd in {PLAYLISTS_CONFIG_FILE}{Colors.RESET}")
-        print(f"{Colors.DIM}   Voeg playlist ID's toe aan 'source_playlists' in het configuratie bestand.{Colors.RESET}")
+        print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen bron-playlists geconfigureerd in de database.{Colors.RESET}")
+        print(f"{Colors.DIM}   Voeg bron-playlists toe via het menu (playlist configuratie) of vul de tabel source_playlists.{Colors.RESET}")
         return
     
     if not MIJN_DOEL_PLAYLIST_ID:
-        print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen doel-playlist geconfigureerd in {PLAYLISTS_CONFIG_FILE}{Colors.RESET}")
-        print(f"{Colors.DIM}   Voeg een playlist ID toe aan 'destination_playlist' in het configuratie bestand.{Colors.RESET}")
+        print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen doel-playlist geconfigureerd in de database.{Colors.RESET}")
+        print(f"{Colors.DIM}   Stel een doel-playlist in via het menu of vul destination_config.{Colors.RESET}")
         return
     
-    historische_nummers = load_historical_data()
+    historische_nummers = load_historical_data(BRON_PLAYLISTS)
     nieuwe_nummers_uris = []
     
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}")
@@ -1610,11 +1513,11 @@ def sync_artist_releases(sp):
     
     # Valideer configuratie
     if not MIJN_DOEL_PLAYLIST_ID:
-        print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen doel-playlist geconfigureerd in {PLAYLISTS_CONFIG_FILE}{Colors.RESET}")
-        print(f"{Colors.DIM}   Voeg een playlist ID toe aan 'destination_playlist' in het configuratie bestand.{Colors.RESET}")
+        print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen doel-playlist geconfigureerd in de database.{Colors.RESET}")
+        print(f"{Colors.DIM}   Stel een doel-playlist in via het menu of vul destination_config.{Colors.RESET}")
         return
     
-    historische_nummers = load_historical_data()
+    historische_nummers = load_historical_data(BRON_PLAYLISTS)
     nieuwe_nummers_uris = []
     
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_MAGENTA}{'═'*70}{Colors.RESET}")
@@ -1840,8 +1743,7 @@ def main():
                                 if pl_id not in tracking_playlists:
                                     tracking_playlists.append(pl_id)
                             playlists_config['tracking_playlists'] = tracking_playlists
-                            with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
-                                json.dump(playlists_config, f, indent=4)
+                            save_playlists_config(playlists_config)
                             print(f"{Colors.BRIGHT_GREEN}✅ {len(selected_playlists)} playlist(s) opgeslagen!{Colors.RESET}")
                         break
                     elif option == 'c':
@@ -1888,8 +1790,7 @@ def main():
                                             if confirm == 'j':
                                                 tracking_playlists.append(playlist_id)
                                                 playlists_config['tracking_playlists'] = tracking_playlists
-                                                with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
-                                                    json.dump(playlists_config, f, indent=4)
+                                                save_playlists_config(playlists_config)
                                                 print(f"{Colors.BRIGHT_GREEN}✅ Playlist '{playlist_name}' toegevoegd!{Colors.RESET}\n")
                                             else:
                                                 print(f"{Colors.DIM}Geannuleerd.{Colors.RESET}\n")
@@ -1899,8 +1800,7 @@ def main():
                                             if confirm == 'j':
                                                 tracking_playlists.append(playlist_id)
                                                 playlists_config['tracking_playlists'] = tracking_playlists
-                                                with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
-                                                    json.dump(playlists_config, f, indent=4)
+                                                save_playlists_config(playlists_config)
                                                 print(f"{Colors.BRIGHT_GREEN}✅ Playlist toegevoegd!{Colors.RESET}\n")
                                     elif playlist_id in tracking_playlists:
                                         print(f"{Colors.BRIGHT_YELLOW}⚠️  Deze playlist staat al in de lijst.{Colors.RESET}\n")
@@ -1930,8 +1830,7 @@ def main():
                                             removed_id = tracking_playlists.pop(idx - 1)
                                             removed_name = playlist_names.get(removed_id, removed_id)
                                             playlists_config['tracking_playlists'] = tracking_playlists
-                                            with open(PLAYLISTS_CONFIG_FILE, 'w') as f:
-                                                json.dump(playlists_config, f, indent=4)
+                                            save_playlists_config(playlists_config)
                                             if removed_name != removed_id:
                                                 print(f"{Colors.BRIGHT_GREEN}✅ Playlist '{removed_name}' verwijderd!{Colors.RESET}\n")
                                             else:

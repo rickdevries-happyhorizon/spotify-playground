@@ -24,10 +24,15 @@ if [ ! -f "playlist_sync.py" ]; then
     exit 1
 fi
 
-# Controleer of spotipy geïnstalleerd is
+# Controleer of spotipy en pymysql geïnstalleerd zijn
 if ! "$PYTHON_EXE" -c "import spotipy" 2>/dev/null; then
     echo "❌ Fout: spotipy niet gevonden in virtual environment!"
-    echo "   Installeer met: $PYTHON_EXE -m pip install spotipy"
+    echo "   Installeer met: $PYTHON_EXE -m pip install -r requirements.txt"
+    exit 1
+fi
+if ! "$PYTHON_EXE" -c "import pymysql" 2>/dev/null; then
+    echo "❌ Fout: pymysql niet gevonden in virtual environment!"
+    echo "   Installeer met: $PYTHON_EXE -m pip install -r requirements.txt"
     exit 1
 fi
 
