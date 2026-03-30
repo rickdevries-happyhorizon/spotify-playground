@@ -1,5 +1,6 @@
 import sys
 
+from spotify_playlist.action_sound import play_selection
 from spotify_playlist.colors import Colors
 
 
@@ -23,6 +24,7 @@ def show_menu():
         try:
             choice = input("Voer je keuze in (0-7): ").strip()
             if choice in ['0', '1', '2', '3', '4', '5', '6', '7']:
+                play_selection()
                 return int(choice)
             else:
                 print("❌ Ongeldige keuze. Voer 0, 1, 2, 3, 4, 5, 6 of 7 in.")

@@ -1,6 +1,7 @@
 import os
 import csv
 
+from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.deps import SpotifyException
 from spotify_playlist.loading_progress import loading_bar
 
@@ -68,6 +69,7 @@ def export_playlist_to_csv(sp, playlist_id, output_file=None):
 
             print(f"✅ {len(tracks_data)} tracks geëxporteerd naar: {output_file}")
             print(f"   Bestandslocatie: {os.path.abspath(output_file)}")
+            play_action_done()
         else:
             print("⚠️  Geen tracks gevonden in deze playlist.")
 

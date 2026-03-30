@@ -1,5 +1,6 @@
 from db_store import load_playlists_config, save_playlists_config
 
+from spotify_playlist.action_sound import play_action_done, play_selection
 from spotify_playlist.colors import Colors
 from spotify_playlist.get_playlist_name import get_playlist_name
 from spotify_playlist.get_spotify_client import get_spotify_client
@@ -70,7 +71,9 @@ def manage_playlists_config():
 
             if action == '0':
                 break
-            elif action == '1':
+            if action in ('1', '2', '3', '4'):
+                play_selection()
+            if action == '1':
                 # Voeg bron-playlist toe
                 raw = input(f"{Colors.BRIGHT_GREEN}Voer playlist ID of Spotify-link in om toe te voegen: {Colors.RESET}").strip()
                 playlist_id = parse_spotify_playlist_id(raw)
@@ -96,6 +99,7 @@ def manage_playlists_config():
                         print(f"{Colors.BRIGHT_GREEN}✅ Playlist '{playlist_name}' toegevoegd!{Colors.RESET}\n")
                     else:
                         print(f"{Colors.BRIGHT_GREEN}✅ Playlist toegevoegd!{Colors.RESET}\n")
+                    play_action_done()
                 elif playlist_id in source_playlists:
                     playlist_name = None
                     if sp:
@@ -137,6 +141,7 @@ def manage_playlists_config():
                             print(f"{Colors.BRIGHT_GREEN}✅ Playlist '{removed_name}' verwijderd!{Colors.RESET}\n")
                         else:
                             print(f"{Colors.BRIGHT_GREEN}✅ Playlist '{removed_id}' verwijderd!{Colors.RESET}\n")
+                        play_action_done()
                     else:
                         print(f"{Colors.BRIGHT_RED}❌ Ongeldig nummer.{Colors.RESET}\n")
                 except ValueError:
@@ -162,6 +167,7 @@ def manage_playlists_config():
                         print(f"{Colors.BRIGHT_GREEN}✅ Doel-playlist ingesteld: '{playlist_name}'!{Colors.RESET}\n")
                     else:
                         print(f"{Colors.BRIGHT_GREEN}✅ Doel-playlist ingesteld!{Colors.RESET}\n")
+                    play_action_done()
                 else:
                     print(f"{Colors.BRIGHT_RED}❌ Ongeldige playlist ID.{Colors.RESET}\n")
 

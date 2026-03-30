@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 from db_store import load_tracking_start_date, save_tracking_start_date
 
+from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.colors import Colors
 from spotify_playlist.deps import SpotifyException
 from spotify_playlist.get_playlist_tracks_since_date import get_playlist_tracks_since_date
@@ -223,6 +224,8 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=
             print(f"{Colors.DIM}  • Zorg dat je eigenaar of collaborator bent van de playlists{Colors.RESET}")
             print(f"{Colors.DIM}  • Of gebruik een andere methode (bijv. vergelijken met vorige staat){Colors.RESET}")
             print(f"{Colors.BOLD}{Colors.BRIGHT_YELLOW}{'═'*70}{Colors.RESET}\n")
+
+        play_action_done()
 
     except Exception as e:
         print(f"{Colors.BRIGHT_RED}❌ Onverwachte fout bij exporteren nieuwe tracks: {e}{Colors.RESET}")

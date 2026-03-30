@@ -1,6 +1,7 @@
 import spotify_playlist.config as config
 from db_store import load_historical_data, load_playlists_config, save_historical_data
 
+from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.add_tracks_to_playlist import add_tracks_to_playlist
 from spotify_playlist.colors import Colors
 from spotify_playlist.deps import SpotifyException
@@ -78,3 +79,4 @@ def sync_artist_releases(sp):
     # Sla de status op voor de volgende keer
     save_historical_data(historische_nummers)
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_GREEN}✅ Artiest releases synchronisatie voltooid!{Colors.RESET}\n")
+    play_action_done()

@@ -9,6 +9,7 @@ from db_store import (
 )
 
 import spotify_playlist.config as config
+from spotify_playlist.action_sound import play_selection
 from spotify_playlist.colors import Colors
 from spotify_playlist.export_new_tracks_since_date import export_new_tracks_since_date
 from spotify_playlist.export_playlist_to_csv import export_playlist_to_csv
@@ -147,9 +148,11 @@ def main():
                     if option == 'q':
                         break
                     elif option == 'u' and tracking_playlists:
+                        play_selection()
                         selected_playlists = tracking_playlists
                         break
                     elif option == 'm':
+                        play_selection()
                         # Handmatig playlist ID's invoeren
                         print(f"\n{Colors.BRIGHT_WHITE}Voer playlist ID's in (gescheiden door komma's):{Colors.RESET}")
                         playlist_input = input(f"{Colors.BRIGHT_CYAN}Playlist ID's: {Colors.RESET}").strip()
@@ -172,6 +175,7 @@ def main():
                             print(f"{Colors.BRIGHT_GREEN}✅ {len(selected_playlists)} playlist(s) opgeslagen!{Colors.RESET}")
                         break
                     elif option == 'c':
+                        play_selection()
                         # Beheer tracking playlists
                         while True:
                             playlists_config = load_playlists_config()
@@ -204,6 +208,7 @@ def main():
                                 if action == '0':
                                     break
                                 elif action == '1':
+                                    play_selection()
                                     # Voeg playlist toe
                                     playlist_id = input(f"{Colors.BRIGHT_GREEN}Voer playlist ID in om toe te voegen: {Colors.RESET}").strip()
                                     if playlist_id and playlist_id not in tracking_playlists:
@@ -233,6 +238,7 @@ def main():
                                         print(f"{Colors.BRIGHT_RED}❌ Ongeldige playlist ID.{Colors.RESET}\n")
 
                                 elif action == '2':
+                                    play_selection()
                                     # Verwijder playlist
                                     if not tracking_playlists:
                                         print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen playlists om te verwijderen.{Colors.RESET}\n")
@@ -322,10 +328,12 @@ def main():
                     date_option = input(f"\n{Colors.BRIGHT_CYAN}Voer je keuze in (1/2): {Colors.RESET}").strip()
 
                     if date_option == '1':
+                        play_selection()
                         # Gebruik opgeslagen start datum
                         since_date = None  # Wordt in functie geladen
                         break
                     elif date_option == '2':
+                        play_selection()
                         # Vraag om nieuwe start datum
                         date_str = input(f"{Colors.BRIGHT_CYAN}Voer nieuwe start datum in (YYYY-MM-DD): {Colors.RESET}").strip()
                         try:

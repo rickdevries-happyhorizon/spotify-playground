@@ -1,3 +1,4 @@
+from spotify_playlist.action_sound import play_action_done, play_selection
 from spotify_playlist.colors import Colors
 from spotify_playlist.get_popularity_bar import get_popularity_bar
 from spotify_playlist.get_rank_color import get_rank_color
@@ -46,6 +47,8 @@ def show_top_tracks(sp):
                 print(f"{Colors.BRIGHT_RED}❌ Ongeldige keuze. Voer 0, 1, 2 of 3 in.{Colors.RESET}")
                 continue
 
+            play_selection()
+
             print(f"\n{period_color}{Colors.BOLD}{'═'*70}{Colors.RESET}")
             print(f"{period_color}{Colors.BOLD}  {period_emoji}  {period_name}  {Colors.DIM}({period_subtitle}){Colors.RESET}")
             print(f"{period_color}{Colors.BOLD}{'═'*70}{Colors.RESET}")
@@ -83,6 +86,8 @@ def show_top_tracks(sp):
                 print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}╚{'═'*68}╝{Colors.RESET}\n")
             else:
                 print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen tracks gevonden {Colors.DIM}(opgehaald in {elapsed_time:.2f} seconden){Colors.RESET}.")
+
+            play_action_done()
 
             # Vraag of gebruiker nog een periode wil zien
             again = input(f"{Colors.BRIGHT_CYAN}Nog een periode bekijken? {Colors.DIM}(j/n): {Colors.RESET}").strip().lower()
