@@ -1,11 +1,13 @@
 import sys
 
+from spotify_playlist.colors import Colors
+
 
 def show_menu():
     """Toont het hoofdmenu en retourneert de keuze van de gebruiker."""
-    print("\n" + "="*60)
-    print("🎵 Spotify Playlist Manager")
-    print("="*60)
+    print(f"\n{Colors.DIM}{'─' * 60}{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}Hoofdmenu{Colors.RESET} {Colors.DIM}— kies een optie{Colors.RESET}")
+    print(f"{Colors.DIM}{'─' * 60}{Colors.RESET}")
     print("\nKies een optie:")
     print("  1. Synchroniseer playlists (check bron-playlists)")
     print("  2. Haal nieuwe releases op van gevolgde artiesten")

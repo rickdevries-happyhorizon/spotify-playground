@@ -1,4 +1,7 @@
 """Spotify app settings and cached playlist config from the database."""
+
+APP_NAME = "Short Jack's Release Finder"
+
 from db_store import load_playlists_config
 
 # VUL DIT AAN MET JE EIGEN GEGEVENS!

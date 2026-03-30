@@ -16,6 +16,7 @@ from spotify_playlist.get_spotify_client import get_spotify_client
 from spotify_playlist.manage_playlists_config import manage_playlists_config
 from spotify_playlist.run_export_new_tracks import run_export_new_tracks
 from spotify_playlist.show_menu import show_menu
+from spotify_playlist.start_screen import show_start_screen
 from spotify_playlist.show_top_tracks import show_top_tracks
 from spotify_playlist.sync_artist_releases import sync_artist_releases
 from spotify_playlist.sync_playlists import sync_playlists
@@ -30,7 +31,7 @@ def main():
             run_export_new_tracks()
             return
         elif sys.argv[1] == '--help' or sys.argv[1] == '-h':
-            print("\n🎵 Spotify Playlist Manager")
+            print(f"\n🎵 {config.APP_NAME}")
             print("=" * 60)
             print("\nGebruik:")
             print("  python playlist_sync.py              - Start interactief menu")
@@ -43,6 +44,7 @@ def main():
             print()
             return
 
+    show_start_screen()
     while True:
         choice = show_menu()
 
