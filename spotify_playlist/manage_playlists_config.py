@@ -3,6 +3,7 @@ from db_store import load_playlists_config, save_playlists_config
 from spotify_playlist.colors import Colors
 from spotify_playlist.get_playlist_name import get_playlist_name
 from spotify_playlist.get_spotify_client import get_spotify_client
+from spotify_playlist.loading_progress import loading_bar
 from spotify_playlist.parse_spotify_playlist_id import parse_spotify_playlist_id
 
 
@@ -77,8 +78,8 @@ def manage_playlists_config():
                     # Probeer playlist naam op te halen
                     playlist_name = None
                     if sp:
-                        print(f"{Colors.DIM}⏳ Playlist informatie ophalen...{Colors.RESET}")
-                        playlist_name = get_playlist_name(sp, playlist_id)
+                        with loading_bar("Playlist informatie ophalen..."):
+                            playlist_name = get_playlist_name(sp, playlist_id)
 
                     if playlist_name:
                         print(f"{Colors.BRIGHT_CYAN}   Gevonden: {Colors.BRIGHT_WHITE}{playlist_name}{Colors.RESET}")
@@ -149,8 +150,8 @@ def manage_playlists_config():
                     # Probeer playlist naam op te halen
                     playlist_name = None
                     if sp:
-                        print(f"{Colors.DIM}⏳ Playlist informatie ophalen...{Colors.RESET}")
-                        playlist_name = get_playlist_name(sp, playlist_id)
+                        with loading_bar("Playlist informatie ophalen..."):
+                            playlist_name = get_playlist_name(sp, playlist_id)
                         if playlist_name:
                             print(f"{Colors.BRIGHT_CYAN}   Gevonden: {Colors.BRIGHT_WHITE}{playlist_name}{Colors.RESET}")
 

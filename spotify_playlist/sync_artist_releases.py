@@ -28,8 +28,7 @@ def sync_artist_releases(sp):
     print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}{'═'*70}{Colors.RESET}\n")
 
     try:
-        # Haal nieuwe releases op
-        print(f"{Colors.DIM}⏳ Zoek naar nieuwe releases...{Colors.RESET}")
+        # Haal nieuwe releases op (voortgang in get_all_artist_releases)
         artist_releases = get_all_artist_releases(sp, config.ARTIST_RELEASES_DAYS_BACK)
 
         if artist_releases:

@@ -2,6 +2,7 @@ from spotify_playlist.colors import Colors
 from spotify_playlist.get_popularity_bar import get_popularity_bar
 from spotify_playlist.get_rank_color import get_rank_color
 from spotify_playlist.get_top_tracks_with_counts import get_top_tracks_with_counts
+from spotify_playlist.loading_progress import loading_bar
 
 
 def show_top_tracks(sp):
@@ -48,9 +49,9 @@ def show_top_tracks(sp):
             print(f"\n{period_color}{Colors.BOLD}{'═'*70}{Colors.RESET}")
             print(f"{period_color}{Colors.BOLD}  {period_emoji}  {period_name}  {Colors.DIM}({period_subtitle}){Colors.RESET}")
             print(f"{period_color}{Colors.BOLD}{'═'*70}{Colors.RESET}")
-            print(f"{Colors.DIM}⏳ Tracks ophalen...{Colors.RESET}")
 
-            tracks, elapsed_time = get_top_tracks_with_counts(sp, time_range=time_range, limit=10)
+            with loading_bar("Tracks ophalen..."):
+                tracks, elapsed_time = get_top_tracks_with_counts(sp, time_range=time_range, limit=10)
 
             if tracks:
                 print(f"{Colors.BRIGHT_GREEN}✅ Tracks opgehaald in {Colors.BOLD}{elapsed_time:.2f}{Colors.RESET}{Colors.BRIGHT_GREEN} seconden{Colors.RESET}\n")

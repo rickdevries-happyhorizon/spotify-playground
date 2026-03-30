@@ -5,6 +5,7 @@ import warnings
 from spotify_playlist.config import CACHE_FILE, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, SCOPE
 from spotify_playlist.deps import SpotifyException, SpotifyOAuth, spotipy
 from spotify_playlist.is_port_available import is_port_available
+from spotify_playlist.loading_progress import loading_bar
 
 
 def get_spotify_client():
@@ -54,7 +55,8 @@ def get_spotify_client():
             # Probeer eerst te refreshen zonder browser
             try:
                 print("Token verlopen, probeer te refreshen...")
-                token_info = auth_manager.refresh_access_token(token_info['refresh_token'])
+                with loading_bar("Token verversen..."):
+                    token_info = auth_manager.refresh_access_token(token_info['refresh_token'])
             except Exception:
                 # Refresh mislukt, browser nodig
                 needs_browser = True
@@ -66,9 +68,10 @@ def get_spotify_client():
             try:
                 # Onderdruk deprecation warning voor get_access_token()
                 # Het resultaat wordt automatisch gecached door auth_manager
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*get_access_token.*")
-                    auth_manager.get_access_token()  # Trigger OAuth flow
+                with loading_bar("Authenticatie in browser..."):
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*get_access_token.*")
+                        auth_manager.get_access_token()  # Trigger OAuth flow
             except OSError as e:
                 if "Address already in use" in str(e) or e.errno == 48:
                     print(f"\n❌ Fout: Poort {REDIRECT_URI.split(':')[-1].rstrip('/')} is al in gebruik.")
@@ -85,7 +88,8 @@ def get_spotify_client():
         sp = spotipy.Spotify(auth_manager=auth_manager)
 
         # Test authenticatie door gebruikersinfo op te halen
-        user = sp.current_user()
+        with loading_bar("Verbinden met Spotify..."):
+            user = sp.current_user()
         print(f"✅ Ingelogd als: {user['display_name']} ({user['id']})")
         return sp
 

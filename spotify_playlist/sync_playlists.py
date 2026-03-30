@@ -6,6 +6,7 @@ from spotify_playlist.colors import Colors
 from spotify_playlist.deps import SpotifyException
 from spotify_playlist.get_recent_playlist_tracks import get_recent_playlist_tracks
 from spotify_playlist.get_track_info import get_track_info
+from spotify_playlist.loading_progress import loading_bar
 
 
 def sync_playlists(sp):
@@ -53,7 +54,8 @@ def sync_playlists(sp):
 
             # Haal alleen recent toegevoegde tracks op (laatste 7 dagen) voor snelheid
             print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BRIGHT_YELLOW}⏳{Colors.RESET} {Colors.DIM}Controleer tracks toegevoegd in de laatste 7 dagen...{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-50)}║{Colors.RESET}")
-            recent_tracks = get_recent_playlist_tracks(sp, pl_id, days_back=7, return_track_info=True)
+            with loading_bar("Recente tracks ophalen..."):
+                recent_tracks = get_recent_playlist_tracks(sp, pl_id, days_back=7, return_track_info=True)
             recent_uris = set(recent_tracks.keys())
             print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BRIGHT_GREEN}✅{Colors.RESET} {Colors.BRIGHT_WHITE}Gevonden {Colors.BOLD}{len(recent_uris)}{Colors.RESET}{Colors.BRIGHT_WHITE} tracks toegevoegd in de laatste 7 dagen{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-60)}║{Colors.RESET}")
 

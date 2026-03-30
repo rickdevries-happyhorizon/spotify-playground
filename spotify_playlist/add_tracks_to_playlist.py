@@ -3,6 +3,7 @@ import traceback
 from spotify_playlist.colors import Colors
 from spotify_playlist.deps import SpotifyException
 from spotify_playlist.get_all_playlist_tracks import get_all_playlist_tracks
+from spotify_playlist.loading_progress import loading_bar, tqdm
 
 
 def add_tracks_to_playlist(sp, nieuwe_nummers_uris, doel_playlist_id):
@@ -24,7 +25,8 @@ def add_tracks_to_playlist(sp, nieuwe_nummers_uris, doel_playlist_id):
 
     print(f"{Colors.DIM}⏳ Controleer {len(nieuwe_nummers_uris)} unieke nieuwe tracks tegen doel-playlist...{Colors.RESET}")
     try:
-        doel_playlist_tracks = get_all_playlist_tracks(sp, doel_playlist_id)
+        with loading_bar("Doel-playlist ophalen..."):
+            doel_playlist_tracks = get_all_playlist_tracks(sp, doel_playlist_id)
         print(f"{Colors.BRIGHT_CYAN}   Doel-playlist bevat momenteel {Colors.BOLD}{len(doel_playlist_tracks)}{Colors.RESET}{Colors.BRIGHT_CYAN} tracks{Colors.RESET}")
 
         unieke_nieuwe_uris = [uri for uri in nieuwe_nummers_uris if uri not in doel_playlist_tracks]
@@ -57,12 +59,11 @@ def add_tracks_to_playlist(sp, nieuwe_nummers_uris, doel_playlist_id):
         # De API kan maximaal 100 nummers per keer toevoegen
         try:
             total_added = 0
-            for i in range(0, len(nieuwe_nummers_uris), 100):
-                batch = nieuwe_nummers_uris[i:i + 100]
-                print(f"{Colors.DIM}  ⏳ Voegt batch toe ({i+1}-{min(i+100, len(nieuwe_nummers_uris))} van {len(nieuwe_nummers_uris)})...{Colors.RESET}")
+            batch_starts = list(range(0, len(nieuwe_nummers_uris), 100))
+            for i in tqdm(batch_starts, desc="Toevoegen aan playlist", unit="batch"):
+                batch = nieuwe_nummers_uris[i : i + 100]
                 sp.playlist_add_items(doel_playlist_id, batch)
                 total_added += len(batch)
-                print(f"{Colors.BRIGHT_GREEN}  ✅ Batch van {Colors.BOLD}{len(batch)}{Colors.RESET}{Colors.BRIGHT_GREEN} nummers toegevoegd.{Colors.RESET}")
             print(f"\n{Colors.BOLD}{Colors.BRIGHT_GREEN}╔{'═'*68}╗{Colors.RESET}")
             print(f"{Colors.BOLD}{Colors.BRIGHT_GREEN}║{Colors.RESET}  {Colors.BOLD}{Colors.BRIGHT_WHITE}🎉 Totaal {total_added} nummers succesvol toegevoegd! 🎉{Colors.RESET}  {Colors.BRIGHT_GREEN}{' '*(68-40)}║{Colors.RESET}")
             print(f"{Colors.BOLD}{Colors.BRIGHT_GREEN}╚{'═'*68}╝{Colors.RESET}\n")

@@ -2,6 +2,7 @@ import os
 import csv
 
 from spotify_playlist.deps import SpotifyException
+from spotify_playlist.loading_progress import loading_bar
 
 
 def export_playlist_to_csv(sp, playlist_id, output_file=None):
@@ -21,31 +22,36 @@ def export_playlist_to_csv(sp, playlist_id, output_file=None):
 
         # Haal alle tracks op met volledige informatie
         tracks_data = []
-        results = sp.playlist_items(playlist_id, fields='items.track,next', limit=100)
 
-        while results:
-            for item in results['items']:
-                track = item.get('track')
-                if track and track.get('uri'):
-                    # Haal volledige track informatie op
-                    try:
-                        full_track = sp.track(track['id'])
-                        artists = ', '.join([artist['name'] for artist in full_track.get('artists', [])])
-                        track_name = full_track.get('name', 'Unknown')
+        def _fetch_all_tracks():
+            results = sp.playlist_items(playlist_id, fields='items.track,next', limit=100)
 
-                        tracks_data.append({
-                            'Track': f"{artists} - {track_name}"
-                        })
-                    except Exception:
-                        # Fallback als volledige track info niet beschikbaar is
-                        artists = ', '.join([artist['name'] for artist in track.get('artists', [])])
-                        track_name = track.get('name', 'Unknown')
+            while results:
+                for item in results['items']:
+                    track = item.get('track')
+                    if track and track.get('uri'):
+                        # Haal volledige track informatie op
+                        try:
+                            full_track = sp.track(track['id'])
+                            artists = ', '.join([artist['name'] for artist in full_track.get('artists', [])])
+                            track_name = full_track.get('name', 'Unknown')
 
-                        tracks_data.append({
-                            'Track': f"{artists} - {track_name}"
-                        })
+                            tracks_data.append({
+                                'Track': f"{artists} - {track_name}"
+                            })
+                        except Exception:
+                            # Fallback als volledige track info niet beschikbaar is
+                            artists = ', '.join([artist['name'] for artist in track.get('artists', [])])
+                            track_name = track.get('name', 'Unknown')
 
-            results = sp.next(results) if results.get('next') else None
+                            tracks_data.append({
+                                'Track': f"{artists} - {track_name}"
+                            })
+
+                results = sp.next(results) if results.get('next') else None
+
+        with loading_bar("Playlist ophalen..."):
+            _fetch_all_tracks()
 
         # Schrijf naar CSV
         if tracks_data:

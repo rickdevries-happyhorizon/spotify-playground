@@ -8,6 +8,7 @@ from db_store import load_tracking_start_date, save_tracking_start_date
 from spotify_playlist.colors import Colors
 from spotify_playlist.deps import SpotifyException
 from spotify_playlist.get_playlist_tracks_since_date import get_playlist_tracks_since_date
+from spotify_playlist.loading_progress import loading_bar
 
 
 def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=None):
@@ -86,9 +87,10 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=
                 # Haal nieuwe tracks op sinds de start datum (gebruik start van dag voor query)
                 since_date_for_query = since_date.replace(hour=0, minute=0, second=0, microsecond=0)
                 # Gebruik debug mode om te zien wat er gebeurt
-                new_tracks = get_playlist_tracks_since_date(
-                    sp, playlist_id, since_date_for_query, return_track_info=True, debug=True
-                )
+                with loading_bar("Tracks in periode ophalen..."):
+                    new_tracks = get_playlist_tracks_since_date(
+                        sp, playlist_id, since_date_for_query, return_track_info=True, debug=True
+                    )
 
                 print(f"{Colors.DIM}   Totaal tracks gevonden na {since_date_only}: {len(new_tracks)}{Colors.RESET}")
 
