@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Tracks To-Do</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --border: #2a3140;
+      --text: #e8ecf4;
+      --muted: #8b95a8;
+      --accent: #1db954;
+      --accent-dim: #148f3f;
+      --warn: #f5a524;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at top, #1a2030 0%, var(--bg) 55%);
+      color: var(--text);
+    }
+
+    header {
+      padding: 1.5rem 2rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(15, 17, 21, 0.85);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      margin: 0 0 0.35rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .stats {
+      display: flex;
+      gap: 1rem;
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    .stats span {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.25rem 0.75rem;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      padding: 1.25rem 2rem 2rem;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .column {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      min-height: 200px;
+    }
+
+    .column-header {
+      padding: 1rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .column-header .count {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.85rem;
+    }
+
+    .column--done .column-header {
+      border-top: 3px solid var(--accent);
+    }
+
+    .column--todo .column-header {
+      border-top: 3px solid var(--warn);
+    }
+
+    .track-list {
+      list-style: none;
+      margin: 0;
+      padding: 0.75rem;
+    }
+
+    .track-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 1.1rem;
+      background: #12161e;
+    }
+
+    .track-item.zebra-a {
+      background: #12161e;
+      border-color: var(--border);
+    }
+
+    .track-item.zebra-b {
+      background: #1c2433;
+      border-color: #354158;
+    }
+
+    .track-name {
+      font-weight: 600;
+      margin-bottom: 0.6rem;
+      line-height: 1.35;
+      word-break: break-word;
+      border-radius: 6px;
+      transition: color 0.4s ease, background 0.4s ease, transform 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    .track-name--highlight {
+      color: var(--accent);
+      background: rgba(29, 185, 84, 0.16);
+      padding: 0.25rem 0.45rem;
+      margin: -0.25rem -0.45rem 0.35rem;
+      transform: scale(1.02);
+      box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.28);
+      animation: titleGlow 0.65s ease;
+    }
+
+    @keyframes titleGlow {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(29, 185, 84, 0);
+      }
+      45% {
+        transform: scale(1.04);
+        box-shadow: 0 0 0 10px rgba(29, 185, 84, 0.18);
+      }
+      100% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.28);
+      }
+    }
+
+    .track-item--removing {
+      animation: itemRemove 0.45s ease forwards;
+      overflow: hidden;
+    }
+
+    @keyframes itemRemove {
+      to {
+        opacity: 0;
+        transform: scale(0.96) translateY(-6px);
+        margin-bottom: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        max-height: 0;
+      }
+    }
+
+    .copy-toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      padding: 1.1rem 1.6rem;
+      border-radius: 14px;
+      background: rgba(23, 26, 33, 0.96);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      font-size: 1.15rem;
+      font-weight: 600;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 100;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(6px);
+    }
+
+    .copy-toast.visible {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .confetti-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 200;
+    }
+
+    .track-item.group-break {
+      margin-top: 2.75rem;
+    }
+
+    .track-form {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .track-form input {
+      flex: 1 1 180px;
+      min-width: 0;
+      padding: 0.55rem 0.7rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0d1016;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .track-form input:focus {
+      outline: 2px solid rgba(29, 185, 84, 0.35);
+      border-color: var(--accent);
+    }
+
+    .track-form button {
+      padding: 0.55rem 0.9rem;
+      border: none;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #04140a;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .track-form button:hover { background: var(--accent-dim); }
+    .track-form button:disabled { opacity: 0.55; cursor: wait; }
+
+    .track-form button.remove {
+      background: transparent;
+      border: 1px solid #8b3a3a;
+      color: #ffb4aa;
+    }
+
+    .track-form button.remove:hover {
+      background: rgba(192, 57, 43, 0.15);
+      border-color: #c0392b;
+    }
+
+    .copy-buttons {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+
+    .copy-buttons button {
+      padding: 0.35rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #0d1016;
+      color: var(--muted);
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+
+    .copy-buttons button:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .copy-buttons button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .empty {
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .status {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      padding: 0.65rem 1rem;
+      border-radius: 8px;
+      background: #1e2430;
+      border: 1px solid var(--border);
+      font-size: 0.85rem;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+    }
+
+    .status.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .status.error { border-color: #c0392b; color: #ffb4aa; }
+    .status.success { border-color: var(--accent); color: #b8f5cd; }
+
+    .banner {
+      margin: 1rem 2rem 0;
+      padding: 0.85rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #1e2430;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .banner.error {
+      border-color: #c0392b;
+      background: rgba(192, 57, 43, 0.12);
+      color: #ffb4aa;
+    }
+
+    .banner.loading { color: var(--text); }
+
+    .add-panel {
+      margin: 1rem 2rem 0;
+      padding: 1rem 1.1rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }
+
+    .add-panel h2 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .add-form {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .add-form input {
+      flex: 1 1 220px;
+      min-width: 0;
+      padding: 0.55rem 0.7rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0d1016;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .add-form input:focus {
+      outline: 2px solid rgba(29, 185, 84, 0.35);
+      border-color: var(--accent);
+    }
+
+    .add-form button {
+      padding: 0.55rem 0.9rem;
+      border: none;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #04140a;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .add-form button:hover { background: var(--accent-dim); }
+    .add-form button:disabled { opacity: 0.55; cursor: wait; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>New Tracks To-Do</h1>
+    <p>Left: tracks with a reference URL. Right: tracks still missing one.</p>
+    <div class="stats">
+      <span id="stat-done">With URL: 0</span>
+      <span id="stat-todo">Without URL: 0</span>
+    </div>
+  </header>
+
+  <div class="banner loading" id="banner">Loading tracks from database…</div>
+
+  <section class="add-panel">
+    <h2>Add track</h2>
+    <form class="add-form" id="add-form">
+      <input type="text" name="track" placeholder="Artist - Track name" required />
+      <input type="url" name="reference_url" placeholder="Reference URL (optional)" />
+      <button type="submit">Add</button>
+    </form>
+  </section>
+
+  <main>
+    <section class="column column--done">
+      <div class="column-header">
+        <span>Has reference URL</span>
+        <span class="count" id="count-done">0</span>
+      </div>
+      <ul class="track-list" id="list-done"></ul>
+    </section>
+
+    <section class="column column--todo">
+      <div class="column-header">
+        <span>Needs reference URL</span>
+        <span class="count" id="count-todo">0</span>
+      </div>
+      <ul class="track-list" id="list-todo"></ul>
+    </section>
+  </main>
+
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+  <div class="copy-toast" id="copy-toast" aria-live="polite"></div>
+
+  <script>
+    const listDone = document.getElementById("list-done");
+    const listTodo = document.getElementById("list-todo");
+    const statusEl = document.getElementById("status");
+    const copyToastEl = document.getElementById("copy-toast");
+    const bannerEl = document.getElementById("banner");
+    let statusTimer = null;
+    let copyToastTimer = null;
+    let lastHighlightedName = null;
+
+    function highlightTrackTitle(trackItem) {
+      if (lastHighlightedName) {
+        lastHighlightedName.classList.remove("track-name--highlight");
+      }
+      const nameEl = trackItem.querySelector(".track-name");
+      if (!nameEl) return;
+      void nameEl.offsetWidth;
+      nameEl.classList.add("track-name--highlight");
+      lastHighlightedName = nameEl;
+    }
+
+    function applyListSpacing(container) {
+      const items = container.querySelectorAll(".track-item");
+      items.forEach((item, index) => {
+        const groupIndex = Math.floor(index / 5);
+        item.classList.toggle("group-break", index > 0 && index % 5 === 0);
+        item.classList.toggle("zebra-a", groupIndex % 2 === 0);
+        item.classList.toggle("zebra-b", groupIndex % 2 === 1);
+      });
+    }
+
+    function applyAllListSpacing() {
+      applyListSpacing(listDone);
+      applyListSpacing(listTodo);
+    }
+
+    function setBanner(message, type = "loading") {
+      bannerEl.textContent = message;
+      bannerEl.className = `banner ${type}`;
+      bannerEl.hidden = !message;
+    }
+
+    function showStatus(message, type = "success") {
+      statusEl.textContent = message;
+      statusEl.className = `status visible ${type}`;
+      clearTimeout(statusTimer);
+      statusTimer = setTimeout(() => {
+        statusEl.classList.remove("visible");
+      }, 2200);
+    }
+
+    function showCopyToast(message) {
+      copyToastEl.textContent = message;
+      copyToastEl.classList.add("visible");
+      clearTimeout(copyToastTimer);
+      copyToastTimer = setTimeout(() => {
+        copyToastEl.classList.remove("visible");
+      }, 1400);
+    }
+
+    function launchConfetti(x, y) {
+      const canvas = document.createElement("canvas");
+      canvas.className = "confetti-canvas";
+      document.body.appendChild(canvas);
+      const ctx = canvas.getContext("2d");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const colors = ["#1db954", "#f5a524", "#5b9dff", "#ff6b8a", "#ffd166", "#ffffff"];
+      const particles = Array.from({ length: 90 }, () => ({
+        x,
+        y,
+        vx: (Math.random() - 0.5) * 14,
+        vy: Math.random() * -12 - 4,
+        size: Math.random() * 7 + 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.3,
+        life: 1,
+      }));
+
+      let frame = 0;
+      const maxFrames = 110;
+
+      function tick() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (const p of particles) {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.28;
+          p.vx *= 0.99;
+          p.rotation += p.spin;
+          p.life = Math.max(0, 1 - frame / maxFrames);
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rotation);
+          ctx.globalAlpha = p.life;
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+          ctx.restore();
+        }
+        frame += 1;
+        if (frame < maxFrames) {
+          requestAnimationFrame(tick);
+        } else {
+          canvas.remove();
+        }
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    async function copyText(text, label) {
+      if (!text) {
+        showCopyToast(`Nothing to copy`);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        showCopyToast(`${label} copied`);
+      } catch (error) {
+        showCopyToast(`Could not copy ${label.toLowerCase()}`);
+      }
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function createTrackItem(track) {
+      const li = document.createElement("li");
+      li.className = "track-item";
+      li.dataset.id = String(track.id);
+
+      const hasUrl = Boolean(track.reference_url);
+      const safeUrl = track.reference_url ? escapeHtml(track.reference_url) : "";
+
+      li.innerHTML = `
+        <div class="track-name">${escapeHtml(track.track)}</div>
+        <div class="copy-buttons">
+          <button type="button" class="copy-title">Copy title</button>
+          <button type="button" class="copy-url" ${hasUrl ? "" : "disabled"}>Copy URL</button>
+        </div>
+        <form class="track-form">
+          <input type="url" name="reference_url" placeholder="https://..." value="${safeUrl}" />
+          <button type="submit">Save</button>
+          <button type="button" class="remove">Remove</button>
+        </form>
+      `;
+
+      li.querySelector("button.copy-title").addEventListener("click", () => {
+        highlightTrackTitle(li);
+        copyText(track.track, "Title");
+      });
+
+      const copyUrlButton = li.querySelector("button.copy-url");
+      copyUrlButton.addEventListener("click", () => {
+        highlightTrackTitle(li);
+        copyText(track.reference_url, "URL");
+      });
+
+      const form = li.querySelector("form");
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        highlightTrackTitle(li);
+        const button = form.querySelector("button");
+        const input = form.querySelector("input");
+        button.disabled = true;
+
+        try {
+          const response = await fetch(`/api/tracks/${track.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reference_url: input.value.trim() }),
+          });
+
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || "Save failed");
+          }
+
+          const updated = await response.json();
+          moveTrackItem(li, updated.has_url, {
+            id: track.id,
+            track: track.track,
+            reference_url: updated.reference_url,
+          });
+          showStatus(updated.has_url ? "Saved — moved to left column" : "Cleared — moved to right column");
+        } catch (error) {
+          showStatus(error.message, "error");
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      const removeButton = li.querySelector("button.remove");
+      removeButton.addEventListener("click", () => {
+        highlightTrackTitle(li);
+        removeTrackItem(li, track);
+      });
+
+      return li;
+    }
+
+    async function removeTrackItem(item, track) {
+      const ok = window.confirm(`Remove "${track.track}" from the list?`);
+      if (!ok) return;
+
+      try {
+        const response = await fetch(`/api/tracks/${track.id}`, { method: "DELETE" });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || "Remove failed");
+        }
+
+        const rect = item.getBoundingClientRect();
+        const originX = rect.left + rect.width / 2;
+        const originY = rect.top + rect.height / 3;
+        item.classList.add("track-item--removing");
+        launchConfetti(originX, originY);
+
+        await new Promise((resolve) => setTimeout(resolve, 450));
+        item.remove();
+        if (lastHighlightedName && !document.contains(lastHighlightedName)) {
+          lastHighlightedName = null;
+        }
+        updateEmptyStates();
+        updateCounts();
+        applyAllListSpacing();
+        showStatus("Track removed");
+      } catch (error) {
+        showStatus(error.message, "error");
+      }
+    }
+
+    function moveTrackItem(item, hasUrl, track) {
+      const wasHighlighted = item.querySelector(".track-name--highlight") !== null;
+      const target = hasUrl ? listDone : listTodo;
+      item.remove();
+
+      const replacement = createTrackItem(track);
+      target.appendChild(replacement);
+      if (wasHighlighted) highlightTrackTitle(replacement);
+      updateEmptyStates();
+      updateCounts();
+      applyAllListSpacing();
+    }
+
+    function appendTrackItem(track) {
+      const target = track.reference_url ? listDone : listTodo;
+      const item = createTrackItem(track);
+      const empty = target.querySelector(".empty");
+      if (empty) empty.remove();
+
+      const items = [...target.querySelectorAll(".track-item")];
+      const name = track.track.toLowerCase();
+      let inserted = false;
+      for (const existing of items) {
+        const existingName = existing.querySelector(".track-name").textContent.toLowerCase();
+        if (name < existingName) {
+          target.insertBefore(item, existing);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) target.appendChild(item);
+      updateCounts();
+      applyAllListSpacing();
+    }
+
+    function renderList(container, tracks) {
+      container.innerHTML = "";
+      if (!tracks.length) {
+        const empty = document.createElement("li");
+        empty.className = "empty";
+        empty.textContent = container === listDone
+          ? "No tracks with a URL yet."
+          : "All tracks have a reference URL.";
+        container.appendChild(empty);
+        return;
+      }
+
+      for (const track of tracks) {
+        container.appendChild(createTrackItem(track));
+      }
+      applyListSpacing(container);
+    }
+
+    function updateEmptyStates() {
+      for (const list of [listDone, listTodo]) {
+        const items = list.querySelectorAll(".track-item");
+        const empty = list.querySelector(".empty");
+        if (items.length === 0 && !empty) {
+          const li = document.createElement("li");
+          li.className = "empty";
+          li.textContent = list === listDone
+            ? "No tracks with a URL yet."
+            : "All tracks have a reference URL.";
+          list.appendChild(li);
+        } else if (items.length > 0 && empty) {
+          empty.remove();
+        }
+      }
+    }
+
+    function updateCounts() {
+      const doneCount = listDone.querySelectorAll(".track-item").length;
+      const todoCount = listTodo.querySelectorAll(".track-item").length;
+      document.getElementById("count-done").textContent = String(doneCount);
+      document.getElementById("count-todo").textContent = String(todoCount);
+      document.getElementById("stat-done").textContent = `With URL: ${doneCount}`;
+      document.getElementById("stat-todo").textContent = `Without URL: ${todoCount}`;
+    }
+
+    async function loadTracks() {
+      setBanner("Loading tracks from database…", "loading");
+      try {
+        const response = await fetch("/api/tracks");
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || "Could not load tracks");
+        }
+
+        renderList(listDone, data.with_url);
+        renderList(listTodo, data.without_url);
+        updateCounts();
+
+        if (!data.total) {
+          setBanner("No tracks found in new_tracks table.", "error");
+        } else {
+          setBanner("");
+        }
+      } catch (error) {
+        setBanner(`Failed to load tracks: ${error.message}`, "error");
+        showStatus(error.message, "error");
+      }
+    }
+
+    loadTracks();
+
+    document.getElementById("add-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector("button");
+      const trackInput = form.querySelector('input[name="track"]');
+      const urlInput = form.querySelector('input[name="reference_url"]');
+      button.disabled = true;
+
+      try {
+        const response = await fetch("/api/tracks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            track: trackInput.value.trim(),
+            reference_url: urlInput.value.trim(),
+          }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || "Could not add track");
+        }
+
+        appendTrackItem(data);
+        form.reset();
+        showStatus(data.reference_url ? "Track added to left column" : "Track added to right column");
+      } catch (error) {
+        showStatus(error.message, "error");
+      } finally {
+        button.disabled = false;
+        trackInput.focus();
+      }
+    });
+  </script>
+</body>
+</html>

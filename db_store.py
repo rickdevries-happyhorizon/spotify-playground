@@ -5,13 +5,16 @@ import os
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
+from urllib.parse import parse_qs, urlparse
 
 try:
     import pymysql
     from pymysql.cursors import DictCursor
+    from pymysql.err import IntegrityError
 except ImportError:
     pymysql = None
     DictCursor = None  # type: ignore
+    IntegrityError = Exception  # type: ignore
 
 
 def _require_pymysql() -> None:
@@ -58,6 +61,37 @@ def _parse_datetime(value: Any) -> Optional[datetime]:
         except ValueError:
             return None
     return None
+
+
+def normalize_reference_url(url: Optional[str]) -> Optional[str]:
+    """Normalize reference URLs. YouTube links are stripped to watch?v=VIDEO_ID only."""
+    if url is None:
+        return None
+
+    cleaned = url.strip()
+    if not cleaned:
+        return None
+
+    parsed = urlparse(cleaned)
+    host = (parsed.netloc or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+
+    video_id: Optional[str] = None
+    if host in ("youtube.com", "m.youtube.com", "music.youtube.com"):
+        if parsed.path == "/watch":
+            video_id = parse_qs(parsed.query).get("v", [None])[0]
+        elif parsed.path.startswith("/shorts/"):
+            parts = [part for part in parsed.path.split("/") if part]
+            if len(parts) >= 2 and parts[0] == "shorts":
+                video_id = parts[1]
+    elif host == "youtu.be":
+        video_id = parsed.path.lstrip("/").split("/")[0] or None
+
+    if video_id:
+        return f"https://www.youtube.com/watch?v={video_id}"
+
+    return cleaned
 
 
 def load_playlists_config() -> Dict[str, Any]:
@@ -282,6 +316,92 @@ def save_tracking_start_date(start_date: Any) -> None:
         conn.close()
 
 
+def load_new_tracks() -> List[Dict[str, Any]]:
+    """Load all new_tracks rows ordered by track name."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, track, reference_url FROM new_tracks ORDER BY track ASC"
+            )
+            return [
+                {
+                    "id": row["id"],
+                    "track": row["track"],
+                    "reference_url": row["reference_url"] or None,
+                }
+                for row in cur.fetchall()
+            ]
+    finally:
+        conn.close()
+
+
+def update_new_track_reference_url(track_id: int, reference_url: Optional[str]) -> bool:
+    """Update reference_url for a single new_tracks row. Empty string clears the URL."""
+    url = normalize_reference_url(reference_url)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE new_tracks SET reference_url = %s WHERE id = %s",
+                (url, track_id),
+            )
+            updated = cur.rowcount > 0
+        conn.commit()
+        return updated
+    except Exception as e:
+        conn.rollback()
+        print(f"Fout bij bijwerken reference URL: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def delete_new_track(track_id: int) -> bool:
+    """Delete a single new_tracks row."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM new_tracks WHERE id = %s", (track_id,))
+            deleted = cur.rowcount > 0
+        conn.commit()
+        return deleted
+    except Exception as e:
+        conn.rollback()
+        print(f"Fout bij verwijderen track: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def create_new_track(track: str, reference_url: Optional[str] = None) -> Dict[str, Any]:
+    """Insert a single new_tracks row. Raises ValueError if track is empty or already exists."""
+    track_name = (track or "").strip()
+    if not track_name:
+        raise ValueError("Track name is required")
+
+    url = normalize_reference_url(reference_url)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO new_tracks (track, reference_url) VALUES (%s, %s)",
+                (track_name, url),
+            )
+            track_id = cur.lastrowid
+        conn.commit()
+        return {"id": track_id, "track": track_name, "reference_url": url}
+    except IntegrityError as e:
+        conn.rollback()
+        raise ValueError("Track already exists") from e
+    except Exception as e:
+        conn.rollback()
+        print(f"Fout bij toevoegen track: {e}")
+        raise
+    finally:
+        conn.close()
+
+
 def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tuple[int, int]:
     """Persist tracks (new.numbers shape: track + reference_url).
 
@@ -297,7 +417,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
             track_display = entry.get("track") or entry.get("Track") or ""
             if not track_display:
                 continue
-            rows.append((track_display, entry.get("reference_url")))
+            rows.append((track_display, normalize_reference_url(entry.get("reference_url"))))
 
         if not rows:
             return 0, 0
