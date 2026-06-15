@@ -3,7 +3,7 @@ import csv
 import traceback
 from datetime import datetime, timedelta
 
-from db_store import load_tracking_start_date, save_tracking_start_date
+from db_store import load_tracking_start_date, save_tracking_start_date, save_new_tracks
 
 from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.colors import Colors
@@ -155,7 +155,9 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=
                     for uri, track_info in filtered_tracks.items():
                         all_new_tracks.append({
                             'Track': f"{track_info['artists']} - {track_info['name']}",
-                            '': ''  # Blank field
+                            '': '',  # Blank field
+                            'track': f"{track_info['artists']} - {track_info['name']}",
+                            'reference_url': None,
                         })
                 else:
                     print(f"{Colors.DIM}   🤷 Geen nieuwe tracks in deze periode{Colors.RESET}")
@@ -173,10 +175,21 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=
                 print(f"{Colors.BRIGHT_RED}   ❌ Onverwachte fout: {e}{Colors.RESET}")
                 continue
 
-        # Exporteer naar CSV
+        # Exporteer naar CSV en database
         if all_new_tracks:
             # Sorteer tracks alfabetisch
             all_new_tracks = sorted(all_new_tracks, key=lambda x: x['Track'].lower())
+
+            inserted, skipped = save_new_tracks(all_new_tracks)
+            if inserted:
+                print(
+                    f"\n{Colors.BRIGHT_GREEN}✅ {inserted} nieuwe tracks opgeslagen in database{Colors.RESET}"
+                )
+            if skipped:
+                print(
+                    f"{Colors.DIM}   {skipped} tracks overgeslagen (bestaan al in database){Colors.RESET}"
+                )
+
             # Genereer bestandsnaam als niet opgegeven
             if not output_file:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -189,7 +202,7 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=
             # Schrijf naar CSV
             with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
                 fieldnames = ['Track', '']  # Track en een lege kolom
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames, extrasaction='ignore')
                 writer.writeheader()
                 for i, row in enumerate(all_new_tracks):
                     writer.writerow(row)

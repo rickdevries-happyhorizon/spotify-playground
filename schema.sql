@@ -50,5 +50,13 @@ CREATE TABLE IF NOT EXISTS tracking_start (
   last_updated DATETIME NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- New tracks (matches new.numbers: Track + optional reference URL)
+CREATE TABLE IF NOT EXISTS new_tracks (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  track VARCHAR(512) NOT NULL,
+  reference_url TEXT NULL,
+  UNIQUE KEY uq_new_tracks_track (track(191))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT IGNORE INTO destination_config (singleton, playlist_id) VALUES (1, '');
 INSERT IGNORE INTO tracking_start (singleton, start_date, last_updated) VALUES (1, NULL, NULL);

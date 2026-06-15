@@ -280,3 +280,52 @@ def save_tracking_start_date(start_date: Any) -> None:
         print(f"Fout bij opslaan tracking start datum: {e}")
     finally:
         conn.close()
+
+
+def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tuple[int, int]:
+    """Persist tracks (new.numbers shape: track + reference_url).
+
+    Returns (inserted_count, skipped_count).
+    """
+    if not tracks:
+        return 0, 0
+
+    conn = get_connection()
+    try:
+        rows = []
+        for entry in tracks:
+            track_display = entry.get("track") or entry.get("Track") or ""
+            if not track_display:
+                continue
+            rows.append((track_display, entry.get("reference_url")))
+
+        if not rows:
+            return 0, 0
+
+        with conn.cursor() as cur:
+            if replace:
+                cur.execute("DELETE FROM new_tracks")
+                cur.executemany(
+                    "INSERT INTO new_tracks (track, reference_url) VALUES (%s, %s)",
+                    rows,
+                )
+                inserted = len(rows)
+            else:
+                cur.execute("SELECT track FROM new_tracks")
+                existing = {row["track"] for row in cur.fetchall()}
+                new_rows = [row for row in rows if row[0] not in existing]
+                if new_rows:
+                    cur.executemany(
+                        "INSERT INTO new_tracks (track, reference_url) VALUES (%s, %s)",
+                        new_rows,
+                    )
+                inserted = len(new_rows)
+        conn.commit()
+        skipped = 0 if replace else len(rows) - inserted
+        return inserted, skipped
+    except Exception as e:
+        conn.rollback()
+        print(f"Fout bij opslaan nieuwe tracks: {e}")
+        raise
+    finally:
+        conn.close()
