@@ -8,13 +8,15 @@ cd "$SCRIPT_DIR"
 
 # Bepaal het pad naar de Python executable in de virtual environment
 PYTHON_EXE=""
-if [ -f "path/to/venv/bin/python3" ]; then
+if [ -f ".venv/bin/python3" ]; then
+    PYTHON_EXE=".venv/bin/python3"
+elif [ -f "path/to/venv/bin/python3" ]; then
     PYTHON_EXE="path/to/venv/bin/python3"
 elif [ -f "venv/bin/python3" ]; then
     PYTHON_EXE="venv/bin/python3"
 else
     echo "❌ Fout: Virtual environment niet gevonden!"
-    echo "   Zoek naar: path/to/venv/bin/python3 of venv/bin/python3"
+    echo "   Zoek naar: .venv/bin/python3, path/to/venv/bin/python3 of venv/bin/python3"
     exit 1
 fi
 
@@ -32,6 +34,11 @@ if ! "$PYTHON_EXE" -c "import spotipy" 2>/dev/null; then
 fi
 if ! "$PYTHON_EXE" -c "import pymysql" 2>/dev/null; then
     echo "❌ Fout: pymysql niet gevonden in virtual environment!"
+    echo "   Installeer met: $PYTHON_EXE -m pip install -r requirements.txt"
+    exit 1
+fi
+if ! "$PYTHON_EXE" -c "import mutagen" 2>/dev/null; then
+    echo "❌ Fout: mutagen niet gevonden in virtual environment!"
     echo "   Installeer met: $PYTHON_EXE -m pip install -r requirements.txt"
     exit 1
 fi

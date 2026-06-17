@@ -17,17 +17,18 @@ def show_menu():
     print("  5. Toon meest beluisterde tracks (week/maand/jaar)")
     print("  6. Beheer playlist configuratie")
     print("  7. Exporteer nieuwe tracks sinds datum naar CSV")
+    print("  8. Voeg metadata toe aan WAV bestanden")
     print("  0. Afsluiten")
     print("\n" + "-"*60)
 
     while True:
         try:
-            choice = input("Voer je keuze in (0-7): ").strip()
-            if choice in ['0', '1', '2', '3', '4', '5', '6', '7']:
+            choice = input("Voer je keuze in (0-8): ").strip()
+            if choice in ['0', '1', '2', '3', '4', '5', '6', '7', '8']:
                 play_selection()
                 return int(choice)
             else:
-                print("❌ Ongeldige keuze. Voer 0, 1, 2, 3, 4, 5, 6 of 7 in.")
+                print("❌ Ongeldige keuze. Voer 0, 1, 2, 3, 4, 5, 6, 7 of 8 in.")
         except KeyboardInterrupt:
             print("\n\nAfsluiten...")
             sys.exit(0)

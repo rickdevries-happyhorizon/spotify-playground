@@ -21,6 +21,7 @@ from spotify_playlist.start_screen import show_start_screen
 from spotify_playlist.show_top_tracks import show_top_tracks
 from spotify_playlist.sync_artist_releases import sync_artist_releases
 from spotify_playlist.sync_playlists import sync_playlists
+from spotify_playlist.tag_wav_metadata import run_tag_wav_metadata
 
 
 def main():
@@ -362,3 +363,5 @@ def main():
 
             # Exporteer nieuwe tracks
             export_new_tracks_since_date(sp, selected_playlists, since_date, output_file)
+        elif choice == 8:
+            run_tag_wav_metadata(config.WAV_METADATA_DIR)
