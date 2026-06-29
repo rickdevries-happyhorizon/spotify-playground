@@ -31,5 +31,5 @@ CHECK_ARTIST_RELEASES = True
 # Aantal dagen terug om nieuwe releases te zoeken (bijv. laatste 7 dagen = 1 week)
 ARTIST_RELEASES_DAYS_BACK = 7
 
-# Map met WAV bestanden voor metadata tagging (optioneel)
+# Map met WAV/AIFF bestanden voor metadata tagging (optioneel)
 WAV_METADATA_DIR = ''

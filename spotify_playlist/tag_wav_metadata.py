@@ -1,30 +1,60 @@
 import os
+import struct
 
 from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.colors import Colors
 from spotify_playlist.parse_wav_filename import parse_wav_filename
 from spotify_playlist.write_riff_info import apply_riff_info
 
+AUDIO_EXTENSIONS = ('.wav', '.aiff', '.aif')
+
 
 def _require_mutagen():
     try:
+        from mutagen.aiff import AIFF
         from mutagen.id3 import TIT2, TPE1
         from mutagen.wave import WAVE
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(
             "mutagen is niet geïnstalleerd. Voer uit: pip install -r requirements.txt"
         ) from exc
-    return TIT2, TPE1, WAVE
+    return TIT2, TPE1, WAVE, AIFF
 
 
 def apply_wav_metadata(path: str, artists: list[str], title: str) -> None:
     """Write ID3 and RIFF INFO tags to a WAV file and clear any album field."""
-    TIT2, TPE1, WAVE = _require_mutagen()
+    TIT2, TPE1, WAVE, _AIFF = _require_mutagen()
     artist = ', '.join(artists)
 
+    # Many DJ WAV exports have invalid RIFF headers. Rebuild the file first so
+    # mutagen can insert/update the ID3 chunk without struct errors.
     apply_riff_info(path, title, artist)
 
-    audio = WAVE(path)
+    try:
+        audio = WAVE(path)
+        if audio.tags is None:
+            audio.add_tags()
+
+        audio.tags.delall('TIT2')
+        audio.tags.delall('TPE1')
+        audio.tags.delall('TALB')
+        audio.tags.add(TIT2(encoding=3, text=title))
+        audio.tags.add(TPE1(encoding=3, text=artist))
+        audio.save()
+    except struct.error:
+        # Rekordbox only reads RIFF INFO; ID3 is optional for other players.
+        pass
+
+    # Write RIFF INFO last so Rekordbox always sees the final metadata.
+    apply_riff_info(path, title, artist)
+
+
+def apply_aiff_metadata(path: str, artists: list[str], title: str) -> None:
+    """Write ID3 tags to an AIFF file and clear any album field."""
+    TIT2, TPE1, _WAVE, AIFF = _require_mutagen()
+    artist = ', '.join(artists)
+
+    audio = AIFF(path)
     if audio.tags is None:
         audio.add_tags()
 
@@ -36,31 +66,44 @@ def apply_wav_metadata(path: str, artists: list[str], title: str) -> None:
     audio.save()
 
 
+def apply_audio_metadata(path: str, artists: list[str], title: str) -> None:
+    """Write metadata tags based on the audio file extension."""
+    extension = os.path.splitext(path)[1].lower()
+    if extension == '.wav':
+        apply_wav_metadata(path, artists, title)
+    elif extension in ('.aiff', '.aif'):
+        apply_aiff_metadata(path, artists, title)
+    else:
+        raise ValueError(f'Niet ondersteund bestandstype: {extension}')
+
+
 def tag_wavs_in_directory(directory: str, *, dry_run: bool = False) -> tuple[int, int]:
     """
-    Tag all WAV files in a directory based on their filenames.
+    Tag all WAV and AIFF files in a directory based on their filenames.
 
     Returns (success_count, error_count).
     """
     if not os.path.isdir(directory):
         raise NotADirectoryError(f"Map niet gevonden: {directory}")
 
-    wav_files = sorted(
+    audio_files = sorted(
         filename
         for filename in os.listdir(directory)
-        if filename.lower().endswith('.wav')
+        if filename.lower().endswith(AUDIO_EXTENSIONS)
     )
 
-    if not wav_files:
-        print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen WAV bestanden gevonden in: {directory}{Colors.RESET}")
+    if not audio_files:
+        print(
+            f"{Colors.BRIGHT_YELLOW}⚠️  Geen WAV/AIFF bestanden gevonden in: {directory}{Colors.RESET}"
+        )
         return 0, 0
 
-    print(f"\n{Colors.BRIGHT_WHITE}Gevonden WAV bestanden ({len(wav_files)}):{Colors.RESET}\n")
+    print(f"\n{Colors.BRIGHT_WHITE}Gevonden audio bestanden ({len(audio_files)}):{Colors.RESET}\n")
 
     success_count = 0
     error_count = 0
 
-    for filename in wav_files:
+    for filename in audio_files:
         path = os.path.join(directory, filename)
         stem = os.path.splitext(filename)[0]
 
@@ -73,7 +116,7 @@ def tag_wavs_in_directory(directory: str, *, dry_run: bool = False) -> tuple[int
             print(f"    Album:     {Colors.DIM}(leeg){Colors.RESET}")
 
             if not dry_run:
-                apply_wav_metadata(path, artists, title)
+                apply_audio_metadata(path, artists, title)
                 print(f"    {Colors.BRIGHT_GREEN}✅ Metadata bijgewerkt{Colors.RESET}\n")
             else:
                 print(f"    {Colors.DIM}(preview only){Colors.RESET}\n")
@@ -90,7 +133,7 @@ def tag_wavs_in_directory(directory: str, *, dry_run: bool = False) -> tuple[int
 
 
 def run_tag_wav_metadata(default_directory: str = '') -> None:
-    """Interactive flow to tag WAV files from the menu."""
+    """Interactive flow to tag WAV and AIFF files from the menu."""
     try:
         _require_mutagen()
     except ModuleNotFoundError as exc:
@@ -98,14 +141,14 @@ def run_tag_wav_metadata(default_directory: str = '') -> None:
         return
 
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🏷️  WAV Metadata Toevoegen  🏷️{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🏷️  WAV/AIFF Metadata Toevoegen  🏷️{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}\n")
 
     if default_directory:
         print(f"{Colors.DIM}Standaard map: {default_directory}{Colors.RESET}")
 
     directory = input(
-        f"{Colors.BRIGHT_CYAN}Map met WAV bestanden (Enter voor standaard, 'q' om terug): {Colors.RESET}"
+        f"{Colors.BRIGHT_CYAN}Map met WAV/AIFF bestanden (Enter voor standaard, 'q' om terug): {Colors.RESET}"
     ).strip()
 
     if directory.lower() == 'q':

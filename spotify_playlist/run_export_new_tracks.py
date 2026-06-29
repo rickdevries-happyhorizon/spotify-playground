@@ -6,7 +6,7 @@ from spotify_playlist.get_spotify_client import get_spotify_client
 
 
 def run_export_new_tracks():
-    """Voert de export nieuwe tracks functie direct uit (voor command-line gebruik)."""
+    """Importeert nieuwe tracks direct in de database (voor command-line gebruik)."""
     sp = get_spotify_client()
 
     # Laad configuratie
@@ -23,8 +23,4 @@ def run_export_new_tracks():
     # Laad start datum
     since_date = None  # Wordt in functie geladen
 
-    # Genereer automatische bestandsnaam
-    output_file = None
-
-    # Exporteer nieuwe tracks
-    export_new_tracks_since_date(sp, tracking_playlists, since_date, output_file)
+    export_new_tracks_since_date(sp, tracking_playlists, since_date)

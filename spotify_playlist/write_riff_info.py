@@ -18,8 +18,8 @@ def _build_info_subchunk(field_id: str, text: str) -> bytes:
 
 def _build_list_info_chunk(title: str, artist: str) -> bytes:
     list_data = b'INFO'
-    list_data += _build_info_subchunk('IART', artist)
     list_data += _build_info_subchunk('INAM', title)
+    list_data += _build_info_subchunk('IART', artist)
     chunk = b'LIST' + struct.pack('<I', len(list_data)) + list_data
     if len(chunk) % 2:
         chunk += b'\x00'

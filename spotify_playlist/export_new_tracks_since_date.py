@@ -1,5 +1,3 @@
-import os
-import csv
 import traceback
 from datetime import datetime, timedelta
 
@@ -12,14 +10,13 @@ from spotify_playlist.get_playlist_tracks_since_date import get_playlist_tracks_
 from spotify_playlist.loading_progress import loading_bar
 
 
-def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=None):
-    """Exporteert nieuwe tracks die sinds een specifieke datum zijn toegevoegd aan playlists.
+def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
+    """Importeert nieuwe tracks die sinds een specifieke datum zijn toegevoegd aan playlists in de database.
 
     Args:
         sp: Spotify client
         playlist_ids: List van playlist ID's om te controleren
         since_date: datetime object - als None, wordt de opgeslagen start datum gebruikt of vandaag - 7 dagen
-        output_file: Optionele bestandsnaam voor CSV export
     """
     try:
         # Laad opgeslagen start datum
@@ -154,8 +151,6 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=
 
                     for uri, track_info in filtered_tracks.items():
                         all_new_tracks.append({
-                            'Track': f"{track_info['artists']} - {track_info['name']}",
-                            '': '',  # Blank field
                             'track': f"{track_info['artists']} - {track_info['name']}",
                             'reference_url': None,
                         })
@@ -175,10 +170,9 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=
                 print(f"{Colors.BRIGHT_RED}   ❌ Onverwachte fout: {e}{Colors.RESET}")
                 continue
 
-        # Exporteer naar CSV en database
+        # Opslaan in database
         if all_new_tracks:
-            # Sorteer tracks alfabetisch
-            all_new_tracks = sorted(all_new_tracks, key=lambda x: x['Track'].lower())
+            all_new_tracks = sorted(all_new_tracks, key=lambda x: x['track'].lower())
 
             inserted, skipped = save_new_tracks(all_new_tracks)
             if inserted:
@@ -190,31 +184,13 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=
                     f"{Colors.DIM}   {skipped} tracks overgeslagen (bestaan al in database){Colors.RESET}"
                 )
 
-            # Genereer bestandsnaam als niet opgegeven
-            if not output_file:
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                output_file = f"new_tracks_{since_date.strftime('%Y%m%d')}_to_{today.strftime('%Y%m%d')}_{timestamp}.csv"
-
-            # Zorg dat bestandsnaam eindigt op .csv
-            if not output_file.endswith('.csv'):
-                output_file = output_file + '.csv'
-
-            # Schrijf naar CSV
-            with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['Track', '']  # Track en een lege kolom
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames, extrasaction='ignore')
-                writer.writeheader()
-                for i, row in enumerate(all_new_tracks):
-                    writer.writerow(row)
-                    if (i + 1) % 5 == 0:
-                        writer.writerow(dict.fromkeys(fieldnames, ''))  # Lege regel na elke 5 rijen
-
             print(f"\n{Colors.BOLD}{Colors.BRIGHT_GREEN}{'═'*70}{Colors.RESET}")
-            print(f"{Colors.BOLD}{Colors.BRIGHT_GREEN}✅ {len(all_new_tracks)} nieuwe tracks geëxporteerd naar: {output_file}{Colors.RESET}")
+            print(
+                f"{Colors.BOLD}{Colors.BRIGHT_GREEN}✅ {len(all_new_tracks)} nieuwe tracks verwerkt{Colors.RESET}"
+            )
             print(f"{Colors.BOLD}{Colors.BRIGHT_GREEN}{'═'*70}{Colors.RESET}")
-            print(f"{Colors.DIM}   Bestandslocatie: {os.path.abspath(output_file)}{Colors.RESET}")
         else:
-            print(f"\n{Colors.BRIGHT_YELLOW}⚠️  Geen nieuwe tracks gevonden om te exporteren.{Colors.RESET}")
+            print(f"\n{Colors.BRIGHT_YELLOW}⚠️  Geen nieuwe tracks gevonden om te importeren.{Colors.RESET}")
 
         # Update start datum naar vandaag (voor volgende keer)
         today = datetime.now()
@@ -241,5 +217,5 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None, output_file=
         play_action_done()
 
     except Exception as e:
-        print(f"{Colors.BRIGHT_RED}❌ Onverwachte fout bij exporteren nieuwe tracks: {e}{Colors.RESET}")
+        print(f"{Colors.BRIGHT_RED}❌ Onverwachte fout bij importeren nieuwe tracks: {e}{Colors.RESET}")
         print(f"{Colors.DIM}   Traceback: {traceback.format_exc()}{Colors.RESET}")

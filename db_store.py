@@ -413,14 +413,20 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
     conn = get_connection()
     try:
         rows = []
+        seen_in_batch: set[str] = set()
+        total_valid = 0
         for entry in tracks:
             track_display = entry.get("track") or entry.get("Track") or ""
             if not track_display:
                 continue
+            total_valid += 1
+            if track_display in seen_in_batch:
+                continue
+            seen_in_batch.add(track_display)
             rows.append((track_display, normalize_reference_url(entry.get("reference_url"))))
 
         if not rows:
-            return 0, 0
+            return 0, total_valid
 
         with conn.cursor() as cur:
             if replace:
@@ -441,7 +447,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
                     )
                 inserted = len(new_rows)
         conn.commit()
-        skipped = 0 if replace else len(rows) - inserted
+        skipped = 0 if replace else total_valid - inserted
         return inserted, skipped
     except Exception as e:
         conn.rollback()

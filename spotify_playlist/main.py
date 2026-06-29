@@ -110,11 +110,11 @@ def main():
             # Beheer playlist configuratie
             manage_playlists_config()
         elif choice == 7:
-            # Exporteer nieuwe tracks sinds datum naar CSV
+            # Importeer nieuwe tracks sinds datum in database
             sp = get_spotify_client()
 
             print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}")
-            print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}📥  Exporteer Nieuwe Tracks Sinds Datum  📥{Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}📥  Importeer Nieuwe Tracks Sinds Datum  📥{Colors.RESET}")
             print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}\n")
 
             # Laad configuratie
@@ -356,12 +356,6 @@ def main():
             if date_option is None or (date_option == '2' and since_date is None):
                 continue
 
-            # Vraag om bestandsnaam (optioneel)
-            output_file = input(f"\n{Colors.BRIGHT_CYAN}Bestandsnaam (Enter voor automatisch): {Colors.RESET}").strip()
-            if not output_file:
-                output_file = None
-
-            # Exporteer nieuwe tracks
-            export_new_tracks_since_date(sp, selected_playlists, since_date, output_file)
+            export_new_tracks_since_date(sp, selected_playlists, since_date)
         elif choice == 8:
             run_tag_wav_metadata(config.WAV_METADATA_DIR)

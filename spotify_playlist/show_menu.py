@@ -16,8 +16,8 @@ def show_menu():
     print("  4. Exporteer playlist naar CSV")
     print("  5. Toon meest beluisterde tracks (week/maand/jaar)")
     print("  6. Beheer playlist configuratie")
-    print("  7. Exporteer nieuwe tracks sinds datum naar CSV")
-    print("  8. Voeg metadata toe aan WAV bestanden")
+    print("  7. Importeer nieuwe tracks sinds datum in database")
+    print("  8. Voeg metadata toe aan WAV/AIFF bestanden")
     print("  0. Afsluiten")
     print("\n" + "-"*60)
 

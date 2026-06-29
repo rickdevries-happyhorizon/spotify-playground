@@ -113,11 +113,37 @@
     }
 
     .track-item {
+      position: relative;
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 1rem 1.1rem;
       margin-bottom: 1.1rem;
       background: #12161e;
+    }
+
+    .track-index {
+      position: absolute;
+      top: 0.55rem;
+      right: 0.7rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      opacity: 0.5;
+      letter-spacing: 0.03em;
+      pointer-events: none;
+      user-select: none;
+      line-height: 1;
+    }
+
+    .column--done .track-index {
+      color: var(--accent);
+      opacity: 0.38;
+    }
+
+    .column--todo .track-index {
+      color: var(--warn);
+      opacity: 0.38;
     }
 
     .track-item.zebra-a {
@@ -135,6 +161,7 @@
       margin-bottom: 0.6rem;
       line-height: 1.35;
       word-break: break-word;
+      padding-right: 1.25rem;
       border-radius: 6px;
       transition: color 0.4s ease, background 0.4s ease, transform 0.4s ease, box-shadow 0.4s ease;
     }
@@ -463,6 +490,15 @@
         item.classList.toggle("group-break", index > 0 && index % 5 === 0);
         item.classList.toggle("zebra-a", groupIndex % 2 === 0);
         item.classList.toggle("zebra-b", groupIndex % 2 === 1);
+
+        let indexEl = item.querySelector(".track-index");
+        if (!indexEl) {
+          indexEl = document.createElement("span");
+          indexEl.className = "track-index";
+          indexEl.setAttribute("aria-hidden", "true");
+          item.appendChild(indexEl);
+        }
+        indexEl.textContent = String(index + 1);
       });
     }
 
