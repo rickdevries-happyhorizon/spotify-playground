@@ -22,6 +22,7 @@ from spotify_playlist.show_top_tracks import show_top_tracks
 from spotify_playlist.sync_artist_releases import sync_artist_releases
 from spotify_playlist.sync_playlists import sync_playlists
 from spotify_playlist.download_youtube_wav import run_download_youtube_wav
+from spotify_playlist.install_packages import run_install_packages
 from spotify_playlist.tag_wav_metadata import run_tag_wav_metadata
 
 
@@ -365,3 +366,5 @@ def main():
                 config.YOUTUBE_DOWNLOAD_DIR,
                 config.YOUTUBE_URLS_FILE,
             )
+        elif choice == 10:
+            run_install_packages()

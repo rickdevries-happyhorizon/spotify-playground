@@ -14,9 +14,11 @@ elif [ -f "path/to/venv/bin/python3" ]; then
     PYTHON_EXE="path/to/venv/bin/python3"
 elif [ -f "venv/bin/python3" ]; then
     PYTHON_EXE="venv/bin/python3"
+elif command -v python3 >/dev/null 2>&1; then
+    echo "⚠️  Geen virtual environment gevonden. Gebruik menu-optie 10 om packages te installeren."
+    PYTHON_EXE="python3"
 else
-    echo "❌ Fout: Virtual environment niet gevonden!"
-    echo "   Zoek naar: .venv/bin/python3, path/to/venv/bin/python3 of venv/bin/python3"
+    echo "❌ Fout: python3 niet gevonden!"
     exit 1
 fi
 
@@ -26,21 +28,25 @@ if [ ! -f "playlist_sync.py" ]; then
     exit 1
 fi
 
-# Controleer of spotipy en pymysql geïnstalleerd zijn
-if ! "$PYTHON_EXE" -c "import spotipy" 2>/dev/null; then
-    echo "❌ Fout: spotipy niet gevonden in virtual environment!"
-    echo "   Installeer met: $PYTHON_EXE -m pip install -r requirements.txt"
-    exit 1
+# Laad .env als die bestaat (STORAGE_BACKEND, MySQL-instellingen, etc.)
+if [ -f ".env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source .env
+    set +a
 fi
-if ! "$PYTHON_EXE" -c "import pymysql" 2>/dev/null; then
-    echo "❌ Fout: pymysql niet gevonden in virtual environment!"
-    echo "   Installeer met: $PYTHON_EXE -m pip install -r requirements.txt"
-    exit 1
+
+STORAGE_BACKEND="${STORAGE_BACKEND:-mysql}"
+
+# Waarschuwing als packages ontbreken (menu-optie 10 kan ze installeren)
+if ! "$PYTHON_EXE" -c "import spotipy" 2>/dev/null; then
+    echo "⚠️  spotipy niet gevonden. Kies menu-optie 10 om packages te installeren."
+fi
+if [ "$STORAGE_BACKEND" = "mysql" ] && ! "$PYTHON_EXE" -c "import pymysql" 2>/dev/null; then
+    echo "⚠️  pymysql niet gevonden. Kies menu-optie 10, of zet STORAGE_BACKEND=txt in .env"
 fi
 if ! "$PYTHON_EXE" -c "import mutagen" 2>/dev/null; then
-    echo "❌ Fout: mutagen niet gevonden in virtual environment!"
-    echo "   Installeer met: $PYTHON_EXE -m pip install -r requirements.txt"
-    exit 1
+    echo "⚠️  mutagen niet gevonden. Kies menu-optie 10 om packages te installeren."
 fi
 
 # Voer het Python script uit met de venv Python

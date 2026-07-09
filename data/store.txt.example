@@ -1,0 +1,15 @@
+{
+  "playlists_config": {
+    "source_playlists": [],
+    "destination_playlist": "",
+    "tracking_playlists": []
+  },
+  "historical_tracks": {},
+  "play_counts": {},
+  "tracking_start": {
+    "start_date": null,
+    "last_updated": null
+  },
+  "new_tracks": [],
+  "next_new_track_id": 1
+}
