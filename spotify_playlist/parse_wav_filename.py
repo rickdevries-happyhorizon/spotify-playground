@@ -1,5 +1,7 @@
 import re
 
+from normalize_track_name import normalize_track_name
+
 
 def parse_wav_filename(stem: str) -> tuple[list[str], str]:
     """
@@ -20,7 +22,7 @@ def parse_wav_filename(stem: str) -> tuple[list[str], str]:
         artist.strip() for artist in artists_part.split(',') if artist.strip()
     ]
     artists = list(original_artists)
-    track_title = track_title.strip()
+    track_title = normalize_track_name(track_title.strip())
 
     if not artists:
         raise ValueError(f"Geen artiesten gevonden in bestandsnaam: {stem!r}")

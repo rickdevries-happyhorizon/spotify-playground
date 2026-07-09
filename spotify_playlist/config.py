@@ -33,3 +33,9 @@ ARTIST_RELEASES_DAYS_BACK = 7
 
 # Map met WAV/AIFF bestanden voor metadata tagging (optioneel)
 WAV_METADATA_DIR = ''
+
+# Map voor YouTube naar AIFF downloads (optioneel)
+YOUTUBE_DOWNLOAD_DIR = '/Users/rickdevries/downloads'
+
+# Tekstbestand met YouTube URL's, één per regel (optioneel)
+YOUTUBE_URLS_FILE = 'youtube_urls.txt'

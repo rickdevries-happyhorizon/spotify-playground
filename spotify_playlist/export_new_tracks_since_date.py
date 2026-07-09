@@ -2,6 +2,7 @@ import traceback
 from datetime import datetime, timedelta
 
 from db_store import load_tracking_start_date, save_tracking_start_date, save_new_tracks
+from normalize_track_name import normalize_track_name
 
 from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.colors import Colors
@@ -151,7 +152,9 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
 
                     for uri, track_info in filtered_tracks.items():
                         all_new_tracks.append({
-                            'track': f"{track_info['artists']} - {track_info['name']}",
+                            'track': normalize_track_name(
+                                f"{track_info['artists']} - {track_info['name']}"
+                            ),
                             'reference_url': None,
                         })
                 else:

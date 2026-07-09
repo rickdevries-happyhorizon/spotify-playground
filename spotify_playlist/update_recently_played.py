@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from db_store import load_play_counts, save_play_counts
+from normalize_track_name import normalize_track_name
 
 
 def update_recently_played(sp):
@@ -21,7 +22,7 @@ def update_recently_played(sp):
                 # Initialiseer track entry als deze niet bestaat
                 if uri not in play_counts:
                     play_counts[uri] = {
-                        'name': track.get('name', 'Unknown'),
+                        'name': normalize_track_name(track.get('name', 'Unknown')),
                         'artists': ', '.join([artist['name'] for artist in track.get('artists', [])]),
                         'play_count': 0,
                         'first_played': played_at,

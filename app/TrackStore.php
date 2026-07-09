@@ -24,7 +24,7 @@ final class TrackStore
 
     public static function create(string $track, ?string $referenceUrl = null): array
     {
-        $trackName = trim($track);
+        $trackName = TrackNormalizer::normalize(trim($track));
         if ($trackName === '') {
             throw new InvalidArgumentException('Track name is required');
         }

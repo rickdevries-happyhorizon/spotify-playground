@@ -18,17 +18,18 @@ def show_menu():
     print("  6. Beheer playlist configuratie")
     print("  7. Importeer nieuwe tracks sinds datum in database")
     print("  8. Voeg metadata toe aan WAV/AIFF bestanden")
+    print("  9. Download YouTube naar AIFF")
     print("  0. Afsluiten")
     print("\n" + "-"*60)
 
     while True:
         try:
-            choice = input("Voer je keuze in (0-8): ").strip()
-            if choice in ['0', '1', '2', '3', '4', '5', '6', '7', '8']:
+            choice = input("Voer je keuze in (0-9): ").strip()
+            if choice in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
                 play_selection()
                 return int(choice)
             else:
-                print("❌ Ongeldige keuze. Voer 0, 1, 2, 3, 4, 5, 6, 7 of 8 in.")
+                print("❌ Ongeldige keuze. Voer 0, 1, 2, 3, 4, 5, 6, 7, 8 of 9 in.")
         except KeyboardInterrupt:
             print("\n\nAfsluiten...")
             sys.exit(0)

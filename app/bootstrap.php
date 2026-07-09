@@ -61,6 +61,7 @@ function env(string $key, ?string $default = null): ?string
 load_env_file(project_root() . '/.env');
 
 require_once __DIR__ . '/UrlNormalizer.php';
+require_once __DIR__ . '/TrackNormalizer.php';
 require_once __DIR__ . '/Db.php';
 require_once __DIR__ . '/TrackStore.php';
 require_once __DIR__ . '/Router.php';

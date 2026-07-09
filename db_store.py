@@ -7,6 +7,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import parse_qs, urlparse
 
+from normalize_track_name import normalize_track_name
+
 try:
     import pymysql
     from pymysql.cursors import DictCursor
@@ -251,7 +253,7 @@ def save_play_counts(play_counts: Dict[str, Any]) -> None:
             rows.append(
                 (
                     uri,
-                    entry.get("name", "Unknown"),
+                    normalize_track_name(entry.get("name", "Unknown")),
                     entry.get("artists", ""),
                     int(entry.get("play_count", 0)),
                     _parse_datetime(entry.get("first_played")),
@@ -374,9 +376,73 @@ def delete_new_track(track_id: int) -> bool:
         conn.close()
 
 
+def strip_radio_suffixes_from_db() -> tuple[int, int, int]:
+    """Remove radio edit/mix suffixes from new_tracks and play_counts.
+
+    Returns (new_tracks_updated, new_tracks_deleted, play_counts_updated).
+    """
+    conn = get_connection()
+    new_tracks_updated = 0
+    new_tracks_deleted = 0
+    play_counts_updated = 0
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, track, reference_url FROM new_tracks "
+                "WHERE LOWER(track) LIKE '%radio edit%' OR LOWER(track) LIKE '%radio mix%'"
+            )
+            for row in cur.fetchall():
+                normalized = normalize_track_name(row["track"])
+                if normalized == row["track"]:
+                    continue
+
+                cur.execute(
+                    "SELECT id, reference_url FROM new_tracks WHERE track = %s AND id != %s LIMIT 1",
+                    (normalized, row["id"]),
+                )
+                existing = cur.fetchone()
+                if existing:
+                    if row["reference_url"] and not existing["reference_url"]:
+                        cur.execute(
+                            "UPDATE new_tracks SET reference_url = %s WHERE id = %s",
+                            (row["reference_url"], existing["id"]),
+                        )
+                    cur.execute("DELETE FROM new_tracks WHERE id = %s", (row["id"],))
+                    new_tracks_deleted += 1
+                else:
+                    cur.execute(
+                        "UPDATE new_tracks SET track = %s WHERE id = %s",
+                        (normalized, row["id"]),
+                    )
+                    new_tracks_updated += 1
+
+            cur.execute(
+                "SELECT track_uri, track_name FROM play_counts "
+                "WHERE LOWER(track_name) LIKE '%radio edit%' OR LOWER(track_name) LIKE '%radio mix%'"
+            )
+            for row in cur.fetchall():
+                normalized = normalize_track_name(row["track_name"])
+                if normalized == row["track_name"]:
+                    continue
+                cur.execute(
+                    "UPDATE play_counts SET track_name = %s WHERE track_uri = %s",
+                    (normalized, row["track_uri"]),
+                )
+                play_counts_updated += 1
+
+        conn.commit()
+        return new_tracks_updated, new_tracks_deleted, play_counts_updated
+    except Exception as e:
+        conn.rollback()
+        print(f"Fout bij opschonen radio edit/mix suffixen: {e}")
+        raise
+    finally:
+        conn.close()
+
+
 def create_new_track(track: str, reference_url: Optional[str] = None) -> Dict[str, Any]:
     """Insert a single new_tracks row. Raises ValueError if track is empty or already exists."""
-    track_name = (track or "").strip()
+    track_name = normalize_track_name((track or "").strip())
     if not track_name:
         raise ValueError("Track name is required")
 
@@ -416,7 +482,9 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
         seen_in_batch: set[str] = set()
         total_valid = 0
         for entry in tracks:
-            track_display = entry.get("track") or entry.get("Track") or ""
+            track_display = normalize_track_name(
+                entry.get("track") or entry.get("Track") or ""
+            )
             if not track_display:
                 continue
             total_valid += 1
