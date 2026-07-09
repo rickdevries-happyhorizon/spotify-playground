@@ -175,6 +175,18 @@ def _install_system_tools(missing: list[tuple[str, str, list[str]]]) -> int:
     return installed
 
 
+def _run_spotify_auth(python_exe: Path) -> bool:
+    return _run_command(
+        [
+            str(python_exe),
+            "-c",
+            "from spotify_playlist.get_spotify_client import get_spotify_client; "
+            "get_spotify_client()",
+        ],
+        label="Spotify authenticatie",
+    )
+
+
 def run_install_packages() -> None:
     """Interactive installer for Python and optional system dependencies."""
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}")
@@ -190,6 +202,7 @@ def run_install_packages() -> None:
     else:
         print(f"\n{Colors.DIM}Opslagmodus: MySQL{Colors.RESET}")
 
+    venv_existed = _find_venv_python() is not None
     python_exe = _ensure_venv_python()
     if python_exe is None:
         return
@@ -261,6 +274,33 @@ def run_install_packages() -> None:
             f"\n{Colors.BRIGHT_GREEN}Klaar.{Colors.RESET} "
             f"Start de app met: {Colors.BRIGHT_CYAN}./run_sync.sh{Colors.RESET}"
         )
+        if not venv_existed:
+            print(
+                f"{Colors.BRIGHT_YELLOW}⚠️  Herstart de app met ./run_sync.sh "
+                f"zodat de nieuwe virtual environment wordt gebruikt.{Colors.RESET}"
+            )
+
+        spotipy_ok = subprocess.run(
+            [str(python_exe), "-c", "import spotipy"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            check=False,
+        ).returncode == 0
+        if spotipy_ok:
+            auth_now = input(
+                f"\n{Colors.BRIGHT_CYAN}Nu inloggen bij Spotify? (j/n): {Colors.RESET}"
+            ).strip().lower()
+            if auth_now == "j":
+                print(
+                    f"\n{Colors.DIM}Je browser opent op poort 8888. "
+                    f"Log in en keer terug naar Terminal.{Colors.RESET}"
+                )
+                print(
+                    f"{Colors.DIM}Zorg dat CLIENT_ID, CLIENT_SECRET en REDIRECT_URI "
+                    f"in spotify_playlist/config.py kloppen.{Colors.RESET}"
+                )
+                _run_spotify_auth(python_exe)
+
         if _uses_mysql() and shutil.which("mysql") and shutil.which("brew"):
             print(
                 f"{Colors.DIM}Tip: start MySQL met "

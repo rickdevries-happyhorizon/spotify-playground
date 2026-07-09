@@ -3,13 +3,15 @@ import sys
 import warnings
 
 from spotify_playlist.config import CACHE_FILE, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, SCOPE
-from spotify_playlist.deps import SpotifyException, SpotifyOAuth, spotipy
+from spotify_playlist.deps import SpotifyException, SpotifyOAuth, require_spotipy, spotipy
 from spotify_playlist.is_port_available import is_port_available
 from spotify_playlist.loading_progress import loading_bar
 
 
 def get_spotify_client():
     """Authenticeert en retourneert een Spotify client."""
+    require_spotipy()
+
     # Authenticatie
     print("\n🔐 Authenticatie met Spotify...")
 
