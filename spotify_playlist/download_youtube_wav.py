@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from typing import Optional
 
-from db_store import load_new_tracks
+from db_store import delete_new_track, load_new_tracks
 from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.colors import Colors
 from spotify_playlist.parse_wav_filename import parse_wav_filename
@@ -231,7 +231,7 @@ def download_youtube_tracks(
     overwrite: bool = False,
     tag_metadata: bool = True,
 ) -> tuple[int, int]:
-    """Download tracks from the app. Database rows are never modified or removed."""
+    """Download tracks from the app. Successfully downloaded rows are removed from the database."""
     success_count = 0
     error_count = 0
 
@@ -253,6 +253,23 @@ def download_youtube_tracks(
             )
             if audio_path:
                 print(f"    {Colors.BRIGHT_GREEN}✅ Opgeslagen: {audio_path}{Colors.RESET}")
+                track_id = track.get('id')
+                if track_id is not None:
+                    try:
+                        if delete_new_track(track_id):
+                            print(
+                                f"    {Colors.BRIGHT_GREEN}✅ Verwijderd uit database{Colors.RESET}"
+                            )
+                        else:
+                            print(
+                                f"    {Colors.BRIGHT_YELLOW}⚠️  Track niet gevonden in database "
+                                f"(id={track_id}){Colors.RESET}"
+                            )
+                    except Exception as exc:
+                        print(
+                            f"    {Colors.BRIGHT_YELLOW}⚠️  Kon track niet verwijderen uit "
+                            f"database: {exc}{Colors.RESET}"
+                        )
                 success_count += 1
             else:
                 error_count += 1
@@ -361,7 +378,10 @@ def run_download_youtube_wav(
                 f"\n{Colors.BRIGHT_GREEN}✅ {len(tracks_from_app)} track(s) met YouTube URL "
                 f"geladen uit de app{Colors.RESET}"
             )
-            print(f"{Colors.DIM}Database-records blijven behouden na download.{Colors.RESET}\n")
+            print(
+                f"{Colors.DIM}Succesvol gedownloade tracks worden automatisch uit de "
+                f"database verwijderd.{Colors.RESET}\n"
+            )
             for track in tracks_from_app:
                 print(f"  • {track['track']}")
                 print(f"    {Colors.DIM}{track['reference_url']}{Colors.RESET}")
@@ -428,8 +448,7 @@ def run_download_youtube_wav(
     )
     if success_count and tracks_from_app:
         print(
-            f"{Colors.DIM}De tracks staan nog in je todo-app. "
-            f"Controleer de AIFF-kwaliteit en verwijder ze daar handmatig als je tevreden bent.{Colors.RESET}"
+            f"{Colors.DIM}Succesvol gedownloade tracks zijn uit je todo-app verwijderd.{Colors.RESET}"
         )
     elif success_count:
         print(
