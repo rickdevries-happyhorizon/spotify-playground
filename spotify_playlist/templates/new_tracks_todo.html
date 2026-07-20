@@ -158,12 +158,24 @@
 
     .track-name {
       font-weight: 600;
-      margin-bottom: 0.6rem;
+      margin-bottom: 0.1rem;
       line-height: 1.35;
       word-break: break-word;
       padding-right: 1.25rem;
       border-radius: 6px;
       transition: color 0.4s ease, background 0.4s ease, transform 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    .track-heading {
+      margin-bottom: 0.6rem;
+    }
+
+    .track-genre {
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.25;
+      opacity: 0.85;
+      padding-right: 1.25rem;
     }
 
     .track-name--highlight {
@@ -611,9 +623,15 @@
 
       const hasUrl = Boolean(track.reference_url);
       const safeUrl = track.reference_url ? escapeHtml(track.reference_url) : "";
+      const genreHtml = track.genre
+        ? `<div class="track-genre">${escapeHtml(track.genre)}</div>`
+        : "";
 
       li.innerHTML = `
-        <div class="track-name">${escapeHtml(track.track)}</div>
+        <div class="track-heading">
+          <div class="track-name">${escapeHtml(track.track)}</div>
+          ${genreHtml}
+        </div>
         <div class="copy-buttons">
           <button type="button" class="copy-title">Copy title</button>
           <button type="button" class="copy-url" ${hasUrl ? "" : "disabled"}>Copy URL</button>
@@ -661,6 +679,7 @@
             id: track.id,
             track: track.track,
             reference_url: updated.reference_url,
+            genre: track.genre,
           });
           showStatus(updated.has_url ? "Saved — moved to left column" : "Cleared — moved to right column");
         } catch (error) {

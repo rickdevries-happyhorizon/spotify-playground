@@ -232,6 +232,7 @@ def load_new_tracks() -> List[Dict[str, Any]]:
             "id": int(track["id"]),
             "track": track["track"],
             "reference_url": track.get("reference_url") or None,
+            "genre": track.get("genre") or None,
         }
         for track in store["new_tracks"]
         if isinstance(track, dict) and "id" in track and "track" in track
@@ -319,13 +320,18 @@ def strip_radio_suffixes_from_db() -> tuple[int, int, int]:
     return new_tracks_updated, new_tracks_deleted, play_counts_updated
 
 
-def create_new_track(track: str, reference_url: Optional[str] = None) -> Dict[str, Any]:
+def create_new_track(
+    track: str,
+    reference_url: Optional[str] = None,
+    genre: Optional[str] = None,
+) -> Dict[str, Any]:
     """Insert a single new_tracks row. Raises ValueError if track is empty or already exists."""
     track_name = normalize_track_name((track or "").strip())
     if not track_name:
         raise ValueError("Track name is required")
 
     url = normalize_reference_url(reference_url)
+    genre_value = (genre or "").strip() or None
     store = _load_store()
     for existing in store["new_tracks"]:
         if existing.get("track") == track_name:
@@ -333,7 +339,12 @@ def create_new_track(track: str, reference_url: Optional[str] = None) -> Dict[st
 
     track_id = store["next_new_track_id"]
     store["next_new_track_id"] = track_id + 1
-    created = {"id": track_id, "track": track_name, "reference_url": url}
+    created = {
+        "id": track_id,
+        "track": track_name,
+        "reference_url": url,
+        "genre": genre_value,
+    }
     store["new_tracks"].append(created)
     _save_store(store)
     return created
@@ -345,7 +356,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
         return 0, 0
 
     store = _load_store()
-    rows: List[tuple[str, Optional[str]]] = []
+    rows: List[tuple[str, Optional[str], Optional[str]]] = []
     seen_in_batch: set[str] = set()
     total_valid = 0
 
@@ -359,7 +370,14 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
         if track_display in seen_in_batch:
             continue
         seen_in_batch.add(track_display)
-        rows.append((track_display, normalize_reference_url(entry.get("reference_url"))))
+        genre_value = (entry.get("genre") or "").strip() or None
+        rows.append(
+            (
+                track_display,
+                normalize_reference_url(entry.get("reference_url")),
+                genre_value,
+            )
+        )
 
     if not rows:
         return 0, total_valid
@@ -370,13 +388,18 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
 
     existing = {track["track"] for track in store["new_tracks"]}
     inserted = 0
-    for track_name, url in rows:
+    for track_name, url, genre_value in rows:
         if track_name in existing:
             continue
         track_id = store["next_new_track_id"]
         store["next_new_track_id"] = track_id + 1
         store["new_tracks"].append(
-            {"id": track_id, "track": track_name, "reference_url": url}
+            {
+                "id": track_id,
+                "track": track_name,
+                "reference_url": url,
+                "genre": genre_value,
+            }
         )
         existing.add(track_name)
         inserted += 1

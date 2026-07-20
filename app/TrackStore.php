@@ -6,8 +6,10 @@ final class TrackStore
 {
     public static function loadAll(): array
     {
+        self::ensureGenreColumn();
+
         $stmt = Db::connection()->query(
-            'SELECT id, track, reference_url FROM new_tracks ORDER BY track ASC'
+            'SELECT id, track, reference_url, genre FROM new_tracks ORDER BY track ASC'
         );
 
         $tracks = [];
@@ -16,6 +18,7 @@ final class TrackStore
                 'id' => (int) $row['id'],
                 'track' => $row['track'],
                 'reference_url' => $row['reference_url'] ?: null,
+                'genre' => !empty($row['genre']) ? $row['genre'] : null,
             ];
         }
 
@@ -24,6 +27,8 @@ final class TrackStore
 
     public static function create(string $track, ?string $referenceUrl = null): array
     {
+        self::ensureGenreColumn();
+
         $trackName = TrackNormalizer::normalize(trim($track));
         if ($trackName === '') {
             throw new InvalidArgumentException('Track name is required');
@@ -34,7 +39,7 @@ final class TrackStore
 
         try {
             $stmt = $pdo->prepare(
-                'INSERT INTO new_tracks (track, reference_url) VALUES (:track, :reference_url)'
+                'INSERT INTO new_tracks (track, reference_url, genre) VALUES (:track, :reference_url, NULL)'
             );
             $stmt->execute([
                 'track' => $trackName,
@@ -52,6 +57,7 @@ final class TrackStore
             'id' => (int) $pdo->lastInsertId(),
             'track' => $trackName,
             'reference_url' => $url,
+            'genre' => null,
         ];
     }
 
@@ -79,5 +85,21 @@ final class TrackStore
         $stmt->execute(['id' => $trackId]);
 
         return $stmt->rowCount() > 0;
+    }
+
+    private static function ensureGenreColumn(): void
+    {
+        $pdo = Db::connection();
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS "
+            . "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'new_tracks' "
+            . "AND COLUMN_NAME = 'genre'"
+        );
+        $row = $stmt->fetch();
+        if ((int) ($row['cnt'] ?? 0) === 0) {
+            $pdo->exec(
+                'ALTER TABLE new_tracks ADD COLUMN genre VARCHAR(512) NULL AFTER reference_url'
+            );
+        }
     }
 }

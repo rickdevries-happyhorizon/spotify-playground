@@ -260,19 +260,36 @@ def save_tracking_start_date(start_date: Any) -> None:
         conn.close()
 
 
+def _ensure_new_tracks_genre_column(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'new_tracks' "
+            "AND COLUMN_NAME = 'genre'"
+        )
+        if cur.fetchone()["cnt"] == 0:
+            cur.execute(
+                "ALTER TABLE new_tracks ADD COLUMN genre VARCHAR(512) NULL "
+                "AFTER reference_url"
+            )
+    conn.commit()
+
+
 def load_new_tracks() -> List[Dict[str, Any]]:
     """Load all new_tracks rows ordered by track name."""
     conn = get_connection()
     try:
+        _ensure_new_tracks_genre_column(conn)
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, track, reference_url FROM new_tracks ORDER BY track ASC"
+                "SELECT id, track, reference_url, genre FROM new_tracks ORDER BY track ASC"
             )
             return [
                 {
                     "id": row["id"],
                     "track": row["track"],
                     "reference_url": row["reference_url"] or None,
+                    "genre": row.get("genre") or None,
                 }
                 for row in cur.fetchall()
             ]
@@ -379,23 +396,34 @@ def strip_radio_suffixes_from_db() -> tuple[int, int, int]:
         conn.close()
 
 
-def create_new_track(track: str, reference_url: Optional[str] = None) -> Dict[str, Any]:
+def create_new_track(
+    track: str,
+    reference_url: Optional[str] = None,
+    genre: Optional[str] = None,
+) -> Dict[str, Any]:
     """Insert a single new_tracks row. Raises ValueError if track is empty or already exists."""
     track_name = normalize_track_name((track or "").strip())
     if not track_name:
         raise ValueError("Track name is required")
 
     url = normalize_reference_url(reference_url)
+    genre_value = (genre or "").strip() or None
     conn = get_connection()
     try:
+        _ensure_new_tracks_genre_column(conn)
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO new_tracks (track, reference_url) VALUES (%s, %s)",
-                (track_name, url),
+                "INSERT INTO new_tracks (track, reference_url, genre) VALUES (%s, %s, %s)",
+                (track_name, url, genre_value),
             )
             track_id = cur.lastrowid
         conn.commit()
-        return {"id": track_id, "track": track_name, "reference_url": url}
+        return {
+            "id": track_id,
+            "track": track_name,
+            "reference_url": url,
+            "genre": genre_value,
+        }
     except IntegrityError as e:
         conn.rollback()
         raise ValueError("Track already exists") from e
@@ -414,6 +442,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
 
     conn = get_connection()
     try:
+        _ensure_new_tracks_genre_column(conn)
         rows = []
         seen_in_batch: set[str] = set()
         total_valid = 0
@@ -427,7 +456,14 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
             if track_display in seen_in_batch:
                 continue
             seen_in_batch.add(track_display)
-            rows.append((track_display, normalize_reference_url(entry.get("reference_url"))))
+            genre_value = (entry.get("genre") or "").strip() or None
+            rows.append(
+                (
+                    track_display,
+                    normalize_reference_url(entry.get("reference_url")),
+                    genre_value,
+                )
+            )
 
         if not rows:
             return 0, total_valid
@@ -436,7 +472,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
             if replace:
                 cur.execute("DELETE FROM new_tracks")
                 cur.executemany(
-                    "INSERT INTO new_tracks (track, reference_url) VALUES (%s, %s)",
+                    "INSERT INTO new_tracks (track, reference_url, genre) VALUES (%s, %s, %s)",
                     rows,
                 )
                 inserted = len(rows)
@@ -446,7 +482,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
                 new_rows = [row for row in rows if row[0] not in existing]
                 if new_rows:
                     cur.executemany(
-                        "INSERT INTO new_tracks (track, reference_url) VALUES (%s, %s)",
+                        "INSERT INTO new_tracks (track, reference_url, genre) VALUES (%s, %s, %s)",
                         new_rows,
                     )
                 inserted = len(new_rows)

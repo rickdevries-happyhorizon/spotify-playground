@@ -156,6 +156,7 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
                                 f"{track_info['artists']} - {track_info['name']}"
                             ),
                             'reference_url': None,
+                            'genre': playlist_name,
                         })
                 else:
                     print(f"{Colors.DIM}   🤷 Geen nieuwe tracks in deze periode{Colors.RESET}")

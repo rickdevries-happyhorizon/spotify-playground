@@ -1,4 +1,4 @@
-"""Download YouTube audio as AIFF files using yt-dlp and ffmpeg."""
+"""Download YouTube audio as AIFF files using yt-dlp and a single ffmpeg pass."""
 
 import os
 import re
@@ -62,23 +62,23 @@ def _safe_filename_stem(name: str) -> str:
 AUDIO_EXTENSION = '.aiff'
 
 
-def _tag_audio_from_filename(path: str) -> None:
+def _tag_audio_from_filename(path: str, genre: str | None = None) -> None:
     stem = os.path.splitext(os.path.basename(path))[0]
     artists, title = parse_wav_filename(stem)
-    apply_aiff_metadata(path, artists, title)
+    apply_aiff_metadata(path, artists, title, genre)
 
 
-def _convert_wav_to_aiff(wav_path: str, aiff_path: str) -> None:
-    """Convert a WAV file to AIFF using ffmpeg."""
+def _convert_to_aiff(source_path: str, aiff_path: str) -> None:
+    """Convert downloaded audio to AIFF in one ffmpeg pass, preserving sample rate."""
     _require_ffmpeg()
     result = subprocess.run(
         [
             'ffmpeg',
             '-y',
             '-i',
-            wav_path,
-            '-ar',
-            '44100',
+            source_path,
+            '-c:a',
+            'pcm_s16be',
             '-f',
             'aiff',
             aiff_path,
@@ -99,6 +99,7 @@ def download_youtube_to_aiff(
     output_name: Optional[str] = None,
     overwrite: bool = False,
     tag_metadata: bool = True,
+    genre: str | None = None,
 ) -> Optional[str]:
     """
     Download a single YouTube URL as an AIFF file.
@@ -125,13 +126,6 @@ def download_youtube_to_aiff(
         format='bestaudio/best',
         outtmpl=outtmpl,
         overwrites=overwrite,
-        postprocessors=[{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'wav',
-        }],
-        postprocessor_args={
-            'ffmpeg': ['-ar', '44100'],
-        },
     )
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -139,22 +133,24 @@ def download_youtube_to_aiff(
         if info is None:
             return None
 
-        path = ydl.prepare_filename(info)
-        wav_path = os.path.splitext(path)[0] + '.wav'
-        audio_path = os.path.splitext(path)[0] + AUDIO_EXTENSION
+        source_path = ydl.prepare_filename(info)
+        audio_path = os.path.splitext(source_path)[0] + AUDIO_EXTENSION
 
-    if not os.path.isfile(wav_path):
-        print(f"{Colors.BRIGHT_RED}❌ WAV bestand niet gevonden na download: {wav_path}{Colors.RESET}")
+    if not os.path.isfile(source_path):
+        print(
+            f"{Colors.BRIGHT_RED}❌ Audiobestand niet gevonden na download: "
+            f"{source_path}{Colors.RESET}"
+        )
         return None
 
     try:
-        _convert_wav_to_aiff(wav_path, audio_path)
+        _convert_to_aiff(source_path, audio_path)
     except RuntimeError as exc:
         print(f"{Colors.BRIGHT_RED}❌ AIFF-conversie mislukt: {exc}{Colors.RESET}")
         return None
     finally:
-        if os.path.isfile(wav_path):
-            os.remove(wav_path)
+        if os.path.isfile(source_path):
+            os.remove(source_path)
 
     if not os.path.isfile(audio_path):
         print(f"{Colors.BRIGHT_RED}❌ AIFF bestand niet gevonden na download: {audio_path}{Colors.RESET}")
@@ -162,7 +158,7 @@ def download_youtube_to_aiff(
 
     if tag_metadata:
         try:
-            _tag_audio_from_filename(audio_path)
+            _tag_audio_from_filename(audio_path, genre)
             print(f"    {Colors.BRIGHT_GREEN}✅ ID3 metadata toegevoegd{Colors.RESET}")
         except Exception as exc:
             print(
@@ -250,6 +246,7 @@ def download_youtube_tracks(
                 output_name=track_name,
                 overwrite=overwrite,
                 tag_metadata=tag_metadata,
+                genre=track.get('genre'),
             )
             if audio_path:
                 print(f"    {Colors.BRIGHT_GREEN}✅ Opgeslagen: {audio_path}{Colors.RESET}")

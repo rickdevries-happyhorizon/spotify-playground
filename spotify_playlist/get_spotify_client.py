@@ -8,6 +8,16 @@ from spotify_playlist.is_port_available import is_port_available
 from spotify_playlist.loading_progress import loading_bar
 
 
+def _clear_spotify_cache() -> None:
+    if os.path.exists(CACHE_FILE):
+        os.remove(CACHE_FILE)
+
+
+def _is_revoked_token_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return "invalid_grant" in message or "refresh token revoked" in message
+
+
 def get_spotify_client():
     """Authenticeert en retourneert een Spotify client."""
     require_spotipy()
@@ -59,10 +69,21 @@ def get_spotify_client():
                 print("Token verlopen, probeer te refreshen...")
                 with loading_bar("Token verversen..."):
                     token_info = auth_manager.refresh_access_token(token_info['refresh_token'])
-            except Exception:
-                # Refresh mislukt, browser nodig
+            except Exception as e:
+                if _is_revoked_token_error(e):
+                    print("⚠️  Refresh token ingetrokken. Cache wordt gewist voor nieuwe login...")
+                    _clear_spotify_cache()
+                    token_info = None
+                    auth_manager = SpotifyOAuth(
+                        client_id=CLIENT_ID,
+                        client_secret=CLIENT_SECRET,
+                        redirect_uri=REDIRECT_URI,
+                        scope=SCOPE,
+                        cache_path=CACHE_FILE,
+                        open_browser=False,
+                    )
                 needs_browser = True
-                print("Token refresh mislukt. Browser wordt geopend voor nieuwe authenticatie...")
+                print("Browser wordt geopend voor nieuwe authenticatie...")
 
         # Als browser nodig is, trigger de OAuth flow
         if needs_browser:
@@ -90,8 +111,34 @@ def get_spotify_client():
         sp = spotipy.Spotify(auth_manager=auth_manager)
 
         # Test authenticatie door gebruikersinfo op te halen
-        with loading_bar("Verbinden met Spotify..."):
-            user = sp.current_user()
+        try:
+            with loading_bar("Verbinden met Spotify..."):
+                user = sp.current_user()
+        except Exception as e:
+            if _is_revoked_token_error(e):
+                print("⚠️  Spotify-sessie verlopen. Opnieuw inloggen via browser...")
+                _clear_spotify_cache()
+                auth_manager = SpotifyOAuth(
+                    client_id=CLIENT_ID,
+                    client_secret=CLIENT_SECRET,
+                    redirect_uri=REDIRECT_URI,
+                    scope=SCOPE,
+                    cache_path=CACHE_FILE,
+                    open_browser=True,
+                )
+                with loading_bar("Authenticatie in browser..."):
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings(
+                            "ignore",
+                            category=DeprecationWarning,
+                            message=".*get_access_token.*",
+                        )
+                        auth_manager.get_access_token()
+                sp = spotipy.Spotify(auth_manager=auth_manager)
+                with loading_bar("Verbinden met Spotify..."):
+                    user = sp.current_user()
+            else:
+                raise
         print(f"✅ Ingelogd als: {user['display_name']} ({user['id']})")
         return sp
 
@@ -126,5 +173,10 @@ def get_spotify_client():
             print(f"❌ Onverwachte fout bij authenticatie: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Onverwachte fout bij authenticatie: {e}")
+        if _is_revoked_token_error(e):
+            print("❌ Spotify refresh token is ingetrokken.")
+            print("   Verwijder .spotipy_cache en start de app opnieuw om opnieuw in te loggen.")
+            _clear_spotify_cache()
+        else:
+            print(f"❌ Onverwachte fout bij authenticatie: {e}")
         sys.exit(1)

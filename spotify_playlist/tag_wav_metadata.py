@@ -12,23 +12,25 @@ AUDIO_EXTENSIONS = ('.wav', '.aiff', '.aif')
 def _require_mutagen():
     try:
         from mutagen.aiff import AIFF
-        from mutagen.id3 import TIT2, TPE1
+        from mutagen.id3 import TCON, TIT2, TPE1
         from mutagen.wave import WAVE
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(
             "mutagen is niet geïnstalleerd. Voer uit: pip install -r requirements.txt"
         ) from exc
-    return TIT2, TPE1, WAVE, AIFF
+    return TCON, TIT2, TPE1, WAVE, AIFF
 
 
-def apply_wav_metadata(path: str, artists: list[str], title: str) -> None:
+def apply_wav_metadata(
+    path: str, artists: list[str], title: str, genre: str | None = None
+) -> None:
     """Write ID3 and RIFF INFO tags to a WAV file and clear any album field."""
-    TIT2, TPE1, WAVE, _AIFF = _require_mutagen()
+    TCON, TIT2, TPE1, WAVE, _AIFF = _require_mutagen()
     artist = ', '.join(artists)
 
     # Many DJ WAV exports have invalid RIFF headers. Rebuild the file first so
     # mutagen can insert/update the ID3 chunk without struct errors.
-    apply_riff_info(path, title, artist)
+    apply_riff_info(path, title, artist, genre)
 
     try:
         audio = WAVE(path)
@@ -38,20 +40,25 @@ def apply_wav_metadata(path: str, artists: list[str], title: str) -> None:
         audio.tags.delall('TIT2')
         audio.tags.delall('TPE1')
         audio.tags.delall('TALB')
+        audio.tags.delall('TCON')
         audio.tags.add(TIT2(encoding=3, text=title))
         audio.tags.add(TPE1(encoding=3, text=artist))
+        if genre:
+            audio.tags.add(TCON(encoding=3, text=genre))
         audio.save()
     except struct.error:
         # Rekordbox only reads RIFF INFO; ID3 is optional for other players.
         pass
 
     # Write RIFF INFO last so Rekordbox always sees the final metadata.
-    apply_riff_info(path, title, artist)
+    apply_riff_info(path, title, artist, genre)
 
 
-def apply_aiff_metadata(path: str, artists: list[str], title: str) -> None:
+def apply_aiff_metadata(
+    path: str, artists: list[str], title: str, genre: str | None = None
+) -> None:
     """Write ID3 tags to an AIFF file and clear any album field."""
-    TIT2, TPE1, _WAVE, AIFF = _require_mutagen()
+    TCON, TIT2, TPE1, _WAVE, AIFF = _require_mutagen()
     artist = ', '.join(artists)
 
     audio = AIFF(path)
@@ -61,18 +68,23 @@ def apply_aiff_metadata(path: str, artists: list[str], title: str) -> None:
     audio.tags.delall('TIT2')
     audio.tags.delall('TPE1')
     audio.tags.delall('TALB')
+    audio.tags.delall('TCON')
     audio.tags.add(TIT2(encoding=3, text=title))
     audio.tags.add(TPE1(encoding=3, text=artist))
+    if genre:
+        audio.tags.add(TCON(encoding=3, text=genre))
     audio.save()
 
 
-def apply_audio_metadata(path: str, artists: list[str], title: str) -> None:
+def apply_audio_metadata(
+    path: str, artists: list[str], title: str, genre: str | None = None
+) -> None:
     """Write metadata tags based on the audio file extension."""
     extension = os.path.splitext(path)[1].lower()
     if extension == '.wav':
-        apply_wav_metadata(path, artists, title)
+        apply_wav_metadata(path, artists, title, genre)
     elif extension in ('.aiff', '.aif'):
-        apply_aiff_metadata(path, artists, title)
+        apply_aiff_metadata(path, artists, title, genre)
     else:
         raise ValueError(f'Niet ondersteund bestandstype: {extension}')
 

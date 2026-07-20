@@ -55,8 +55,12 @@ CREATE TABLE IF NOT EXISTS new_tracks (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   track VARCHAR(512) NOT NULL,
   reference_url TEXT NULL,
+  genre VARCHAR(512) NULL,
   UNIQUE KEY uq_new_tracks_track (track(191))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Existing database? Run once:
+-- ALTER TABLE new_tracks ADD COLUMN genre VARCHAR(512) NULL AFTER reference_url;
 
 INSERT IGNORE INTO destination_config (singleton, playlist_id) VALUES (1, '');
 INSERT IGNORE INTO tracking_start (singleton, start_date, last_updated) VALUES (1, NULL, NULL);
