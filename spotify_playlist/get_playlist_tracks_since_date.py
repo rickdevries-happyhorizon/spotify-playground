@@ -1,7 +1,21 @@
 from datetime import datetime
 
 from spotify_playlist.colors import Colors
+from spotify_playlist.release_year import normalize_release_year
 from spotify_playlist.deps import SpotifyException
+
+
+def _track_info_from_item(track: dict) -> dict:
+    artists = ', '.join([artist['name'] for artist in track.get('artists', [])])
+    album = track.get('album') or {}
+    release_year = normalize_release_year(album.get('release_date'))
+    info = {
+        'name': track.get('name', 'Unknown'),
+        'artists': artists,
+    }
+    if release_year is not None:
+        info['release_year'] = release_year
+    return info
 
 
 def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_info=False, debug=False):
@@ -27,7 +41,10 @@ def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_inf
         # Let op: added_at is alleen beschikbaar voor playlists die je bezit of waar je collaborator bent
         results = sp.playlist_items(
             playlist_id,
-            fields='items.added_at,items.track.uri,items.track.name,items.track.artists,items.track.id,next',
+            fields=(
+                'items.added_at,items.track.uri,items.track.name,items.track.artists,'
+                'items.track.id,items.track.album.release_date,next'
+            ),
             limit=100,
         )
 
@@ -63,11 +80,9 @@ def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_inf
                     # Als geen added_at, neem de track op (voor veiligheid)
                     uri = track['uri']
                     if return_track_info:
-                        artists = ', '.join([artist['name'] for artist in track.get('artists', [])])
                         track_data[uri] = {
-                            'name': track.get('name', 'Unknown'),
-                            'artists': artists,
-                            'added_at': None  # Geen datum beschikbaar
+                            **_track_info_from_item(track),
+                            'added_at': None,  # Geen datum beschikbaar
                         }
                     else:
                         track_data.add(uri)
@@ -93,11 +108,9 @@ def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_inf
                     if added_at >= since_date:
                         uri = track['uri']
                         if return_track_info:
-                            artists = ', '.join([artist['name'] for artist in track.get('artists', [])])
                             track_data[uri] = {
-                                'name': track.get('name', 'Unknown'),
-                                'artists': artists,
-                                'added_at': added_at_str
+                                **_track_info_from_item(track),
+                                'added_at': added_at_str,
                             }
                         else:
                             track_data.add(uri)

@@ -4,4 +4,6 @@ tqdm>=4.66.0
 numbers-parser>=4.0.0
 flask>=3.0.0
 mutagen>=1.47.0
+Pillow>=10.0.0
+librosa>=0.10.0
 yt-dlp[default]>=2024.1.0

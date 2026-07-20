@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from normalize_track_name import normalize_track_name
+from spotify_playlist.release_year import normalize_release_year
 from store_common import dt_to_iso_str, normalize_reference_url, parse_datetime
 
 DEFAULT_STORAGE_FILE = Path(__file__).resolve().parent / "data" / "store.txt"
@@ -233,6 +234,7 @@ def load_new_tracks() -> List[Dict[str, Any]]:
             "track": track["track"],
             "reference_url": track.get("reference_url") or None,
             "genre": track.get("genre") or None,
+            "release_year": track.get("release_year") or None,
         }
         for track in store["new_tracks"]
         if isinstance(track, dict) and "id" in track and "track" in track
@@ -356,7 +358,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
         return 0, 0
 
     store = _load_store()
-    rows: List[tuple[str, Optional[str], Optional[str]]] = []
+    rows: List[tuple[str, Optional[str], Optional[str], Optional[int]]] = []
     seen_in_batch: set[str] = set()
     total_valid = 0
 
@@ -371,11 +373,13 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
             continue
         seen_in_batch.add(track_display)
         genre_value = (entry.get("genre") or "").strip() or None
+        release_year = normalize_release_year(entry.get("release_year"))
         rows.append(
             (
                 track_display,
                 normalize_reference_url(entry.get("reference_url")),
                 genre_value,
+                release_year,
             )
         )
 
@@ -388,7 +392,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
 
     existing = {track["track"] for track in store["new_tracks"]}
     inserted = 0
-    for track_name, url, genre_value in rows:
+    for track_name, url, genre_value, release_year in rows:
         if track_name in existing:
             continue
         track_id = store["next_new_track_id"]
@@ -399,6 +403,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
                 "track": track_name,
                 "reference_url": url,
                 "genre": genre_value,
+                "release_year": release_year,
             }
         )
         existing.add(track_name)

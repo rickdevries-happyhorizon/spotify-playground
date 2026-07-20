@@ -157,6 +157,7 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
                             ),
                             'reference_url': None,
                             'genre': playlist_name,
+                            'release_year': track_info.get('release_year'),
                         })
                 else:
                     print(f"{Colors.DIM}   🤷 Geen nieuwe tracks in deze periode{Colors.RESET}")

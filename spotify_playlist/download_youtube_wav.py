@@ -9,8 +9,11 @@ from typing import Optional
 from db_store import delete_new_track, load_new_tracks
 from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.colors import Colors
+from spotify_playlist.audio_energy import analyze_track_energy, format_energy_label
 from spotify_playlist.parse_wav_filename import parse_wav_filename
-from spotify_playlist.tag_wav_metadata import apply_aiff_metadata
+from spotify_playlist.release_year import normalize_release_year, release_year_from_youtube_info
+from spotify_playlist.tag_wav_metadata import apply_aiff_metadata, apply_cover_art
+from spotify_playlist.youtube_thumbnail import cover_art_from_youtube_info
 
 _INVALID_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
@@ -62,10 +65,15 @@ def _safe_filename_stem(name: str) -> str:
 AUDIO_EXTENSION = '.aiff'
 
 
-def _tag_audio_from_filename(path: str, genre: str | None = None) -> None:
+def _tag_audio_from_filename(
+    path: str,
+    genre: str | None = None,
+    year: int | str | None = None,
+    label: str | None = None,
+) -> None:
     stem = os.path.splitext(os.path.basename(path))[0]
     artists, title = parse_wav_filename(stem)
-    apply_aiff_metadata(path, artists, title, genre)
+    apply_aiff_metadata(path, artists, title, genre, year, label)
 
 
 def _convert_to_aiff(source_path: str, aiff_path: str) -> None:
@@ -100,6 +108,7 @@ def download_youtube_to_aiff(
     overwrite: bool = False,
     tag_metadata: bool = True,
     genre: str | None = None,
+    year: int | str | None = None,
 ) -> Optional[str]:
     """
     Download a single YouTube URL as an AIFF file.
@@ -157,13 +166,44 @@ def download_youtube_to_aiff(
         return None
 
     if tag_metadata:
+        release_year = normalize_release_year(year) or release_year_from_youtube_info(info)
+        energy_label = None
         try:
-            _tag_audio_from_filename(audio_path, genre)
-            print(f"    {Colors.BRIGHT_GREEN}✅ ID3 metadata toegevoegd{Colors.RESET}")
+            energy = analyze_track_energy(audio_path)
+            energy_label = format_energy_label(energy)
+        except Exception as exc:
+            print(
+                f"    {Colors.BRIGHT_YELLOW}⚠️  Energy niet geanalyseerd: {exc}{Colors.RESET}"
+            )
+
+        try:
+            _tag_audio_from_filename(audio_path, genre, release_year, energy_label)
+            details = []
+            if release_year is not None:
+                details.append(f'jaar {release_year}')
+            if energy_label is not None:
+                details.append(f'energy {energy_label}')
+            if details:
+                print(
+                    f"    {Colors.BRIGHT_GREEN}✅ ID3 metadata toegevoegd "
+                    f"(incl. {', '.join(details)}){Colors.RESET}"
+                )
+            else:
+                print(f"    {Colors.BRIGHT_GREEN}✅ ID3 metadata toegevoegd{Colors.RESET}")
         except Exception as exc:
             print(
                 f"    {Colors.BRIGHT_YELLOW}⚠️  Metadata niet toegepast "
                 f"(bestandsnaam moet 'Artiest - Titel.aiff' zijn): {exc}{Colors.RESET}"
+            )
+
+        try:
+            cover_art = cover_art_from_youtube_info(info)
+            if cover_art:
+                apply_cover_art(audio_path, cover_art)
+                print(f"    {Colors.BRIGHT_GREEN}✅ YouTube cover art toegevoegd{Colors.RESET}")
+        except Exception as exc:
+            print(
+                f"    {Colors.BRIGHT_YELLOW}⚠️  Cover art niet toegepast: {exc}{Colors.RESET}"
             )
 
     return audio_path
@@ -247,6 +287,7 @@ def download_youtube_tracks(
                 overwrite=overwrite,
                 tag_metadata=tag_metadata,
                 genre=track.get('genre'),
+                year=track.get('release_year'),
             )
             if audio_path:
                 print(f"    {Colors.BRIGHT_GREEN}✅ Opgeslagen: {audio_path}{Colors.RESET}")

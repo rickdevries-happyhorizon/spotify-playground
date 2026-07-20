@@ -6,10 +6,10 @@ final class TrackStore
 {
     public static function loadAll(): array
     {
-        self::ensureGenreColumn();
+        self::ensureOptionalColumns();
 
         $stmt = Db::connection()->query(
-            'SELECT id, track, reference_url, genre FROM new_tracks ORDER BY track ASC'
+            'SELECT id, track, reference_url, genre, release_year FROM new_tracks ORDER BY track ASC'
         );
 
         $tracks = [];
@@ -19,6 +19,7 @@ final class TrackStore
                 'track' => $row['track'],
                 'reference_url' => $row['reference_url'] ?: null,
                 'genre' => !empty($row['genre']) ? $row['genre'] : null,
+                'release_year' => isset($row['release_year']) ? (int) $row['release_year'] : null,
             ];
         }
 
@@ -27,7 +28,7 @@ final class TrackStore
 
     public static function create(string $track, ?string $referenceUrl = null): array
     {
-        self::ensureGenreColumn();
+        self::ensureOptionalColumns();
 
         $trackName = TrackNormalizer::normalize(trim($track));
         if ($trackName === '') {
@@ -58,6 +59,7 @@ final class TrackStore
             'track' => $trackName,
             'reference_url' => $url,
             'genre' => null,
+            'release_year' => null,
         ];
     }
 
@@ -87,19 +89,26 @@ final class TrackStore
         return $stmt->rowCount() > 0;
     }
 
-    private static function ensureGenreColumn(): void
+    private static function ensureOptionalColumns(): void
+    {
+        self::ensureColumn('genre', 'ALTER TABLE new_tracks ADD COLUMN genre VARCHAR(512) NULL AFTER reference_url');
+        self::ensureColumn(
+            'release_year',
+            'ALTER TABLE new_tracks ADD COLUMN release_year SMALLINT UNSIGNED NULL AFTER genre'
+        );
+    }
+
+    private static function ensureColumn(string $columnName, string $alterSql): void
     {
         $pdo = Db::connection();
         $stmt = $pdo->query(
             "SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS "
             . "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'new_tracks' "
-            . "AND COLUMN_NAME = 'genre'"
+            . "AND COLUMN_NAME = '" . $columnName . "'"
         );
         $row = $stmt->fetch();
         if ((int) ($row['cnt'] ?? 0) === 0) {
-            $pdo->exec(
-                'ALTER TABLE new_tracks ADD COLUMN genre VARCHAR(512) NULL AFTER reference_url'
-            );
+            $pdo->exec($alterSql);
         }
     }
 }
