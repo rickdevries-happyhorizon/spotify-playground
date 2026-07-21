@@ -32,7 +32,10 @@ CHECK_ARTIST_RELEASES = True
 ARTIST_RELEASES_DAYS_BACK = 7
 
 # Map met WAV/AIFF bestanden voor metadata tagging (optioneel)
-WAV_METADATA_DIR = ''
+WAV_METADATA_DIR = '/Volumes/ShortJack/music'
+
+# Map met WAV/AIFF bestanden voor Spotify cover art (optioneel)
+SPOTIFY_COVER_ART_DIR = '/Volumes/ShortJack/music'
 
 # Map voor YouTube naar AIFF downloads (optioneel)
 YOUTUBE_DOWNLOAD_DIR = '/Users/rickdevries/downloads'

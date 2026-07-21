@@ -23,7 +23,8 @@ from spotify_playlist.sync_artist_releases import sync_artist_releases
 from spotify_playlist.sync_playlists import sync_playlists
 from spotify_playlist.download_youtube_wav import run_download_youtube_wav
 from spotify_playlist.install_packages import run_install_packages
-from spotify_playlist.tag_wav_metadata import run_tag_wav_metadata
+from spotify_playlist.spotify_cover_art import run_spotify_cover_art
+from spotify_playlist.spotify_metadata import run_spotify_metadata
 
 
 def main():
@@ -360,7 +361,9 @@ def main():
 
             export_new_tracks_since_date(sp, selected_playlists, since_date)
         elif choice == 8:
-            run_tag_wav_metadata(config.WAV_METADATA_DIR)
+            run_spotify_metadata(
+                config.WAV_METADATA_DIR or config.SPOTIFY_COVER_ART_DIR
+            )
         elif choice == 9:
             run_download_youtube_wav(
                 config.YOUTUBE_DOWNLOAD_DIR,
@@ -368,3 +371,5 @@ def main():
             )
         elif choice == 10:
             run_install_packages()
+        elif choice == 11:
+            run_spotify_cover_art(config.SPOTIFY_COVER_ART_DIR)

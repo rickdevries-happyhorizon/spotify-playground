@@ -14,13 +14,13 @@ AUDIO_EXTENSIONS = ('.wav', '.aiff', '.aif')
 def _require_mutagen():
     try:
         from mutagen.aiff import AIFF
-        from mutagen.id3 import APIC, TCON, TDRC, TIT2, TPE1, TPUB, TYER
+        from mutagen.id3 import APIC, TALB, TCON, TDRC, TIT2, TPE1, TPUB, TYER
         from mutagen.wave import WAVE
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(
             "mutagen is niet geïnstalleerd. Voer uit: pip install -r requirements.txt"
         ) from exc
-    return APIC, TCON, TDRC, TIT2, TPE1, TPUB, TYER, WAVE, AIFF
+    return APIC, TALB, TCON, TDRC, TIT2, TPE1, TPUB, TYER, WAVE, AIFF
 
 
 def _apply_label_tag(audio, TPUB, label: str) -> None:
@@ -36,9 +36,63 @@ def _apply_year_tags(audio, TDRC, TYER, year: int) -> None:
     audio.tags.add(TYER(encoding=3, text=year_text))
 
 
+def _read_id3_text(audio, frame_id: str) -> str | None:
+    if audio.tags is None:
+        return None
+    frames = audio.tags.getall(frame_id)
+    if not frames:
+        return None
+    return str(frames[0])
+
+
+def apply_rekordbox_fields(
+    path: str,
+    *,
+    album: str | None = None,
+    release_date: str | None = None,
+    year: int | None = None,
+    label: str | None = None,
+) -> None:
+    """Update only the provided Rekordbox metadata fields on a WAV or AIFF file."""
+    _APIC, TALB, _TCON, TDRC, TIT2, TPE1, TPUB, TYER, WAVE, AIFF = _require_mutagen()
+    extension = os.path.splitext(path)[1].lower()
+
+    if extension == '.wav':
+        audio = WAVE(path)
+    elif extension in ('.aiff', '.aif'):
+        audio = AIFF(path)
+    else:
+        raise ValueError(f'Niet ondersteund bestandstype: {extension}')
+
+    if audio.tags is None:
+        audio.add_tags()
+
+    if album is not None:
+        audio.tags.delall('TALB')
+        audio.tags.add(TALB(encoding=3, text=album))
+
+    if release_date is not None:
+        audio.tags.delall('TDRC')
+        audio.tags.add(TDRC(encoding=3, text=release_date))
+
+    if year is not None:
+        audio.tags.delall('TYER')
+        audio.tags.add(TYER(encoding=3, text=str(year)))
+
+    if label is not None:
+        _apply_label_tag(audio, TPUB, label)
+
+    audio.save()
+
+    if extension == '.wav' and (year is not None or album is not None):
+        title = _read_id3_text(audio, 'TIT2') or os.path.splitext(os.path.basename(path))[0]
+        artist = _read_id3_text(audio, 'TPE1') or ''
+        apply_riff_info(path, title, artist, year=year, album=album)
+
+
 def apply_cover_art(path: str, image_bytes: bytes, *, mime: str = 'image/jpeg') -> None:
     """Embed cover art in a WAV or AIFF file via an ID3 APIC frame."""
-    APIC, _TCON, _TDRC, _TIT2, _TPE1, _TPUB, _TYER, WAVE, AIFF = _require_mutagen()
+    APIC, _TALB, _TCON, _TDRC, _TIT2, _TPE1, _TPUB, _TYER, WAVE, AIFF = _require_mutagen()
     extension = os.path.splitext(path)[1].lower()
 
     if extension == '.wav':
@@ -64,6 +118,25 @@ def apply_cover_art(path: str, image_bytes: bytes, *, mime: str = 'image/jpeg') 
     audio.save()
 
 
+def remove_cover_art(path: str) -> None:
+    """Remove embedded cover art from a WAV or AIFF file."""
+    APIC, _TALB, _TCON, _TDRC, _TIT2, _TPE1, _TPUB, _TYER, WAVE, AIFF = _require_mutagen()
+    extension = os.path.splitext(path)[1].lower()
+
+    if extension == '.wav':
+        audio = WAVE(path)
+    elif extension in ('.aiff', '.aif'):
+        audio = AIFF(path)
+    else:
+        raise ValueError(f'Niet ondersteund bestandstype: {extension}')
+
+    if audio.tags is None:
+        return
+
+    audio.tags.delall('APIC')
+    audio.save()
+
+
 def apply_wav_metadata(
     path: str,
     artists: list[str],
@@ -73,7 +146,7 @@ def apply_wav_metadata(
     label: str | None = None,
 ) -> None:
     """Write ID3 and RIFF INFO tags to a WAV file and clear any album field."""
-    _APIC, TCON, TDRC, TIT2, TPE1, TPUB, TYER, WAVE, _AIFF = _require_mutagen()
+    _APIC, TALB, TCON, TDRC, TIT2, TPE1, TPUB, TYER, WAVE, _AIFF = _require_mutagen()
     artist = ', '.join(artists)
     release_year = normalize_release_year(year)
 
@@ -116,7 +189,7 @@ def apply_aiff_metadata(
     label: str | None = None,
 ) -> None:
     """Write ID3 tags to an AIFF file and clear any album field."""
-    _APIC, TCON, TDRC, TIT2, TPE1, TPUB, TYER, _WAVE, AIFF = _require_mutagen()
+    _APIC, TALB, TCON, TDRC, TIT2, TPE1, TPUB, TYER, _WAVE, AIFF = _require_mutagen()
     artist = ', '.join(artists)
     release_year = normalize_release_year(year)
 
@@ -224,56 +297,6 @@ def tag_wavs_in_directory(directory: str, *, dry_run: bool = False) -> tuple[int
 
 def run_tag_wav_metadata(default_directory: str = '') -> None:
     """Interactive flow to tag WAV and AIFF files from the menu."""
-    try:
-        _require_mutagen()
-    except ModuleNotFoundError as exc:
-        print(f"{Colors.BRIGHT_RED}❌ {exc}{Colors.RESET}")
-        return
+    from spotify_playlist.spotify_metadata import run_spotify_metadata
 
-    print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🏷️  WAV/AIFF Metadata Toevoegen  🏷️{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}\n")
-
-    if default_directory:
-        print(f"{Colors.DIM}Standaard map: {default_directory}{Colors.RESET}")
-
-    directory = input(
-        f"{Colors.BRIGHT_CYAN}Map met WAV/AIFF bestanden (Enter voor standaard, 'q' om terug): {Colors.RESET}"
-    ).strip()
-
-    if directory.lower() == 'q':
-        return
-
-    if not directory:
-        directory = default_directory
-
-    if not directory:
-        print(f"{Colors.BRIGHT_RED}❌ Geen map opgegeven.{Colors.RESET}")
-        return
-
-    directory = os.path.expanduser(directory)
-
-    try:
-        success_count, error_count = tag_wavs_in_directory(directory, dry_run=True)
-    except Exception as exc:
-        print(f"{Colors.BRIGHT_RED}❌ Fout: {exc}{Colors.RESET}")
-        return
-
-    if success_count == 0:
-        return
-
-    confirm = input(
-        f"\n{Colors.BRIGHT_CYAN}Metadata toepassen op {success_count} bestand(en)? (j/n): {Colors.RESET}"
-    ).strip().lower()
-
-    if confirm != 'j':
-        print(f"{Colors.DIM}Geannuleerd.{Colors.RESET}")
-        return
-
-    success_count, error_count = tag_wavs_in_directory(directory, dry_run=False)
-
-    print(f"\n{Colors.BRIGHT_GREEN}Klaar: {success_count} bijgewerkt, {error_count} mislukt.{Colors.RESET}")
-    if success_count:
-        print(
-            f"{Colors.DIM}Tip: in Rekordbox rechtsklik op de tracks → Reload Tag om de metadata te laden.{Colors.RESET}"
-        )
+    run_spotify_metadata(default_directory)

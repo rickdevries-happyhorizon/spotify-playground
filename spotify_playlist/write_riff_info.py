@@ -21,12 +21,15 @@ def _build_list_info_chunk(
     artist: str,
     genre: str | None = None,
     year: int | None = None,
+    album: str | None = None,
 ) -> bytes:
     list_data = b'INFO'
     list_data += _build_info_subchunk('INAM', title)
     list_data += _build_info_subchunk('IART', artist)
     if genre:
         list_data += _build_info_subchunk('IGNR', genre)
+    if album:
+        list_data += _build_info_subchunk('IPRD', album)
     if year is not None:
         list_data += _build_info_subchunk('ICRD', str(year))
     chunk = b'LIST' + struct.pack('<I', len(list_data)) + list_data
@@ -66,12 +69,13 @@ def apply_riff_info(
     artist: str,
     genre: str | None = None,
     year: int | None = None,
+    album: str | None = None,
 ) -> None:
     """
     Write Rekordbox-readable RIFF INFO tags to a WAV file.
 
     Rekordbox ignores ID3 in WAV files and only reads LIST/INFO fields:
-    INAM (title), IART (artist), IGNR (genre), ICRD (year).
+    INAM (title), IART (artist), IPRD (album), IGNR (genre), ICRD (year).
     """
     with open(path, 'rb') as fileobj:
         data = fileobj.read()
@@ -80,7 +84,7 @@ def apply_riff_info(
         raise ValueError('Geen geldig RIFF/WAVE bestand')
 
     rebuilt = bytearray(data[:12])
-    info_chunk = _build_list_info_chunk(title, artist, genre, year)
+    info_chunk = _build_list_info_chunk(title, artist, genre, year, album)
     info_inserted = False
 
     for chunk in _iter_wave_chunks(data):
