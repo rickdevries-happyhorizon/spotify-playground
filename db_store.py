@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from store_common import normalize_reference_url
 from mysql_store import (  # noqa: F401
+    backfill_playlist_names,
     create_new_track,
     delete_new_track,
     get_connection,
@@ -10,6 +11,7 @@ from mysql_store import (  # noqa: F401
     load_genre_images,
     load_historical_data,
     load_new_tracks,
+    load_playlists,
     load_playlists_config,
     load_tracking_start_date,
     resolve_genre_image,
@@ -20,9 +22,11 @@ from mysql_store import (  # noqa: F401
     save_tracking_start_date,
     strip_radio_suffixes_from_db,
     update_new_track_reference_url,
+    upsert_playlist,
 )
 
 __all__ = [
+    "backfill_playlist_names",
     "create_new_track",
     "delete_new_track",
     "get_connection",
@@ -30,6 +34,7 @@ __all__ = [
     "load_genre_images",
     "load_historical_data",
     "load_new_tracks",
+    "load_playlists",
     "load_playlists_config",
     "load_tracking_start_date",
     "normalize_reference_url",
@@ -41,4 +46,5 @@ __all__ = [
     "save_tracking_start_date",
     "strip_radio_suffixes_from_db",
     "update_new_track_reference_url",
+    "upsert_playlist",
 ]

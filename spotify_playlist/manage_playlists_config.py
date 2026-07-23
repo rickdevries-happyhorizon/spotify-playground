@@ -1,4 +1,4 @@
-from db_store import load_playlists_config, save_playlists_config
+from db_store import load_playlists_config, save_playlists_config, upsert_playlist
 
 from spotify_playlist.action_sound import play_action_done, play_selection
 from spotify_playlist.colors import Colors
@@ -93,6 +93,8 @@ def manage_playlists_config():
 
                     source_playlists.append(playlist_id)
                     config['source_playlists'] = source_playlists
+                    if playlist_name:
+                        upsert_playlist(playlist_name, spotify_id=playlist_id)
                     save_playlists_config(config)
 
                     if playlist_name:
@@ -161,6 +163,8 @@ def manage_playlists_config():
                             print(f"{Colors.BRIGHT_CYAN}   Found: {Colors.BRIGHT_WHITE}{playlist_name}{Colors.RESET}")
 
                     config['destination_playlist'] = playlist_id
+                    if playlist_name:
+                        upsert_playlist(playlist_name, spotify_id=playlist_id)
                     save_playlists_config(config)
 
                     if playlist_name:

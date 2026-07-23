@@ -8,23 +8,35 @@
 
 SET NAMES utf8mb4;
 
+CREATE TABLE IF NOT EXISTS playlist (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  spotify_id VARCHAR(64) NULL,
+  name VARCHAR(512) NOT NULL,
+  artwork_url TEXT NULL,
+  UNIQUE KEY uq_playlist_spotify_id (spotify_id),
+  UNIQUE KEY uq_playlist_name (name(191))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS destination_config (
   singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY,
-  playlist_id VARCHAR(64) NOT NULL DEFAULT ''
+  playlist_ref_id INT UNSIGNED NULL,
+  CONSTRAINT fk_destination_playlist FOREIGN KEY (playlist_ref_id) REFERENCES playlist(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS source_playlists (
+CREATE TABLE IF NOT EXISTS playlist_source (
   sort_order INT UNSIGNED NOT NULL,
-  playlist_id VARCHAR(64) NOT NULL,
-  PRIMARY KEY (playlist_id),
-  KEY idx_source_sort (sort_order)
+  playlist_ref_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (playlist_ref_id),
+  KEY idx_playlist_source_sort (sort_order),
+  CONSTRAINT fk_playlist_source FOREIGN KEY (playlist_ref_id) REFERENCES playlist(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS tracking_playlists (
+CREATE TABLE IF NOT EXISTS playlist_tracking (
   sort_order INT UNSIGNED NOT NULL,
-  playlist_id VARCHAR(64) NOT NULL,
-  PRIMARY KEY (playlist_id),
-  KEY idx_tracking_sort (sort_order)
+  playlist_ref_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (playlist_ref_id),
+  KEY idx_playlist_tracking_sort (sort_order),
+  CONSTRAINT fk_playlist_tracking FOREIGN KEY (playlist_ref_id) REFERENCES playlist(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS historical_tracks (
@@ -40,17 +52,18 @@ CREATE TABLE IF NOT EXISTS tracking_start (
   last_updated DATETIME NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- New tracks (track name + optional reference URL, genre, release year, energy)
 CREATE TABLE IF NOT EXISTS new_tracks (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   track VARCHAR(512) NOT NULL,
   reference_url TEXT NULL,
-  genre VARCHAR(512) NULL,
+  playlist_id INT UNSIGNED NULL,
   release_year SMALLINT UNSIGNED NULL,
   energy DECIMAL(4,3) NULL,
   copy_title_count INT UNSIGNED NOT NULL DEFAULT 0,
   image_url TEXT NULL,
-  UNIQUE KEY uq_new_tracks_track (track(191))
+  UNIQUE KEY uq_new_tracks_track (track(191)),
+  KEY idx_new_tracks_playlist (playlist_id),
+  CONSTRAINT fk_new_tracks_playlist FOREIGN KEY (playlist_id) REFERENCES playlist(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS genre_images (
@@ -58,13 +71,10 @@ CREATE TABLE IF NOT EXISTS genre_images (
   image_url TEXT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Existing database? Run once:
--- ALTER TABLE new_tracks ADD COLUMN genre VARCHAR(512) NULL AFTER reference_url;
--- ALTER TABLE new_tracks ADD COLUMN release_year SMALLINT UNSIGNED NULL AFTER genre;
--- ALTER TABLE new_tracks ADD COLUMN energy DECIMAL(4,3) NULL AFTER release_year;
--- ALTER TABLE new_tracks ADD COLUMN copy_title_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER energy;
--- ALTER TABLE new_tracks ADD COLUMN image_url TEXT NULL AFTER copy_title_count;
--- DROP TABLE IF EXISTS play_counts;
+-- Existing database? Run migrations via the app, or manually:
+-- 1. Add spotify_id to playlist; create playlist_source / playlist_tracking / new destination_config
+-- 2. Migrate rows from source_playlists, tracking_playlists, and destination_config (Spotify IDs)
+-- 3. Drop legacy source_playlists and tracking_playlists tables after migration
 
-INSERT IGNORE INTO destination_config (singleton, playlist_id) VALUES (1, '');
+INSERT IGNORE INTO destination_config (singleton, playlist_ref_id) VALUES (1, NULL);
 INSERT IGNORE INTO tracking_start (singleton, start_date, last_updated) VALUES (1, NULL, NULL);

@@ -5,6 +5,7 @@ from db_store import (
     load_tracking_start_date,
     save_playlists_config,
     save_tracking_start_date,
+    upsert_playlist,
 )
 
 from spotify_playlist.action_sound import play_selection
@@ -127,6 +128,7 @@ def run_import_new_tracks_menu(sp) -> None:
                                     if confirm == 'y':
                                         tracking_playlists.append(playlist_id)
                                         playlists_config['tracking_playlists'] = tracking_playlists
+                                        upsert_playlist(playlist_name, spotify_id=playlist_id)
                                         save_playlists_config(playlists_config)
                                         print(
                                             f"{Colors.BRIGHT_GREEN}✅ Playlist '{playlist_name}' added!{Colors.RESET}\n"

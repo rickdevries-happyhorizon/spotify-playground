@@ -3,9 +3,9 @@ from datetime import datetime, timedelta
 
 from db_store import (
     load_tracking_start_date,
-    save_genre_image,
     save_new_tracks,
     save_tracking_start_date,
+    upsert_playlist,
 )
 from normalize_track_name import normalize_track_name
 
@@ -62,8 +62,11 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
                 playlist_info_map[playlist_id] = playlist_name
                 playlist_images = playlist_info.get('images') or []
                 playlist_image_url = playlist_images[0].get('url') if playlist_images else None
-                if playlist_image_url:
-                    save_genre_image(playlist_name, playlist_image_url)
+                playlist_row_id = upsert_playlist(
+                    playlist_name,
+                    playlist_image_url,
+                    spotify_id=playlist_id,
+                )
 
                 print(f"{Colors.BRIGHT_CYAN}📋 Checking playlist: {Colors.BRIGHT_WHITE}{playlist_name}{Colors.RESET}")
                 print(f"{Colors.DIM}   Period: {since_date.strftime('%Y-%m-%d %H:%M:%S')} to {today.strftime('%Y-%m-%d %H:%M:%S')}{Colors.RESET}")
@@ -144,6 +147,7 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
                                     f"{track_info['artists']} - {track_info['name']}"
                                 ),
                                 'reference_url': None,
+                                'playlist_id': playlist_row_id,
                                 'genre': playlist_name,
                                 'release_year': track_info.get('release_year'),
                                 'image_url': track_info.get('image_url'),

@@ -20,7 +20,7 @@ def sync_playlists(sp):
     # Validate configuration
     if not config.BRON_PLAYLISTS:
         print(f"{Colors.BRIGHT_YELLOW}⚠️  No source playlists configured in the database.{Colors.RESET}")
-        print(f"{Colors.DIM}   Add source playlists via the menu (playlist configuration) or populate the source_playlists table.{Colors.RESET}")
+        print(f"{Colors.DIM}   Add source playlists via the menu (playlist configuration) or populate playlist_source.{Colors.RESET}")
         return
 
     if not config.MIJN_DOEL_PLAYLIST_ID:

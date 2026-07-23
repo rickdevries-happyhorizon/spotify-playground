@@ -44,25 +44,39 @@ def get_connection():
 
 
 def load_playlists_config() -> Dict[str, Any]:
-    """Load source, destination, and tracking playlist IDs."""
+    """Load source, destination, and tracking playlist Spotify IDs."""
     conn = get_connection()
     try:
+        _ensure_playlist_config_schema(conn)
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT playlist_id FROM destination_config WHERE singleton = 1 LIMIT 1"
+                "SELECT p.spotify_id "
+                "FROM destination_config dc "
+                "LEFT JOIN playlist p ON p.id = dc.playlist_ref_id "
+                "WHERE dc.singleton = 1 LIMIT 1"
             )
             row = cur.fetchone()
-            destination = (row or {}).get("playlist_id") or ""
+            destination = (row or {}).get("spotify_id") or ""
 
             cur.execute(
-                "SELECT playlist_id FROM source_playlists ORDER BY sort_order ASC, playlist_id ASC"
+                "SELECT p.spotify_id "
+                "FROM playlist_source ps "
+                "INNER JOIN playlist p ON p.id = ps.playlist_ref_id "
+                "ORDER BY ps.sort_order ASC, p.spotify_id ASC"
             )
-            source_playlists = [r["playlist_id"] for r in cur.fetchall()]
+            source_playlists = [
+                r["spotify_id"] for r in cur.fetchall() if r.get("spotify_id")
+            ]
 
             cur.execute(
-                "SELECT playlist_id FROM tracking_playlists ORDER BY sort_order ASC, playlist_id ASC"
+                "SELECT p.spotify_id "
+                "FROM playlist_tracking pt "
+                "INNER JOIN playlist p ON p.id = pt.playlist_ref_id "
+                "ORDER BY pt.sort_order ASC, p.spotify_id ASC"
             )
-            tracking_playlists = [r["playlist_id"] for r in cur.fetchall()]
+            tracking_playlists = [
+                r["spotify_id"] for r in cur.fetchall() if r.get("spotify_id")
+            ]
 
         return {
             "source_playlists": source_playlists,
@@ -80,27 +94,41 @@ def save_playlists_config(config: Dict[str, Any]) -> None:
     """Replace playlist configuration in the database."""
     conn = get_connection()
     try:
-        dest = config.get("destination_playlist") or ""
+        dest = (config.get("destination_playlist") or "").strip()
         sources = config.get("source_playlists") or []
         tracking = config.get("tracking_playlists") or []
 
+        _ensure_playlist_config_schema(conn)
         with conn.cursor() as cur:
+            dest_ref_id = None
+            if dest:
+                dest_ref_id = _upsert_playlist_cur(cur, spotify_id=dest)
             cur.execute(
-                "INSERT INTO destination_config (singleton, playlist_id) VALUES (1, %s) "
-                "ON DUPLICATE KEY UPDATE playlist_id = VALUES(playlist_id)",
-                (dest,),
+                "INSERT INTO destination_config (singleton, playlist_ref_id) VALUES (1, %s) "
+                "ON DUPLICATE KEY UPDATE playlist_ref_id = VALUES(playlist_ref_id)",
+                (dest_ref_id,),
             )
-            cur.execute("DELETE FROM source_playlists")
-            for i, pid in enumerate(sources):
+
+            cur.execute("DELETE FROM playlist_source")
+            for i, spotify_id in enumerate(sources):
+                spotify_id = (spotify_id or "").strip()
+                if not spotify_id:
+                    continue
+                ref_id = _upsert_playlist_cur(cur, spotify_id=spotify_id)
                 cur.execute(
-                    "INSERT INTO source_playlists (sort_order, playlist_id) VALUES (%s, %s)",
-                    (i, pid),
+                    "INSERT INTO playlist_source (sort_order, playlist_ref_id) VALUES (%s, %s)",
+                    (i, ref_id),
                 )
-            cur.execute("DELETE FROM tracking_playlists")
-            for i, pid in enumerate(tracking):
+
+            cur.execute("DELETE FROM playlist_tracking")
+            for i, spotify_id in enumerate(tracking):
+                spotify_id = (spotify_id or "").strip()
+                if not spotify_id:
+                    continue
+                ref_id = _upsert_playlist_cur(cur, spotify_id=spotify_id)
                 cur.execute(
-                    "INSERT INTO tracking_playlists (sort_order, playlist_id) VALUES (%s, %s)",
-                    (i, pid),
+                    "INSERT INTO playlist_tracking (sort_order, playlist_ref_id) VALUES (%s, %s)",
+                    (i, ref_id),
                 )
         conn.commit()
     except Exception as e:
@@ -203,33 +231,25 @@ def save_tracking_start_date(start_date: Any) -> None:
         conn.close()
 
 
-def _ensure_new_tracks_genre_column(conn) -> None:
+def _column_exists(conn, table_name: str, column_name: str) -> bool:
     with conn.cursor() as cur:
         cur.execute(
             "SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS "
-            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'new_tracks' "
-            "AND COLUMN_NAME = 'genre'"
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+            (table_name, column_name),
         )
-        if cur.fetchone()["cnt"] == 0:
-            cur.execute(
-                "ALTER TABLE new_tracks ADD COLUMN genre VARCHAR(512) NULL "
-                "AFTER reference_url"
-            )
-    conn.commit()
+        return int(cur.fetchone()["cnt"]) > 0
 
 
 def _ensure_new_tracks_release_year_column(conn) -> None:
     with conn.cursor() as cur:
+        if _column_exists(conn, "new_tracks", "release_year"):
+            return
+        after = "playlist_id" if _column_exists(conn, "new_tracks", "playlist_id") else "reference_url"
         cur.execute(
-            "SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS "
-            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'new_tracks' "
-            "AND COLUMN_NAME = 'release_year'"
+            f"ALTER TABLE new_tracks ADD COLUMN release_year SMALLINT UNSIGNED NULL "
+            f"AFTER {after}"
         )
-        if cur.fetchone()["cnt"] == 0:
-            cur.execute(
-                "ALTER TABLE new_tracks ADD COLUMN release_year SMALLINT UNSIGNED NULL "
-                "AFTER genre"
-            )
     conn.commit()
 
 
@@ -278,6 +298,559 @@ def _ensure_new_tracks_image_url_column(conn) -> None:
     conn.commit()
 
 
+def _ensure_playlist_table(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS playlist ("
+            "id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, "
+            "spotify_id VARCHAR(64) NULL, "
+            "name VARCHAR(512) NOT NULL, "
+            "artwork_url TEXT NULL, "
+            "UNIQUE KEY uq_playlist_spotify_id (spotify_id), "
+            "UNIQUE KEY uq_playlist_name (name(191))"
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        )
+    conn.commit()
+    _ensure_playlist_spotify_id_column(conn)
+
+
+def _ensure_playlist_spotify_id_column(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'playlist' "
+            "AND COLUMN_NAME = 'spotify_id'"
+        )
+        if cur.fetchone()["cnt"] == 0:
+            cur.execute(
+                "ALTER TABLE playlist ADD COLUMN spotify_id VARCHAR(64) NULL AFTER id"
+            )
+            cur.execute(
+                "ALTER TABLE playlist ADD UNIQUE KEY uq_playlist_spotify_id (spotify_id)"
+            )
+    conn.commit()
+
+
+def _table_exists(conn, table_name: str) -> bool:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS cnt FROM information_schema.TABLES "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s",
+            (table_name,),
+        )
+        return int(cur.fetchone()["cnt"]) > 0
+
+
+def _column_data_type(conn, table_name: str, column_name: str) -> Optional[str]:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT DATA_TYPE FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+            (table_name, column_name),
+        )
+        row = cur.fetchone()
+        return (row or {}).get("DATA_TYPE")
+
+
+def _ensure_playlist_source_table(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS playlist_source ("
+            "sort_order INT UNSIGNED NOT NULL, "
+            "playlist_ref_id INT UNSIGNED NOT NULL, "
+            "PRIMARY KEY (playlist_ref_id), "
+            "KEY idx_playlist_source_sort (sort_order), "
+            "CONSTRAINT fk_playlist_source FOREIGN KEY (playlist_ref_id) "
+            "REFERENCES playlist(id) ON DELETE CASCADE"
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        )
+    conn.commit()
+
+
+def _ensure_playlist_tracking_table(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS playlist_tracking ("
+            "sort_order INT UNSIGNED NOT NULL, "
+            "playlist_ref_id INT UNSIGNED NOT NULL, "
+            "PRIMARY KEY (playlist_ref_id), "
+            "KEY idx_playlist_tracking_sort (sort_order), "
+            "CONSTRAINT fk_playlist_tracking FOREIGN KEY (playlist_ref_id) "
+            "REFERENCES playlist(id) ON DELETE CASCADE"
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        )
+    conn.commit()
+
+
+def _ensure_destination_config_table(conn) -> None:
+    if not _table_exists(conn, "destination_config"):
+        with conn.cursor() as cur:
+            cur.execute(
+                "CREATE TABLE destination_config ("
+                "singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY, "
+                "playlist_ref_id INT UNSIGNED NULL, "
+                "CONSTRAINT fk_destination_playlist FOREIGN KEY (playlist_ref_id) "
+                "REFERENCES playlist(id) ON DELETE SET NULL"
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            )
+            cur.execute(
+                "INSERT INTO destination_config (singleton, playlist_ref_id) VALUES (1, NULL)"
+            )
+        conn.commit()
+        return
+
+    data_type = _column_data_type(conn, "destination_config", "playlist_id")
+    if data_type in {"varchar", "char"}:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT playlist_id FROM destination_config WHERE singleton = 1 LIMIT 1"
+            )
+            row = cur.fetchone()
+            dest_spotify = ((row or {}).get("playlist_id") or "").strip()
+            dest_ref_id = None
+            if dest_spotify:
+                dest_ref_id = _upsert_playlist_cur(cur, spotify_id=dest_spotify)
+            cur.execute(
+                "CREATE TABLE destination_config_new ("
+                "singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY, "
+                "playlist_ref_id INT UNSIGNED NULL, "
+                "CONSTRAINT fk_destination_playlist_new FOREIGN KEY (playlist_ref_id) "
+                "REFERENCES playlist(id) ON DELETE SET NULL"
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            )
+            cur.execute(
+                "INSERT INTO destination_config_new (singleton, playlist_ref_id) VALUES (1, %s)",
+                (dest_ref_id,),
+            )
+            cur.execute("DROP TABLE destination_config")
+            cur.execute("RENAME TABLE destination_config_new TO destination_config")
+        conn.commit()
+
+
+def _migrate_legacy_source_tracking_table(conn, *, legacy_table: str, target_table: str) -> None:
+    if not _table_exists(conn, legacy_table):
+        return
+
+    data_type = _column_data_type(conn, legacy_table, "playlist_id")
+    if data_type not in {"varchar", "char"}:
+        return
+
+    ensure_target = (
+        _ensure_playlist_source_table
+        if target_table == "playlist_source"
+        else _ensure_playlist_tracking_table
+    )
+    ensure_target(conn)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT sort_order, playlist_id FROM {legacy_table} ORDER BY sort_order ASC"
+        )
+        rows = cur.fetchall()
+        cur.execute(f"DELETE FROM {target_table}")
+        for row in rows:
+            spotify_id = (row.get("playlist_id") or "").strip()
+            if not spotify_id:
+                continue
+            ref_id = _upsert_playlist_cur(cur, spotify_id=spotify_id)
+            cur.execute(
+                f"INSERT INTO {target_table} (sort_order, playlist_ref_id) VALUES (%s, %s)",
+                (int(row["sort_order"]), ref_id),
+            )
+        cur.execute(f"DROP TABLE {legacy_table}")
+    conn.commit()
+
+
+def _ensure_playlist_config_schema(conn) -> None:
+    _ensure_playlist_table(conn)
+    _ensure_destination_config_table(conn)
+    _migrate_legacy_source_tracking_table(
+        conn, legacy_table="source_playlists", target_table="playlist_source"
+    )
+    _migrate_legacy_source_tracking_table(
+        conn, legacy_table="tracking_playlists", target_table="playlist_tracking"
+    )
+    _ensure_playlist_source_table(conn)
+    _ensure_playlist_tracking_table(conn)
+
+
+def _ensure_new_tracks_playlist_id_column(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'new_tracks' "
+            "AND COLUMN_NAME = 'playlist_id'"
+        )
+        if cur.fetchone()["cnt"] == 0:
+            try:
+                cur.execute(
+                    "ALTER TABLE new_tracks ADD COLUMN playlist_id INT UNSIGNED NULL "
+                    "AFTER reference_url"
+                )
+                cur.execute(
+                    "ALTER TABLE new_tracks ADD KEY idx_new_tracks_playlist (playlist_id)"
+                )
+            except Exception as e:
+                if "Duplicate column name" not in str(e):
+                    raise
+    conn.commit()
+
+
+def _ensure_new_tracks_playlist_fk(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS cnt FROM information_schema.TABLE_CONSTRAINTS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'new_tracks' "
+            "AND CONSTRAINT_NAME = 'fk_new_tracks_playlist'"
+        )
+        if cur.fetchone()["cnt"] == 0:
+            cur.execute(
+                "ALTER TABLE new_tracks ADD CONSTRAINT fk_new_tracks_playlist "
+                "FOREIGN KEY (playlist_id) REFERENCES playlist(id) ON DELETE SET NULL"
+            )
+    conn.commit()
+
+
+def _backfill_playlist_artwork(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE playlist p "
+            "INNER JOIN ("
+            "  SELECT nt.playlist_id, MIN(nt.id) AS first_id "
+            "  FROM new_tracks nt "
+            "  WHERE nt.image_url IS NOT NULL AND nt.playlist_id IS NOT NULL "
+            "  GROUP BY nt.playlist_id"
+            ") picked ON picked.playlist_id = p.id "
+            "INNER JOIN new_tracks nt ON nt.id = picked.first_id "
+            "SET p.artwork_url = nt.image_url "
+            "WHERE p.artwork_url IS NULL OR TRIM(p.artwork_url) = ''"
+        )
+    conn.commit()
+
+
+def _migrate_legacy_genre_data(conn) -> None:
+    """Move legacy genre column values into playlist rows before dropping genre."""
+    if not _column_exists(conn, "new_tracks", "genre"):
+        return
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS cnt FROM new_tracks "
+            "WHERE genre IS NOT NULL AND TRIM(genre) != '' AND playlist_id IS NULL"
+        )
+        pending = int(cur.fetchone()["cnt"])
+
+        _ensure_genre_images_table(conn)
+        cur.execute("SELECT genre, image_url FROM genre_images")
+        for row in cur.fetchall():
+            genre = (row.get("genre") or "").strip()
+            image_url = (row.get("image_url") or "").strip()
+            if genre:
+                _upsert_playlist_cur(cur, name=genre, artwork_url=image_url or None)
+
+        if pending > 0:
+            cur.execute(
+                "SELECT DISTINCT genre FROM new_tracks "
+                "WHERE genre IS NOT NULL AND TRIM(genre) != ''"
+            )
+            for row in cur.fetchall():
+                genre = (row.get("genre") or "").strip()
+                if genre:
+                    _upsert_playlist_cur(cur, name=genre)
+
+            cur.execute(
+                "UPDATE new_tracks nt "
+                "INNER JOIN playlist p ON p.name = nt.genre "
+                "SET nt.playlist_id = p.id "
+                "WHERE nt.playlist_id IS NULL AND nt.genre IS NOT NULL"
+            )
+    conn.commit()
+    _backfill_playlist_artwork(conn)
+
+
+def _drop_new_tracks_genre_column(conn) -> None:
+    if not _column_exists(conn, "new_tracks", "genre"):
+        return
+    _migrate_legacy_genre_data(conn)
+    with conn.cursor() as cur:
+        cur.execute("ALTER TABLE new_tracks DROP COLUMN genre")
+    conn.commit()
+
+
+def _merge_playlist_rows(cur, *, from_id: int, to_id: int) -> None:
+    """Move references from one playlist row to another and delete the duplicate."""
+    if from_id == to_id:
+        return
+
+    cur.execute(
+        "SELECT spotify_id, artwork_url FROM playlist WHERE id = %s",
+        (to_id,),
+    )
+    target = cur.fetchone()
+    cur.execute(
+        "SELECT spotify_id, artwork_url FROM playlist WHERE id = %s",
+        (from_id,),
+    )
+    source = cur.fetchone()
+    if not target or not source:
+        return
+
+    updates: List[str] = []
+    params: List[Any] = []
+    source_sid = (source.get("spotify_id") or "").strip() or None
+    target_sid = (target.get("spotify_id") or "").strip() or None
+    if source_sid and not target_sid:
+        cur.execute(
+            "UPDATE playlist SET spotify_id = NULL WHERE id = %s",
+            (from_id,),
+        )
+        cur.execute(
+            "UPDATE playlist SET spotify_id = %s WHERE id = %s",
+            (source_sid, to_id),
+        )
+    if not (target.get("artwork_url") or "").strip() and (source.get("artwork_url") or "").strip():
+        cur.execute(
+            "UPDATE playlist SET artwork_url = %s WHERE id = %s",
+            (source["artwork_url"].strip(), to_id),
+        )
+
+    cur.execute(
+        "UPDATE destination_config SET playlist_ref_id = %s "
+        "WHERE playlist_ref_id = %s",
+        (to_id, from_id),
+    )
+
+    for table in ("playlist_source", "playlist_tracking"):
+        cur.execute(
+            f"SELECT 1 FROM {table} WHERE playlist_ref_id = %s LIMIT 1",
+            (to_id,),
+        )
+        if cur.fetchone():
+            cur.execute(
+                f"DELETE FROM {table} WHERE playlist_ref_id = %s",
+                (from_id,),
+            )
+        else:
+            cur.execute(
+                f"UPDATE {table} SET playlist_ref_id = %s WHERE playlist_ref_id = %s",
+                (to_id, from_id),
+            )
+
+    cur.execute(
+        "UPDATE new_tracks SET playlist_id = %s WHERE playlist_id = %s",
+        (to_id, from_id),
+    )
+    cur.execute("DELETE FROM playlist WHERE id = %s", (from_id,))
+
+
+def _upsert_playlist_cur(
+    cur,
+    *,
+    name: Optional[str] = None,
+    artwork_url: Optional[str] = None,
+    spotify_id: Optional[str] = None,
+) -> int:
+    playlist_name = (name or "").strip() or None
+    sid = (spotify_id or "").strip() or None
+    url = (artwork_url or "").strip() or None
+
+    if sid:
+        cur.execute(
+            "SELECT id, name, artwork_url FROM playlist WHERE spotify_id = %s",
+            (sid,),
+        )
+        row = cur.fetchone()
+        if row:
+            playlist_id = int(row["id"])
+            updates: List[str] = []
+            params: List[Any] = []
+            if (
+                playlist_name
+                and playlist_name != row["name"]
+                and not (sid and playlist_name == sid)
+            ):
+                cur.execute(
+                    "SELECT id FROM playlist WHERE name = %s AND id != %s LIMIT 1",
+                    (playlist_name, playlist_id),
+                )
+                existing = cur.fetchone()
+                if existing:
+                    _merge_playlist_rows(
+                        cur, from_id=playlist_id, to_id=int(existing["id"])
+                    )
+                    return int(existing["id"])
+                updates.append("name = %s")
+                params.append(playlist_name)
+            if url and url != (row.get("artwork_url") or ""):
+                updates.append("artwork_url = %s")
+                params.append(url)
+            if updates:
+                params.append(playlist_id)
+                cur.execute(
+                    f"UPDATE playlist SET {', '.join(updates)} WHERE id = %s",
+                    params,
+                )
+            return playlist_id
+
+        if playlist_name:
+            cur.execute(
+                "SELECT id, artwork_url FROM playlist "
+                "WHERE name = %s AND (spotify_id IS NULL OR spotify_id = '')",
+                (playlist_name,),
+            )
+            row = cur.fetchone()
+            if row:
+                playlist_id = int(row["id"])
+                updates = ["spotify_id = %s"]
+                params: List[Any] = [sid]
+                if url and url != (row.get("artwork_url") or ""):
+                    updates.append("artwork_url = %s")
+                    params.append(url)
+                params.append(playlist_id)
+                cur.execute(
+                    f"UPDATE playlist SET {', '.join(updates)} WHERE id = %s",
+                    params,
+                )
+                return playlist_id
+
+    if playlist_name:
+        cur.execute(
+            "SELECT id, spotify_id, artwork_url FROM playlist WHERE name = %s",
+            (playlist_name,),
+        )
+        row = cur.fetchone()
+        if row:
+            playlist_id = int(row["id"])
+            updates: List[str] = []
+            params: List[Any] = []
+            if sid and sid != (row.get("spotify_id") or ""):
+                updates.append("spotify_id = %s")
+                params.append(sid)
+            if url and url != (row.get("artwork_url") or ""):
+                updates.append("artwork_url = %s")
+                params.append(url)
+            if updates:
+                params.append(playlist_id)
+                cur.execute(
+                    f"UPDATE playlist SET {', '.join(updates)} WHERE id = %s",
+                    params,
+                )
+            return playlist_id
+
+    if sid:
+        cur.execute(
+            "INSERT INTO playlist (spotify_id, name, artwork_url) VALUES (%s, %s, %s)",
+            (sid, playlist_name or sid, url),
+        )
+        return int(cur.lastrowid)
+
+    if playlist_name:
+        cur.execute(
+            "INSERT INTO playlist (name, artwork_url) VALUES (%s, %s)",
+            (playlist_name, url),
+        )
+        return int(cur.lastrowid)
+
+    raise ValueError("Playlist name or spotify_id is required")
+
+
+def upsert_playlist(
+    name: str,
+    artwork_url: Optional[str] = None,
+    *,
+    spotify_id: Optional[str] = None,
+) -> int:
+    """Create or update a playlist row and return its id."""
+    conn = get_connection()
+    try:
+        _ensure_playlist_table(conn)
+        with conn.cursor() as cur:
+            playlist_id = _upsert_playlist_cur(
+                cur,
+                name=name,
+                artwork_url=artwork_url,
+                spotify_id=spotify_id,
+            )
+        conn.commit()
+        return playlist_id
+    except Exception as e:
+        conn.rollback()
+        print(f"Error upserting playlist: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def backfill_playlist_names(sp) -> int:
+    """Set playlist.name from Spotify where name was stored as the Spotify ID."""
+    from spotify_playlist.get_playlist_name import get_playlist_name
+
+    conn = get_connection()
+    updated = 0
+    try:
+        _ensure_playlist_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, spotify_id FROM playlist "
+                "WHERE spotify_id IS NOT NULL AND TRIM(spotify_id) != '' "
+                "AND name = spotify_id"
+            )
+            rows = cur.fetchall()
+            for row in rows:
+                sid = (row.get("spotify_id") or "").strip()
+                if not sid:
+                    continue
+                playlist_name = get_playlist_name(sp, sid)
+                if not playlist_name or playlist_name == sid:
+                    continue
+                row_id = int(row["id"])
+                cur.execute(
+                    "SELECT id FROM playlist WHERE name = %s AND id != %s LIMIT 1",
+                    (playlist_name, row_id),
+                )
+                existing = cur.fetchone()
+                if existing:
+                    _merge_playlist_rows(
+                        cur, from_id=row_id, to_id=int(existing["id"])
+                    )
+                else:
+                    cur.execute(
+                        "UPDATE playlist SET name = %s WHERE id = %s",
+                        (playlist_name, row_id),
+                    )
+                updated += 1
+        conn.commit()
+        return updated
+    except Exception as e:
+        conn.rollback()
+        print(f"Error backfilling playlist names: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def load_playlists() -> List[Dict[str, Any]]:
+    """Load all playlists with artwork URLs."""
+    conn = get_connection()
+    try:
+        _ensure_playlist_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, spotify_id, name, artwork_url FROM playlist ORDER BY name ASC"
+            )
+            return [
+                {
+                    "id": int(row["id"]),
+                    "spotify_id": row.get("spotify_id") or None,
+                    "name": row["name"],
+                    "artwork_url": row.get("artwork_url") or None,
+                }
+                for row in cur.fetchall()
+            ]
+    finally:
+        conn.close()
+
+
 def _ensure_genre_images_table(conn) -> None:
     with conn.cursor() as cur:
         cur.execute(
@@ -290,12 +863,53 @@ def _ensure_genre_images_table(conn) -> None:
 
 
 def _ensure_new_tracks_columns(conn) -> None:
-    _ensure_new_tracks_genre_column(conn)
+    _ensure_playlist_table(conn)
+    _ensure_new_tracks_playlist_id_column(conn)
     _ensure_new_tracks_release_year_column(conn)
     _ensure_new_tracks_energy_column(conn)
     _ensure_new_tracks_copy_title_count_column(conn)
     _ensure_new_tracks_image_url_column(conn)
     _ensure_genre_images_table(conn)
+    try:
+        _ensure_new_tracks_playlist_fk(conn)
+    except Exception:
+        conn.rollback()
+    _drop_new_tracks_genre_column(conn)
+    _backfill_playlist_artwork(conn)
+
+
+def _resolve_playlist_id_from_entry(cur, entry: Dict[str, Any]) -> Optional[int]:
+    playlist_id = entry.get("playlist_id")
+    if playlist_id is not None:
+        return int(playlist_id)
+    genre_value = (entry.get("genre") or "").strip() or None
+    if genre_value:
+        return _upsert_playlist_cur(cur, name=genre_value)
+    return None
+
+
+_NEW_TRACKS_SELECT = (
+    "SELECT nt.id, nt.track, nt.reference_url, nt.playlist_id, nt.release_year, nt.energy, "
+    "nt.copy_title_count, nt.image_url, p.name AS genre, "
+    "p.artwork_url AS playlist_artwork_url "
+    "FROM new_tracks nt "
+    "LEFT JOIN playlist p ON p.id = nt.playlist_id "
+)
+
+
+def _row_to_track(row: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": row["id"],
+        "track": row["track"],
+        "reference_url": row["reference_url"] or None,
+        "playlist_id": row.get("playlist_id") or None,
+        "genre": row.get("genre") or None,
+        "release_year": row.get("release_year") or None,
+        "energy": float(row["energy"]) if row.get("energy") is not None else None,
+        "copy_title_count": int(row.get("copy_title_count") or 0),
+        "image_url": row.get("image_url") or None,
+        "playlist_artwork_url": row.get("playlist_artwork_url") or None,
+    }
 
 
 def load_new_tracks() -> List[Dict[str, Any]]:
@@ -304,24 +918,8 @@ def load_new_tracks() -> List[Dict[str, Any]]:
     try:
         _ensure_new_tracks_columns(conn)
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, track, reference_url, genre, release_year, energy, "
-                "copy_title_count, image_url "
-                "FROM new_tracks ORDER BY track ASC"
-            )
-            return [
-                {
-                    "id": row["id"],
-                    "track": row["track"],
-                    "reference_url": row["reference_url"] or None,
-                    "genre": row.get("genre") or None,
-                    "release_year": row.get("release_year") or None,
-                    "energy": float(row["energy"]) if row.get("energy") is not None else None,
-                    "copy_title_count": int(row.get("copy_title_count") or 0),
-                    "image_url": row.get("image_url") or None,
-                }
-                for row in cur.fetchall()
-            ]
+            cur.execute(_NEW_TRACKS_SELECT + "ORDER BY nt.track ASC")
+            return [_row_to_track(row) for row in cur.fetchall()]
     finally:
         conn.close()
 
@@ -456,10 +1054,13 @@ def create_new_track(
     try:
         _ensure_new_tracks_columns(conn)
         with conn.cursor() as cur:
+            playlist_id = None
+            if genre_value:
+                playlist_id = _upsert_playlist_cur(cur, name=genre_value)
             cur.execute(
-                "INSERT INTO new_tracks (track, reference_url, genre, release_year, energy) "
+                "INSERT INTO new_tracks (track, reference_url, playlist_id, release_year, energy) "
                 "VALUES (%s, %s, %s, NULL, %s)",
-                (track_name, url, genre_value, energy_value),
+                (track_name, url, playlist_id, energy_value),
             )
             track_id = cur.lastrowid
         conn.commit()
@@ -467,6 +1068,7 @@ def create_new_track(
             "id": track_id,
             "track": track_name,
             "reference_url": url,
+            "playlist_id": playlist_id,
             "genre": genre_value,
             "energy": energy_value,
             "copy_title_count": 0,
@@ -494,53 +1096,50 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
         rows = []
         seen_in_batch: set[str] = set()
         total_valid = 0
-        for entry in tracks:
-            track_display = normalize_track_name(
-                entry.get("track") or entry.get("Track") or ""
-            )
-            if not track_display:
-                continue
-            total_valid += 1
-            if track_display in seen_in_batch:
-                continue
-            seen_in_batch.add(track_display)
-            genre_value = (entry.get("genre") or "").strip() or None
-            release_year = normalize_release_year(entry.get("release_year"))
-            energy = normalize_energy(entry.get("energy"))
-            image_url = (entry.get("image_url") or "").strip() or None
-            rows.append(
-                (
-                    track_display,
-                    normalize_reference_url(entry.get("reference_url")),
-                    genre_value,
-                    release_year,
-                    energy,
-                    image_url,
-                )
-            )
-
-        if not rows:
-            return 0, total_valid
-
         with conn.cursor() as cur:
+            for entry in tracks:
+                track_display = normalize_track_name(
+                    entry.get("track") or entry.get("Track") or ""
+                )
+                if not track_display:
+                    continue
+                total_valid += 1
+                if track_display in seen_in_batch:
+                    continue
+                seen_in_batch.add(track_display)
+                genre_value = (entry.get("genre") or "").strip() or None
+                release_year = normalize_release_year(entry.get("release_year"))
+                energy = normalize_energy(entry.get("energy"))
+                image_url = (entry.get("image_url") or "").strip() or None
+                playlist_id = _resolve_playlist_id_from_entry(cur, entry)
+                rows.append(
+                    (
+                        track_display,
+                        normalize_reference_url(entry.get("reference_url")),
+                        playlist_id,
+                        release_year,
+                        energy,
+                        image_url,
+                    )
+                )
+
+            if not rows:
+                return 0, total_valid
+
+            insert_sql = (
+                "INSERT INTO new_tracks (track, reference_url, playlist_id, release_year, energy, image_url) "
+                "VALUES (%s, %s, %s, %s, %s, %s)"
+            )
             if replace:
                 cur.execute("DELETE FROM new_tracks")
-                cur.executemany(
-                    "INSERT INTO new_tracks (track, reference_url, genre, release_year, energy, image_url) "
-                    "VALUES (%s, %s, %s, %s, %s, %s)",
-                    rows,
-                )
+                cur.executemany(insert_sql, rows)
                 inserted = len(rows)
             else:
                 cur.execute("SELECT track FROM new_tracks")
                 existing = {row["track"] for row in cur.fetchall()}
                 new_rows = [row for row in rows if row[0] not in existing]
                 if new_rows:
-                    cur.executemany(
-                        "INSERT INTO new_tracks (track, reference_url, genre, release_year, energy, image_url) "
-                        "VALUES (%s, %s, %s, %s, %s, %s)",
-                        new_rows,
-                    )
+                    cur.executemany(insert_sql, new_rows)
                 inserted = len(new_rows)
         conn.commit()
         skipped = 0 if replace else total_valid - inserted
@@ -554,44 +1153,30 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
 
 
 def load_genre_images() -> Dict[str, str]:
-    """Load playlist/genre cover art URLs keyed by genre name."""
+    """Load playlist cover art URLs keyed by playlist name."""
     conn = get_connection()
     try:
-        _ensure_genre_images_table(conn)
+        _ensure_playlist_table(conn)
         with conn.cursor() as cur:
-            cur.execute("SELECT genre, image_url FROM genre_images")
+            cur.execute(
+                "SELECT name, artwork_url FROM playlist WHERE artwork_url IS NOT NULL"
+            )
             return {
-                row["genre"]: row["image_url"]
+                row["name"]: row["artwork_url"]
                 for row in cur.fetchall()
-                if row.get("genre") and row.get("image_url")
+                if row.get("name") and row.get("artwork_url")
             }
     finally:
         conn.close()
 
 
 def save_genre_image(genre: str, image_url: Optional[str]) -> None:
-    """Persist cover art for a genre/playlist name."""
+    """Persist cover art for a playlist (by name)."""
     genre_name = (genre or "").strip()
     url = (image_url or "").strip()
     if not genre_name or not url:
         return
-
-    conn = get_connection()
-    try:
-        _ensure_genre_images_table(conn)
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO genre_images (genre, image_url) VALUES (%s, %s) "
-                "ON DUPLICATE KEY UPDATE image_url = VALUES(image_url)",
-                (genre_name, url),
-            )
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Error saving genre image: {e}")
-        raise
-    finally:
-        conn.close()
+    upsert_playlist(genre_name, url)
 
 
 def resolve_genre_image(
@@ -600,7 +1185,7 @@ def resolve_genre_image(
     genre_images: Optional[Dict[str, str]] = None,
     tracks: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[str]:
-    """Return cover art for a genre, falling back to the first track image in that genre."""
+    """Return playlist artwork, falling back to the first track image in that playlist."""
     genre_name = (genre or "").strip()
     if not genre_name:
         return None
@@ -609,12 +1194,26 @@ def resolve_genre_image(
     if genre_name in images:
         return images[genre_name]
 
+    conn = get_connection()
+    try:
+        _ensure_playlist_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT artwork_url FROM playlist WHERE name = %s LIMIT 1",
+                (genre_name,),
+            )
+            row = cur.fetchone()
+            if row and row.get("artwork_url"):
+                return row["artwork_url"]
+    finally:
+        conn.close()
+
     if tracks is None:
         tracks = load_new_tracks()
     for track in tracks:
         if (track.get("genre") or "").strip() != genre_name:
             continue
-        image_url = track.get("image_url")
-        if image_url:
-            return image_url
+        artwork = track.get("playlist_artwork_url") or track.get("image_url")
+        if artwork:
+            return artwork
     return None
