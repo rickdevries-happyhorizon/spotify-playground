@@ -407,7 +407,7 @@ def create_new_track(
 
 
 def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tuple[int, int]:
-    """Persist tracks (new.numbers shape: track + reference_url)."""
+    """Persist tracks (track + reference_url, optional genre, release_year, energy)."""
     if not tracks:
         return 0, 0
 

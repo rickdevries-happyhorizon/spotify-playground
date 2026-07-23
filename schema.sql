@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS tracking_start (
   last_updated DATETIME NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- New tracks (matches new.numbers: Track + optional reference URL)
+-- New tracks (track name + optional reference URL, genre, release year, energy)
 CREATE TABLE IF NOT EXISTS new_tracks (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   track VARCHAR(512) NOT NULL,

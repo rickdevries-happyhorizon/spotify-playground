@@ -65,7 +65,6 @@ source .venv/bin/activate
 | **ffmpeg** | Menu option 3 — download YouTube as AIFF | `brew install ffmpeg` |
 | **Node.js** | More reliable YouTube downloads | `brew install node` |
 | **PHP 8+** | Alternative web UI instead of Flask | `brew install php` |
-| **Apple Numbers** | Import from `new.numbers` | Already on Mac |
 
 ### Python packages (`requirements.txt`)
 
@@ -80,7 +79,6 @@ All of these are installed with one command: `pip install -r requirements.txt`
 | `mutagen` | WAV/AIFF metadata tagging |
 | `Pillow` | Cover art in audio files |
 | `yt-dlp` | YouTube downloads (menu option 3) |
-| `numbers-parser` | Import from Apple Numbers (optional) |
 
 ---
 
@@ -248,7 +246,6 @@ On first run, your browser opens for Spotify login. After that, credentials are 
 | `./run_sync.sh` | Interactive menu (recommended) |
 | `python3 playlist_sync.py --export` | Export new tracks with saved settings |
 | `python3 run_new_tracks_todo.py` | Web UI for managing new tracks (Flask, http://127.0.0.1:5050) |
-| `python3 import_new_numbers.py` | Import tracks from `new.numbers` (Apple Numbers) |
 
 ### PHP web UI (optional)
 
