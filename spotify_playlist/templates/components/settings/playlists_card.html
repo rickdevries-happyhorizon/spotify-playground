@@ -3,14 +3,14 @@
   <div class="settings-card__header">
     <span class="settings-card__icon" aria-hidden="true">🎵</span>
     <div>
-      <h3>Playlists</h3>
-      <p>Configure destination, sources, and tracking playlists.</p>
+      <h3>{{ _("Playlists") }}</h3>
+      <p>{{ _("Configure destination, sources, and tracking playlists.") }}</p>
     </div>
   </div>
   <div class="settings-playlists-grid">
     <div class="settings-playlist-field settings-playlist-field--destination">
-      <h4 class="settings-playlist-field__title">Destination playlist</h4>
-      <p class="settings-playlist-field__desc">Where synced tracks land.</p>
+      <h4 class="settings-playlist-field__title">{{ _("Destination playlist") }}</h4>
+      <p class="settings-playlist-field__desc">{{ _("Where synced tracks land.") }}</p>
       <label class="settings-field">
         <span class="playlist-meta" id="destination-playlist-meta" hidden></span>
         <input type="text" name="destination_playlist" placeholder="https://open.spotify.com/playlist/…" />
@@ -20,25 +20,25 @@
     <div class="settings-playlist-field settings-playlist-field--source">
       <div class="settings-playlist-field__head">
         <div>
-          <h4 class="settings-playlist-field__title">Source playlists</h4>
-          <p class="settings-playlist-field__desc">Playlists to pull tracks from during sync.</p>
+          <h4 class="settings-playlist-field__title">{{ _("Source playlists") }}</h4>
+          <p class="settings-playlist-field__desc">{{ _("Playlists to pull tracks from during sync.") }}</p>
         </div>
-        <span class="settings-count" id="source-playlist-count">0 playlists</span>
+        <span class="settings-count" id="source-playlist-count">{{ _("0 playlists") }}</span>
       </div>
       <div class="playlist-input-list" id="source-playlists-list"></div>
-      <button type="button" class="playlist-add-btn" id="add-source-playlist">+ Add source playlist</button>
+      <button type="button" class="playlist-add-btn" id="add-source-playlist">{{ _("+ Add source playlist") }}</button>
     </div>
 
     <div class="settings-playlist-field settings-playlist-field--tracking">
       <div class="settings-playlist-field__head">
         <div>
-          <h4 class="settings-playlist-field__title">Tracking playlists</h4>
-          <p class="settings-playlist-field__desc">Playlists scanned when importing new tracks.</p>
+          <h4 class="settings-playlist-field__title">{{ _("Tracking playlists") }}</h4>
+          <p class="settings-playlist-field__desc">{{ _("Playlists scanned when importing new tracks.") }}</p>
         </div>
-        <span class="settings-count" id="tracking-playlist-count">0 playlists</span>
+        <span class="settings-count" id="tracking-playlist-count">{{ _("0 playlists") }}</span>
       </div>
       <div class="playlist-input-list" id="tracking-playlists-list"></div>
-      <button type="button" class="playlist-add-btn" id="add-tracking-playlist">+ Add tracking playlist</button>
+      <button type="button" class="playlist-add-btn" id="add-tracking-playlist">{{ _("+ Add tracking playlist") }}</button>
     </div>
   </div>
 </section>

@@ -90,14 +90,28 @@ final class TemplateRenderer
         }
 
         $html = preg_replace_callback(
-            '/\{\{\s*(\w+)\s*\}\}/',
+            '/\{\{\s*_\(\s*"((?:[^"\\\\]|\\\\.)*)"\s*\)\s*\}\}/',
+            function (array $match): string {
+                $msgid = stripcslashes($match[1]);
+                return htmlspecialchars(Translator::gettext($msgid), ENT_QUOTES, 'UTF-8');
+            },
+            $html
+        ) ?? $html;
+
+        $html = preg_replace_callback(
+            '/\{\{\s*(\w+)(\|safe)?\s*\}\}/',
             function (array $match): string {
                 $key = $match[1];
                 if (!array_key_exists($key, $this->vars)) {
                     return '';
                 }
 
-                return htmlspecialchars((string) $this->vars[$key], ENT_QUOTES, 'UTF-8');
+                $value = (string) $this->vars[$key];
+                if (($match[2] ?? '') === '|safe') {
+                    return $value;
+                }
+
+                return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
             },
             $html
         ) ?? $html;

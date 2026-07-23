@@ -59,34 +59,36 @@ const TODO_PATH = "/todo";
 const FETCH_PATH = "/fetch";
 const STATISTICS_PATH = "/statistics";
 const SETTINGS_PATH = "/settings";
-const APP_NAME = "Release Finder";
+const APP_NAME = () => t("Release Finder");
 const FILTER_LABELS = {
-  [FILTER_WITH_URL]: "Has reference URL",
-  [FILTER_WITHOUT_URL]: "Needs reference URL",
+  [FILTER_WITH_URL]: () => t("Has reference URL"),
+  [FILTER_WITHOUT_URL]: () => t("Needs reference URL"),
 };
-const APP_MODULES = [
-  {
-    label: "Track to-do list",
-    description: "Manage reference URLs for new tracks by genre.",
-    icon: "✓",
-    path: TODO_PATH,
-    className: "app-card--todo",
-  },
-  {
-    label: "Fetch new tracks",
-    description: "Import new tracks from your Spotify playlists into the to-do list.",
-    icon: "↓",
-    path: FETCH_PATH,
-    className: "app-card--fetch",
-  },
-  {
-    label: "Statistics",
-    description: "Overview of tracks, completion, and activity.",
-    icon: "📊",
-    path: STATISTICS_PATH,
-    className: "app-card--stats",
-  },
-];
+function getAppModules() {
+  return [
+    {
+      label: t("Track to-do list"),
+      description: t("Manage reference URLs for new tracks by genre."),
+      icon: "✓",
+      path: TODO_PATH,
+      className: "app-card--todo",
+    },
+    {
+      label: t("Fetch new tracks"),
+      description: t("Import new tracks from your Spotify playlists into the to-do list."),
+      icon: "↓",
+      path: FETCH_PATH,
+      className: "app-card--fetch",
+    },
+    {
+      label: t("Statistics"),
+      description: t("Overview of tracks, completion, and activity."),
+      icon: "📊",
+      path: STATISTICS_PATH,
+      className: "app-card--stats",
+    },
+  ];
+}
 let statusTimer = null;
 let copyToastTimer = null;
 let lastHighlightedName = null;
@@ -100,6 +102,7 @@ const sourcePlaylistCount = document.getElementById("source-playlist-count");
 const trackingPlaylistCount = document.getElementById("tracking-playlist-count");
 const playlistLookupTimers = new WeakMap();
 let savedSettingsSkin = "colorful";
+let savedSettingsLocale = window.__LOCALE__ || "en";
 let fetchPollTimer = null;
 let fetchFinishTimer = null;
 let fetchProgressRaf = null;
@@ -168,8 +171,8 @@ function createPlaylistRow(entry = {}, { removable = true } = {}) {
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
     removeBtn.className = "playlist-remove-btn";
-    removeBtn.title = "Remove playlist";
-    removeBtn.setAttribute("aria-label", "Remove playlist");
+    removeBtn.title = t("Remove playlist");
+    removeBtn.setAttribute("aria-label", t("Remove playlist"));
     removeBtn.textContent = "×";
     removeBtn.addEventListener("click", () => {
       row.remove();
@@ -393,7 +396,7 @@ async function ensureKnownGenres() {
   const response = await fetch("/api/genres");
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || "Could not load genres");
+    throw new Error(data.error || t("Could not load genres"));
   }
   knownGenres = (data.genres || []).map((genre) => genre.slug);
 }
@@ -442,7 +445,7 @@ function handleAppModuleClick(event, path) {
 function renderStartScreen() {
   if (appGrid.childElementCount) return;
 
-  for (const module of APP_MODULES) {
+  for (const module of getAppModules()) {
     const item = document.createElement("li");
     const link = document.createElement("a");
     link.className = `app-card ${module.className}`;
@@ -486,40 +489,40 @@ function renderStatistics({ genres, withUrl, withoutUrl }) {
 
   statsSummary.innerHTML = `
     <article class="stats-card">
-      <span class="stats-card__label">Total tracks</span>
+      <span class="stats-card__label">${t("Total tracks")}</span>
       <strong class="stats-card__value">${total}</strong>
     </article>
     <article class="stats-card stats-card--done">
-      <span class="stats-card__label">Has reference URL</span>
+      <span class="stats-card__label">${t("Has reference URL")}</span>
       <strong class="stats-card__value">${withUrl.length}</strong>
     </article>
     <article class="stats-card stats-card--todo">
-      <span class="stats-card__label">Needs reference URL</span>
+      <span class="stats-card__label">${t("Needs reference URL")}</span>
       <strong class="stats-card__value">${withoutUrl.length}</strong>
     </article>
     <article class="stats-card">
-      <span class="stats-card__label">Completion</span>
+      <span class="stats-card__label">${t("Completion")}</span>
       <strong class="stats-card__value">${formatPercent(completion)}</strong>
     </article>
     <article class="stats-card">
-      <span class="stats-card__label">Title copy clicks</span>
+      <span class="stats-card__label">${t("Title copy clicks")}</span>
       <strong class="stats-card__value">${copyClicks}</strong>
     </article>
     <article class="stats-card">
-      <span class="stats-card__label">Average energy</span>
+      <span class="stats-card__label">${t("Average energy")}</span>
       <strong class="stats-card__value">${formatEnergy(avgEnergy)}</strong>
     </article>
   `;
 
   const genreStats = new Map();
   for (const track of withUrl) {
-    const genre = (track.genre || "").trim() || "Uncategorized";
+    const genre = (track.genre || "").trim() || t("Uncategorized");
     const entry = genreStats.get(genre) || { withUrl: 0, withoutUrl: 0 };
     entry.withUrl += 1;
     genreStats.set(genre, entry);
   }
   for (const track of withoutUrl) {
-    const genre = (track.genre || "").trim() || "Uncategorized";
+    const genre = (track.genre || "").trim() || t("Uncategorized");
     const entry = genreStats.get(genre) || { withUrl: 0, withoutUrl: 0 };
     entry.withoutUrl += 1;
     genreStats.set(genre, entry);
@@ -538,7 +541,7 @@ function renderStatistics({ genres, withUrl, withoutUrl }) {
     const cell = document.createElement("td");
     cell.colSpan = 5;
     cell.className = "stats-table__empty";
-    cell.textContent = "No tracks found.";
+    cell.textContent = t("No tracks found.");
     row.appendChild(cell);
     statsGenreBody.appendChild(row);
     return;
@@ -561,7 +564,7 @@ function renderStatistics({ genres, withUrl, withoutUrl }) {
 }
 
 async function loadStatistics() {
-  setBanner("Loading statistics…", "loading");
+  setBanner(t("Loading statistics…"), "loading");
   try {
     const [genresResponse, tracksResponse] = await Promise.all([
       fetch("/api/genres"),
@@ -570,10 +573,10 @@ async function loadStatistics() {
     const genresData = await genresResponse.json().catch(() => ({}));
     const tracksData = await tracksResponse.json().catch(() => ({}));
     if (!genresResponse.ok) {
-      throw new Error(genresData.error || "Could not load genres");
+      throw new Error(genresData.error || t("Could not load genres"));
     }
     if (!tracksResponse.ok) {
-      throw new Error(tracksData.error || "Could not load tracks");
+      throw new Error(tracksData.error || t("Could not load tracks"));
     }
 
     renderStatistics({
@@ -583,7 +586,7 @@ async function loadStatistics() {
     });
     setBanner("");
   } catch (error) {
-    setBanner(`Failed to load statistics: ${error.message}`, "error");
+    setBanner(t("Failed to load statistics: {message}", { message: error.message }), "error");
     showStatus(error.message, "error");
   }
 }
@@ -656,24 +659,24 @@ function updateBreadcrumbs() {
   }
 
   breadcrumbsBar.hidden = false;
-  const crumbs = [{ label: "Home", href: START_PATH }];
+  const crumbs = [{ label: t("Home"), href: START_PATH }];
 
   if (currentView === "settings") {
-    crumbs.push({ label: "Settings", href: SETTINGS_PATH, current: true });
+    crumbs.push({ label: t("Settings"), href: SETTINGS_PATH, current: true });
   } else if (currentView === "statistics") {
-    crumbs.push({ label: "Statistics", href: STATISTICS_PATH, current: true });
+    crumbs.push({ label: t("Statistics"), href: STATISTICS_PATH, current: true });
   } else if (currentView === "fetch") {
-    crumbs.push({ label: "Fetch tracks", href: FETCH_PATH, current: true });
+    crumbs.push({ label: t("Fetch tracks"), href: FETCH_PATH, current: true });
   } else if (currentView === "home") {
-    crumbs.push({ label: "Track to-do", href: TODO_PATH, current: true });
+    crumbs.push({ label: t("Track to-do"), href: TODO_PATH, current: true });
   } else if (currentView === "genre" && currentGenre) {
-    crumbs.push({ label: "Track to-do", href: TODO_PATH });
+    crumbs.push({ label: t("Track to-do"), href: TODO_PATH });
     crumbs.push({ label: currentGenre, href: genrePath(currentGenre), current: true });
   } else if (currentView === "tracks" && currentGenre) {
-    crumbs.push({ label: "Track to-do", href: TODO_PATH });
+    crumbs.push({ label: t("Track to-do"), href: TODO_PATH });
     crumbs.push({ label: currentGenre, href: genrePath(currentGenre) });
     crumbs.push({
-      label: FILTER_LABELS[currentFilter] || currentFilter,
+      label: (FILTER_LABELS[currentFilter] || (() => currentFilter))(),
       href: genrePath(currentGenre, currentFilter),
       current: true,
     });
@@ -691,9 +694,9 @@ function showStartView() {
   currentView = "start";
   currentGenre = null;
   currentFilter = null;
-  document.title = APP_NAME;
-  pageTitle.textContent = APP_NAME;
-  pageSubtitle.textContent = "Choose a tool to get started.";
+  document.title = APP_NAME();
+  pageTitle.textContent = APP_NAME();
+  pageSubtitle.textContent = t("Choose a tool to get started.");
   setPageCover(null);
   setSettingsLinkActive(false);
   hideAllViews();
@@ -708,9 +711,9 @@ function showGenreView() {
   currentView = "home";
   currentGenre = null;
   currentFilter = null;
-  document.title = `Track to-do — ${APP_NAME}`;
-  pageTitle.textContent = "Track to-do";
-  pageSubtitle.textContent = "Choose a genre to manage reference URLs for its tracks.";
+  document.title = t("Track to-do — {app_name}", { app_name: APP_NAME() });
+  pageTitle.textContent = t("Track to-do");
+  pageSubtitle.textContent = t("Choose a genre to manage reference URLs for its tracks.");
   setPageCover(null);
   setSettingsLinkActive(false);
   hideAllViews();
@@ -723,9 +726,9 @@ function showStatisticsView() {
   currentView = "statistics";
   currentGenre = null;
   currentFilter = null;
-  document.title = `Statistics — ${APP_NAME}`;
-  pageTitle.textContent = "Statistics";
-  pageSubtitle.textContent = "Overview of your new tracks and reference URL progress.";
+  document.title = t("Statistics — {app_name}", { app_name: APP_NAME() });
+  pageTitle.textContent = t("Statistics");
+  pageSubtitle.textContent = t("Overview of your new tracks and reference URL progress.");
   setPageCover(null);
   setSettingsLinkActive(false);
   hideAllViews();
@@ -756,12 +759,12 @@ function resetFetchScreen() {
   fetchDisplayPercent = 0;
   fetchTargetPercent = 0;
   fetchView.classList.remove("is-success", "is-error");
-  fetchTitle.textContent = "Fetching new tracks";
-  fetchMessage.textContent = "Connecting to Spotify…";
+  fetchTitle.textContent = t("Fetching new tracks");
+  fetchMessage.textContent = t("Connecting to Spotify…");
   fetchProgressBar.style.width = "0%";
   fetchProgressGlow.style.left = "0%";
   fetchProgressWrap?.classList.add("is-active");
-  fetchProgressLabel.textContent = "Starting…";
+  fetchProgressLabel.textContent = t("Starting…");
   fetchProgressPercent.textContent = "0%";
   fetchPlaylistCard.hidden = true;
   fetchResult.hidden = true;
@@ -838,8 +841,8 @@ function applyFetchJobPresentation(job) {
   const phase = job.phase || "starting";
   const percent = computeFetchPercent(job);
   fetchTargetPercent = Math.max(fetchTargetPercent, percent);
-  fetchProgressLabel.textContent = job.message || "Working…";
-  fetchMessage.textContent = job.message || "Working…";
+  fetchProgressLabel.textContent = job.message || t("Working…");
+  fetchMessage.textContent = job.message || t("Working…");
   setFetchStepState(phase);
 
   if (job.playlist_name) {
@@ -983,8 +986,8 @@ async function scheduleFetchSuccess(job) {
 
   fetchTargetPercent = 100;
   setFetchStepState("done");
-  fetchProgressLabel.textContent = "Import complete";
-  fetchMessage.textContent = "Import complete";
+  fetchProgressLabel.textContent = t("Import complete");
+  fetchMessage.textContent = t("Import complete");
   await delay(450);
 
   stopFetchProgressAnimation();
@@ -1006,7 +1009,7 @@ function updateFetchProgress(job) {
 function renderFetchSuccess(job) {
   fetchView.classList.add("is-success");
   fetchView.classList.remove("is-error");
-  fetchTitle.textContent = "Import complete";
+  fetchTitle.textContent = t("Import complete");
 
   const inserted = Number(job.inserted ?? job.result?.inserted ?? 0);
   const skipped = Number(job.skipped ?? job.result?.skipped ?? 0);
@@ -1021,19 +1024,40 @@ function renderFetchSuccess(job) {
   const untilDate = job.until_date ?? job.result?.until_date;
 
   if (inserted > 0) {
-    fetchMessage.textContent = `${inserted} new track${inserted === 1 ? "" : "s"} added to your to-do list.`;
+    fetchMessage.textContent = tn(
+      "1 new track added to your to-do list.",
+      "{count} new tracks added to your to-do list.",
+      inserted
+    );
   } else if (found > 0 && skipped > 0) {
-    fetchMessage.textContent = `Found ${found} track${found === 1 ? "" : "s"}, but ${skipped} already existed in your list.`;
+    fetchMessage.textContent = found === 1
+      ? t("Found 1 track, but {skipped} already existed in your list.", { skipped })
+      : t("Found {found} tracks, but {skipped} already existed in your list.", { found, skipped });
   } else if (sinceDate && untilDate) {
-    fetchMessage.textContent = `Scanned ${playlistCount || "your"} playlist${playlistCount === 1 ? "" : "s"} — no new tracks between ${sinceDate} and ${untilDate}.`;
+    if (!playlistCount) {
+      fetchMessage.textContent = t(
+        "Scanned your playlists — no new tracks between {since_date} and {until_date}.",
+        { since_date: sinceDate, until_date: untilDate }
+      );
+    } else if (playlistCount === 1) {
+      fetchMessage.textContent = t(
+        "Scanned 1 playlist — no new tracks between {since_date} and {until_date}.",
+        { since_date: sinceDate, until_date: untilDate }
+      );
+    } else {
+      fetchMessage.textContent = t(
+        "Scanned {count} playlists — no new tracks between {since_date} and {until_date}.",
+        { count: playlistCount, since_date: sinceDate, until_date: untilDate }
+      );
+    }
   } else {
-    fetchMessage.textContent = job.message || "Your to-do list is up to date.";
+    fetchMessage.textContent = job.message || t("Your to-do list is up to date.");
   }
 
   fetchProgressBar.style.width = "100%";
   fetchProgressGlow.style.left = "100%";
   fetchProgressPercent.textContent = "100%";
-  fetchProgressLabel.textContent = "Done";
+  fetchProgressLabel.textContent = t("Done");
   fetchProgressWrap?.classList.remove("is-active");
   fetchPlaylistCard.hidden = true;
   fetchResult.hidden = false;
@@ -1065,13 +1089,13 @@ function renderFetchError(message) {
   stopFetchFinishSequence();
   fetchView.classList.add("is-error");
   fetchView.classList.remove("is-success");
-  fetchTitle.textContent = "Import failed";
-  fetchMessage.textContent = message || "Something went wrong while fetching tracks.";
+  fetchTitle.textContent = t("Import failed");
+  fetchMessage.textContent = message || t("Something went wrong while fetching tracks.");
   fetchProgressWrap?.classList.remove("is-active");
   fetchPlaylistCard.hidden = true;
   fetchResult.hidden = true;
   fetchError.hidden = false;
-  fetchErrorMessage.textContent = message || "Something went wrong while fetching tracks.";
+  fetchErrorMessage.textContent = message || t("Something went wrong while fetching tracks.");
 }
 
 function stopFetchPolling() {
@@ -1119,7 +1143,7 @@ async function pollFetchJob(jobId) {
 
 async function startTrackImport() {
   if (!fetchView) {
-    showStatus("Fetch screen is unavailable. Restart the web server.", "error");
+    showStatus(t("Fetch screen is unavailable. Restart the web server."), "error");
     return;
   }
 
@@ -1127,7 +1151,7 @@ async function startTrackImport() {
   renderFetchParticles();
   fetchStartedAt = Date.now();
   startFetchProgressAnimation();
-  fetchMessage.textContent = "Connecting to Spotify…";
+  fetchMessage.textContent = t("Connecting to Spotify…");
 
   try {
     const introDelay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700;
@@ -1154,7 +1178,7 @@ async function startTrackImport() {
     }
 
     activeFetchJobId = data.job_id;
-    fetchMessage.textContent = "Import started…";
+    fetchMessage.textContent = t("Import started…");
     fetchTargetPercent = Math.max(fetchTargetPercent, FETCH_PHASE_PROGRESS.starting);
     pollFetchJob(data.job_id);
   } catch (error) {
@@ -1168,9 +1192,9 @@ function showFetchView() {
   currentView = "fetch";
   currentGenre = null;
   currentFilter = null;
-  document.title = `Fetch tracks — ${APP_NAME}`;
-  pageTitle.textContent = "Fetch new tracks";
-  pageSubtitle.textContent = "Importing the latest additions from your Spotify playlists.";
+  document.title = t("Fetch tracks — {app_name}", { app_name: APP_NAME() });
+  pageTitle.textContent = t("Fetch new tracks");
+  pageSubtitle.textContent = t("Importing the latest additions from your Spotify playlists.");
   setPageCover(null);
   setSettingsLinkActive(false);
   hideAllViews();
@@ -1195,9 +1219,9 @@ function showSettingsView() {
   currentView = "settings";
   currentGenre = null;
   currentFilter = null;
-  document.title = `Settings — ${APP_NAME}`;
-  pageTitle.textContent = "Settings";
-  pageSubtitle.textContent = "Customize your sync workflow and visual style.";
+  document.title = t("Settings — {app_name}", { app_name: APP_NAME() });
+  pageTitle.textContent = t("Settings");
+  pageSubtitle.textContent = t("Customize your sync workflow and visual style.");
   setPageCover(null);
   setSettingsLinkActive(true);
   hideAllViews();
@@ -1206,7 +1230,7 @@ function showSettingsView() {
 }
 
 function formatPlaylistCount(count) {
-  return `${count} playlist${count === 1 ? "" : "s"}`;
+  return tn("1 playlist", "{count} playlists", count);
 }
 
 function updateSettingsCounts() {
@@ -1218,10 +1242,10 @@ function updateSettingsCounts() {
 
 function markSettingsDirty() {
   settingsDock.classList.add("is-dirty");
-  settingsDockText.textContent = "Unsaved changes";
+  settingsDockText.textContent = t("Unsaved changes");
 }
 
-function markSettingsClean(message = "Ready to save") {
+function markSettingsClean(message = t("Ready to save")) {
   settingsDock.classList.remove("is-dirty");
   settingsDockText.textContent = message;
 }
@@ -1236,9 +1260,9 @@ function showGenreHub(genre) {
   currentView = "genre";
   currentGenre = genre;
   currentFilter = null;
-  document.title = `${genre} — Track to-do — ${APP_NAME}`;
+  document.title = t("{genre} — Track to-do — {app_name}", { genre, app_name: APP_NAME() });
   pageTitle.textContent = genre;
-  pageSubtitle.textContent = "Choose whether to view tracks with or without a reference URL.";
+  pageSubtitle.textContent = t("Choose whether to view tracks with or without a reference URL.");
   setPageCover(genreImageBySlug[genre] || null);
   setSettingsLinkActive(false);
   hideAllViews();
@@ -1252,11 +1276,11 @@ function showTracksView(genre, filter) {
   currentGenre = genre;
   currentFilter = filter;
   const filterLabel = filter === FILTER_WITH_URL
-    ? "tracks with a reference URL"
-    : "tracks still missing a reference URL";
-  document.title = `${genre} — Track to-do — ${APP_NAME}`;
+    ? t("tracks with a reference URL")
+    : t("tracks still missing a reference URL");
+  document.title = t("{genre} — Track to-do — {app_name}", { genre, app_name: APP_NAME() });
   pageTitle.textContent = genre;
-  pageSubtitle.textContent = `Showing ${filterLabel}.`;
+  pageSubtitle.textContent = t("Showing {filter_label}.", { filter_label: filterLabel });
   setPageCover(genreImageBySlug[genre] || null);
   setSettingsLinkActive(false);
   hideAllViews();
@@ -1380,9 +1404,14 @@ function restoreSettingsSkinIfNeeded() {
 
 function populateSettingsForm(settings) {
   const skin = settings.ui_skin || "colorful";
+  const locale = settings.locale || "en";
   savedSettingsSkin = skin;
+  savedSettingsLocale = locale;
   for (const input of settingsForm.querySelectorAll('input[name="ui_skin"]')) {
     input.checked = input.value === skin;
+  }
+  for (const input of settingsForm.querySelectorAll('input[name="locale"]')) {
+    input.checked = input.value === locale;
   }
 
   settingsForm.destination_playlist.value = settings.destination_playlist?.spotify_id || "";
@@ -1401,19 +1430,19 @@ function populateSettingsForm(settings) {
 }
 
 async function loadSettings() {
-  setBanner("Loading settings…", "loading");
+  setBanner(t("Loading settings…"), "loading");
   try {
     const response = await fetch("/api/settings");
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || "Could not load settings");
+      throw new Error(data.error || t("Could not load settings"));
     }
 
     populateSettingsForm(data);
     document.documentElement.dataset.skin = data.ui_skin || "colorful";
     setBanner("");
   } catch (error) {
-    setBanner(`Failed to load settings: ${error.message}`, "error");
+    setBanner(t("Failed to load settings: {message}", { message: error.message }), "error");
     showStatus(error.message, "error");
   }
 }
@@ -1422,11 +1451,14 @@ async function saveSettings(event) {
   event.preventDefault();
   const button = settingsForm.querySelector('button[type="submit"]');
   button.disabled = true;
-  settingsDockText.textContent = "Saving…";
+  settingsDockText.textContent = t("Saving…");
 
   const selectedSkin = settingsForm.querySelector('input[name="ui_skin"]:checked')?.value || "colorful";
+  const selectedLocale = settingsForm.querySelector('input[name="locale"]:checked')?.value || "en";
+  const previousLocale = savedSettingsLocale;
   const payload = {
     ui_skin: selectedSkin,
+    locale: selectedLocale,
     destination_playlist: settingsForm.destination_playlist.value.trim(),
     source_playlists: collectPlaylistValues(sourcePlaylistsList),
     tracking_playlists: collectPlaylistValues(trackingPlaylistsList),
@@ -1442,14 +1474,19 @@ async function saveSettings(event) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || "Could not save settings");
+      throw new Error(data.error || t("Could not save settings"));
     }
 
     populateSettingsForm(data);
     document.documentElement.dataset.skin = data.ui_skin || selectedSkin;
     savedSettingsSkin = data.ui_skin || selectedSkin;
-    markSettingsClean("All changes saved");
-    showStatus("Settings saved");
+    savedSettingsLocale = data.locale || selectedLocale;
+    markSettingsClean(t("All changes saved"));
+    showStatus(t("Settings saved"));
+    if ((data.locale || selectedLocale) !== previousLocale) {
+      window.location.reload();
+      return;
+    }
   } catch (error) {
     markSettingsDirty();
     showStatus(error.message, "error");
@@ -1481,13 +1518,13 @@ function renderFilterChoices(withUrlCount, withoutUrlCount) {
   const choices = [
     {
       filter: FILTER_WITH_URL,
-      label: "Has reference URL",
+      label: t("Has reference URL"),
       count: withUrlCount,
       className: "filter-card--done",
     },
     {
       filter: FILTER_WITHOUT_URL,
-      label: "Needs reference URL",
+      label: t("Needs reference URL"),
       count: withoutUrlCount,
       className: "filter-card--todo",
     },
@@ -1502,7 +1539,7 @@ function renderFilterChoices(withUrlCount, withoutUrlCount) {
       ${artMarkup(genreImageUrl, "card-art", currentGenre || "")}
       <span class="filter-card__body">
         <span class="filter-card__name">${escapeHtml(choice.label)}</span>
-        <span class="filter-card__count">${choice.count} track${choice.count === 1 ? "" : "s"}</span>
+        <span class="filter-card__count">${tn("1 track", "{count} tracks", choice.count)}</span>
       </span>
     `;
     link.addEventListener("click", (event) => {
@@ -1515,12 +1552,12 @@ function renderFilterChoices(withUrlCount, withoutUrlCount) {
 }
 
 async function loadGenreHub(genre = currentGenre) {
-  setBanner("Loading track counts…", "loading");
+  setBanner(t("Loading track counts…"), "loading");
   try {
     const response = await fetch(`/api/tracks?genre=${encodeURIComponent(genre)}`);
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || "Could not load tracks");
+      throw new Error(data.error || t("Could not load tracks"));
     }
 
     cachedTracks = {
@@ -1534,12 +1571,12 @@ async function loadGenreHub(genre = currentGenre) {
     renderFilterChoices(cachedTracks.with_url.length, cachedTracks.without_url.length);
 
     if (!data.total) {
-      setBanner(`No tracks found for ${genre}.`, "error");
+      setBanner(t("No tracks found for {genre}.", { genre }), "error");
     } else {
       setBanner("");
     }
   } catch (error) {
-    setBanner(`Failed to load tracks: ${error.message}`, "error");
+    setBanner(t("Failed to load tracks: {message}", { message: error.message }), "error");
     showStatus(error.message, "error");
   }
 }
@@ -1550,7 +1587,7 @@ function renderGenreList(genres) {
   if (!genres.length) {
     const empty = document.createElement("li");
     empty.className = "empty";
-    empty.textContent = "No genres found.";
+    empty.textContent = t("No genres found.");
     genreGrid.appendChild(empty);
     return;
   }
@@ -1567,7 +1604,7 @@ function renderGenreList(genres) {
       ${artMarkup(genre.image_url, "card-art", genre.label)}
       <span class="genre-card__body">
         <span class="genre-card__name">${escapeHtml(genre.label)}</span>
-        <span class="genre-card__count">${genre.track_count} track${genre.track_count === 1 ? "" : "s"}</span>
+        <span class="genre-card__count">${tn("1 track", "{count} tracks", genre.track_count)}</span>
       </span>
     `;
     link.addEventListener("click", (event) => {
@@ -1580,23 +1617,23 @@ function renderGenreList(genres) {
 }
 
 async function loadGenres() {
-  setBanner("Loading genres…", "loading");
+  setBanner(t("Loading genres…"), "loading");
   try {
     const response = await fetch("/api/genres");
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || "Could not load genres");
+      throw new Error(data.error || t("Could not load genres"));
     }
 
     renderGenreList(data.genres || []);
     knownGenres = (data.genres || []).map((genre) => genre.slug);
     if (!data.total) {
-      setBanner("No tracks found in new_tracks table.", "error");
+      setBanner(t("No tracks found in new_tracks table."), "error");
     } else {
       setBanner("");
     }
   } catch (error) {
-    setBanner(`Failed to load genres: ${error.message}`, "error");
+    setBanner(t("Failed to load genres: {message}", { message: error.message }), "error");
     showStatus(error.message, "error");
   }
 }
@@ -1633,13 +1670,13 @@ async function recordCopyTitleClick(item, trackId) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || "Could not record click");
+      throw new Error(data.error || t("Could not record click"));
     }
 
     setCopyTitleCount(nameEl, Number(data.copy_title_count || optimistic));
   } catch (error) {
     setCopyTitleCount(nameEl, previous);
-    showStatus(error.message || "Could not save click count", "error");
+    showStatus(error.message || t("Could not save click count"), "error");
   }
 }
 
@@ -1761,14 +1798,14 @@ function launchConfetti(x, y) {
 
 async function copyText(text, label) {
   if (!text) {
-    showCopyToast(`Nothing to copy`);
+    showCopyToast(t("Nothing to copy"));
     return;
   }
   try {
     await navigator.clipboard.writeText(text);
-    showCopyToast(`${label} copied`);
+    showCopyToast(t("{label} copied", { label }));
   } catch (error) {
-    showCopyToast(`Could not copy ${label.toLowerCase()}`);
+    showCopyToast(t("Could not copy {label}", { label: label.toLowerCase() }));
   }
 }
 
@@ -1791,7 +1828,7 @@ function createTrackItem(track) {
     ? `<div class="track-genre">${escapeHtml(track.genre)}</div>`
     : "";
   const energyHtml = track.energy != null
-    ? `<div class="track-energy">Energy: ${Number(track.energy).toFixed(2)}</div>`
+    ? `<div class="track-energy">${t("Energy: {value}", { value: Number(track.energy).toFixed(2) })}</div>`
     : "";
 
   li.innerHTML = `
@@ -1799,14 +1836,14 @@ function createTrackItem(track) {
       ${artMarkup(track.image_url, "track-art", track.track)}
       <div class="track-body">
         <div class="track-heading">
-          <div class="track-name" data-count="${copyTitleCount}" role="button" tabindex="0" title="Click to copy title">${escapeHtml(track.track)}</div>
+          <div class="track-name" data-count="${copyTitleCount}" role="button" tabindex="0" title="${t('Click to copy title')}">${escapeHtml(track.track)}</div>
           ${genreHtml}
           ${energyHtml}
         </div>
         <form class="track-form">
           <input type="url" name="reference_url" placeholder="https://..." value="${safeUrl}" />
-          <button type="submit">Save</button>
-          <button type="button" class="remove">Remove</button>
+          <button type="submit">${t("Save")}</button>
+          <button type="button" class="remove">${t("Remove")}</button>
         </form>
       </div>
     </div>
@@ -1819,7 +1856,7 @@ function createTrackItem(track) {
 
   function handleTitleCopy() {
     highlightTrackTitle(li);
-    copyText(track.track, "Title");
+    copyText(track.track, t("Title"));
     recordCopyTitleClick(li, track.id);
   }
 
@@ -1848,7 +1885,7 @@ function createTrackItem(track) {
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || "Save failed");
+        throw new Error(err.error || t("Save failed"));
       }
 
       const updated = await response.json();
@@ -1861,7 +1898,7 @@ function createTrackItem(track) {
         image_url: track.image_url,
         copy_title_count: getCopyTitleCount(li),
       });
-      showStatus(updated.has_url ? "Saved — moved to Has URL list" : "Cleared — moved to Needs URL list");
+      showStatus(updated.has_url ? t("Saved — moved to Has URL list") : t("Cleared — moved to Needs URL list"));
     } catch (error) {
       showStatus(error.message, "error");
     } finally {
@@ -1879,14 +1916,14 @@ function createTrackItem(track) {
 }
 
 async function removeTrackItem(item, track) {
-  const ok = window.confirm(`Remove "${track.track}" from the list?`);
+  const ok = window.confirm(t('Remove "{track}" from the list?', { track: track.track }));
   if (!ok) return;
 
   try {
     const response = await fetch(`/api/tracks/${track.id}`, { method: "DELETE" });
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error || "Remove failed");
+      throw new Error(err.error || t("Remove failed"));
     }
 
     const rect = item.getBoundingClientRect();
@@ -1905,7 +1942,7 @@ async function removeTrackItem(item, track) {
     updateEmptyStates();
     updateCounts();
     applyAllListSpacing();
-    showStatus("Track removed");
+    showStatus(t("Track removed"));
   } catch (error) {
     showStatus(error.message, "error");
   }
@@ -1993,8 +2030,8 @@ function renderList(container, tracks) {
     const empty = document.createElement("li");
     empty.className = "empty";
     empty.textContent = container === listDone
-      ? "No tracks with a URL yet."
-      : "All tracks have a reference URL.";
+      ? t("No tracks with a URL yet.")
+      : t("All tracks have a reference URL.");
     container.appendChild(empty);
     return;
   }
@@ -2040,13 +2077,13 @@ function updateCounts() {
 }
 
 async function loadTracks(genre = currentGenre) {
-  setBanner("Loading tracks from database…", "loading");
+  setBanner(t("Loading tracks from database…"), "loading");
   try {
     const query = genre ? `?genre=${encodeURIComponent(genre)}` : "";
     const response = await fetch(`/api/tracks${query}`);
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || "Could not load tracks");
+      throw new Error(data.error || t("Could not load tracks"));
     }
 
     cachedTracks = {
@@ -2060,12 +2097,12 @@ async function loadTracks(genre = currentGenre) {
     renderCurrentFilterLists();
 
     if (!data.total) {
-      setBanner(`No tracks found for ${genre}.`, "error");
+      setBanner(t("No tracks found for {genre}.", { genre }), "error");
     } else {
       setBanner("");
     }
   } catch (error) {
-    setBanner(`Failed to load tracks: ${error.message}`, "error");
+    setBanner(t("Failed to load tracks: {message}", { message: error.message }), "error");
     showStatus(error.message, "error");
   }
 }
@@ -2100,7 +2137,7 @@ async function bootFromPath() {
     await ensureKnownGenres();
   } catch (error) {
     showGenreView();
-    setBanner(`Failed to load genres: ${error.message}`, "error");
+    setBanner(t("Failed to load genres: {message}", { message: error.message }), "error");
     return;
   }
 
@@ -2162,6 +2199,9 @@ settingsForm.addEventListener("input", (event) => {
 settingsForm.addEventListener("change", (event) => {
   if (event.target.name === "ui_skin") {
     previewSelectedTheme();
+  }
+  if (event.target.name === "locale") {
+    markSettingsDirty();
   }
   if (event.target.name === "destination_playlist") {
     lookupDestinationPlaylist();

@@ -1,6 +1,7 @@
 """Browser UI for managing new_tracks reference URLs."""
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ from db_store import (
     get_connection,
     increment_new_track_copy_title_count,
     load_genre_images,
+    load_locale,
     load_new_tracks,
     load_playlists_config,
     load_sync_start_date,
@@ -20,12 +22,14 @@ from db_store import (
     load_ui_skin,
     normalize_reference_url,
     resolve_genre_image,
+    save_locale,
     save_playlists_config,
     save_sync_start_date,
     save_tracking_start_date,
     save_ui_skin,
     update_new_track_reference_url,
 )
+from spotify_playlist.i18n import gettext as translate, locale_html_lang, load_catalog
 from spotify_playlist.fetch_playlist_info import resolve_playlist_details
 from spotify_playlist.import_job_manager import create_import_job, get_import_job
 from spotify_playlist.parse_spotify_playlist_id import parse_spotify_playlist_id
@@ -35,6 +39,7 @@ TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 DEFAULT_PORT = int(os.environ.get("NEW_TRACKS_TODO_PORT", "5050"))
 _VALID_UI_SKINS = frozenset({"light", "dark", "colorful"})
+_VALID_LOCALES = frozenset({"en", "nl", "brab"})
 
 
 def _playlist_names_by_spotify_id(spotify_ids: list[str]) -> dict[str, str]:
@@ -83,6 +88,7 @@ def _build_settings_payload() -> dict:
 
     return {
         "ui_skin": load_ui_skin(),
+        "locale": load_locale(),
         "destination_playlist": _format_playlist_entry(destination, names)
         if destination
         else None,
@@ -148,7 +154,15 @@ def create_app() -> Flask:
     )
 
     def _render_page():
-        return render_template("new_tracks_todo.html", ui_skin=load_ui_skin())
+        locale = load_locale()
+        return render_template(
+            "new_tracks_todo.html",
+            ui_skin=load_ui_skin(),
+            locale=locale_html_lang(locale),
+            locale_code=locale,
+            translations_json=json.dumps(load_catalog(locale), ensure_ascii=False),
+            _=lambda msgid: translate(msgid, locale),
+        )
 
     @app.get("/")
     def index():
@@ -347,6 +361,18 @@ def create_app() -> Flask:
                 return jsonify({"error": "ui_skin must be 'light', 'dark', or 'colorful'"}), 400
             try:
                 save_ui_skin(normalized)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        if "locale" in data:
+            locale = data.get("locale")
+            if not isinstance(locale, str):
+                return jsonify({"error": "locale must be a string"}), 400
+            normalized = locale.strip().lower()
+            if normalized not in _VALID_LOCALES:
+                return jsonify({"error": "locale must be 'en', 'nl', or 'brab'"}), 400
+            try:
+                save_locale(normalized)
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 

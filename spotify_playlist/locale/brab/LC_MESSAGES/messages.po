@@ -1,0 +1,488 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Release Finder 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-23 12:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Brabants\n"
+"Language: brab\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Release Finder"
+msgstr "Release Finder"
+
+msgid "Choose a tool to get started."
+msgstr "Kies 'n tool om te beginne."
+
+msgid "Loading…"
+msgstr "Bezig meej laden…"
+
+msgid "Settings"
+msgstr "Instellingen"
+
+msgid "What would you like to do?"
+msgstr "Wat wilde doen?"
+
+msgid "Control panel"
+msgstr "Controlepaneel"
+
+msgid "Tune the look, sync playlists, and set how new tracks are imported."
+msgstr "Pas 't uiterlijk aon, zet playlists klaar en bepaol hoe nieuwe tracks binnenkome."
+
+msgid "Theme"
+msgstr "Thema"
+
+msgid "Pick the vibe for the whole app."
+msgstr "Kies de sfeer veur de hele app."
+
+msgid "Light"
+msgstr "Licht"
+
+msgid "Clean black & white"
+msgstr "Strak zwart-wit"
+
+msgid "Dark"
+msgstr "Donker"
+
+msgid "Flat dark mode"
+msgstr "Platte donkere modus"
+
+msgid "Colorful"
+msgstr "Kleurrijk"
+
+msgid "Gradients, glow, motion"
+msgstr "Verlopen, gloed, beweging"
+
+msgid "Language"
+msgstr "Taal"
+
+msgid "Choose the language for labels and messages."
+msgstr "Kies de taal veur labels en berichte."
+
+msgid "English"
+msgstr "Engelands"
+
+msgid "Dutch"
+msgstr "Nederlands"
+
+msgid "Brabants"
+msgstr "Brabants"
+
+msgid "Playlists"
+msgstr "Playlists"
+
+msgid "Configure destination, sources, and tracking playlists."
+msgstr "Zet bestemming, bronne en tracking-playlists klaar."
+
+msgid "Destination playlist"
+msgstr "Bestemmingsplaylist"
+
+msgid "Where synced tracks land."
+msgstr "Waar gesynchroniseerde tracks terechtkome."
+
+msgid "Source playlists"
+msgstr "Bronplaylists"
+
+msgid "Playlists to pull tracks from during sync."
+msgstr "Playlists waar tracks vandoan kome tijdens sync."
+
+msgid "Tracking playlists"
+msgstr "Tracking-playlists"
+
+msgid "Playlists scanned when importing new tracks."
+msgstr "Playlists die gescand worre bij 't importeren van nieuwe tracks."
+
+msgid "0 playlists"
+msgstr "0 playlists"
+
+msgid "+ Add source playlist"
+msgstr "+ Bronplaylist toevoege"
+
+msgid "+ Add tracking playlist"
+msgstr "+ Tracking-playlist toevoege"
+
+msgid "Dates"
+msgstr "Datums"
+
+msgid "Control how far back sync and new-track import look."
+msgstr "Bepaal hoe ver sync en nieuwe-track import terugkijke."
+
+msgid "Sync start date"
+msgstr "Sync-startdatum"
+
+msgid "Artist releases and source playlist sync look back from this date."
+msgstr "Artiestreleases en bron-sync kieke vanaf deze datum terug."
+
+msgid "Start date"
+msgstr "Startdatum"
+
+msgid "(empty = last 7 days)"
+msgstr "(leeg = laatste 7 dage)"
+
+msgid "New tracks start date"
+msgstr "Startdatum nieuwe tracks"
+
+msgid "Only import tracks into new_tracks after this date."
+msgstr "Importeer tracks pas na deze datum in new_tracks."
+
+msgid "Ready to save"
+msgstr "Klaar om op te slaon"
+
+msgid "Save settings"
+msgstr "Instellinge opslaon"
+
+msgid "Genres"
+msgstr "Genres"
+
+msgid "Choose a list"
+msgstr "Kies 'n lijst"
+
+msgid "Track lists"
+msgstr "Tracklijste"
+
+msgid "Has reference URL"
+msgstr "Heeft referentie-URL"
+
+msgid "Needs reference URL"
+msgstr "Referentie-URL nodig"
+
+msgid "Add track"
+msgstr "Track toevoege"
+
+msgid "Artist - Track name"
+msgstr "Artiest - Tracknaam"
+
+msgid "Reference URL (optional)"
+msgstr "Referentie-URL (optioneel)"
+
+msgid "Add"
+msgstr "Toevoege"
+
+msgid "By genre"
+msgstr "Per genre"
+
+msgid "Genre"
+msgstr "Genre"
+
+msgid "Total"
+msgstr "Totaal"
+
+msgid "Has URL"
+msgstr "Heeft URL"
+
+msgid "Needs URL"
+msgstr "URL nodig"
+
+msgid "Complete"
+msgstr "Compleet"
+
+msgid "Spotify import"
+msgstr "Spotify-import"
+
+msgid "Fetching new tracks"
+msgstr "Nieuwe tracks ophalen"
+
+msgid "Connecting to Spotify…"
+msgstr "Verbinden met Spotify…"
+
+msgid "Starting…"
+msgstr "Starten…"
+
+msgid "Current playlist"
+msgstr "Huidige playlist"
+
+msgid "Prepare"
+msgstr "Voorbereiden"
+
+msgid "Scan playlists"
+msgstr "Playlists scannen"
+
+msgid "Fetch energy"
+msgstr "Energy ophalen"
+
+msgid "Save tracks"
+msgstr "Tracks opslaon"
+
+msgid "View to-do list"
+msgstr "Naor to-do lijst"
+
+msgid "Fetch again"
+msgstr "Opniej ophalen"
+
+msgid "Back to home"
+msgstr "Terug naor home"
+
+msgid "Open settings"
+msgstr "Instellinge opene"
+
+msgid "Try again"
+msgstr "Opniej proberen"
+
+msgid "Track to-do list"
+msgstr "Track to-do lijst"
+
+msgid "Manage reference URLs for new tracks by genre."
+msgstr "Beheer referentie-URL's veur nieuwe tracks per genre."
+
+msgid "Fetch new tracks"
+msgstr "Nieuwe tracks ophalen"
+
+msgid "Import new tracks from your Spotify playlists into the to-do list."
+msgstr "Importeer nieuwe tracks uut je Spotify-playlists naor de to-do lijst."
+
+msgid "Statistics"
+msgstr "Statistieke"
+
+msgid "Overview of tracks, completion, and activity."
+msgstr "Overzicht van tracks, voortgang en activiteit."
+
+msgid "Track to-do"
+msgstr "Track to-do"
+
+msgid "Choose a genre to manage reference URLs for its tracks."
+msgstr "Kies 'n genre om referentie-URL's veur tracks te beheren."
+
+msgid "Overview of your new tracks and reference URL progress."
+msgstr "Overzicht van je nieuwe tracks en referentie-URL voortgang."
+
+msgid "Working…"
+msgstr "Bezig…"
+
+msgid "Import complete"
+msgstr "Import klaar"
+
+msgid "Done"
+msgstr "Klaar"
+
+msgid "Import failed"
+msgstr "Import mislukt"
+
+msgid "Something went wrong while fetching tracks."
+msgstr "Der ging iets mis bij 't ophalen van tracks."
+
+msgid "Your to-do list is up to date."
+msgstr "Je to-do lijst is up-to-date."
+
+msgid "Fetch screen is unavailable. Restart the web server."
+msgstr "Fetch-scherm niet beschikbaar. Herstart de webserver."
+
+msgid "Import started…"
+msgstr "Import gestart…"
+
+msgid "Importing the latest additions from your Spotify playlists."
+msgstr "De nieuwste toevoegingen uut je Spotify-playlists importeren."
+
+msgid "Customize your sync workflow and visual style."
+msgstr "Pas je sync-workflow en visuele stijl aan."
+
+msgid "Unsaved changes"
+msgstr "Niet-opgeslagen wijziginge"
+
+msgid "Saving…"
+msgstr "Bezig met opslaon…"
+
+msgid "All changes saved"
+msgstr "Alle wijziginge opgeslaon"
+
+msgid "Settings saved"
+msgstr "Instellinge opgeslaon"
+
+msgid "Choose whether to view tracks with or without a reference URL."
+msgstr "Kies ofste tracks met of zonder referentie-URL wilt zien."
+
+msgid "tracks with a reference URL"
+msgstr "tracks met 'n referentie-URL"
+
+msgid "tracks still missing a reference URL"
+msgstr "tracks zonder referentie-URL"
+
+msgid "Showing {filter_label}."
+msgstr "Toont {filter_label}."
+
+msgid "Loading settings…"
+msgstr "Instellinge laden…"
+
+msgid "Could not load settings"
+msgstr "Kon instellinge niet laden"
+
+msgid "Failed to load settings: {message}"
+msgstr "Instellinge laden mislukt: {message}"
+
+msgid "Could not save settings"
+msgstr "Kon instellinge niet opslaon"
+
+msgid "Loading track counts…"
+msgstr "Trackaantalle laden…"
+
+msgid "Could not load tracks"
+msgstr "Kon tracks niet laden"
+
+msgid "No tracks found for {genre}."
+msgstr "Geen tracks gevonden veur {genre}."
+
+msgid "Failed to load tracks: {message}"
+msgstr "Tracks laden mislukt: {message}"
+
+msgid "No genres found."
+msgstr "Geen genres gevonden."
+
+msgid "Loading genres…"
+msgstr "Genres laden…"
+
+msgid "Could not load genres"
+msgstr "Kon genres niet laden"
+
+msgid "No tracks found in new_tracks table."
+msgstr "Geen tracks gevonden in new_tracks-tabel."
+
+msgid "Failed to load genres: {message}"
+msgstr "Genres laden mislukt: {message}"
+
+msgid "1 track"
+msgstr "1 track"
+
+msgid "{count} tracks"
+msgstr "{count} tracks"
+
+msgid "Loading statistics…"
+msgstr "Statistieke laden…"
+
+msgid "Failed to load statistics: {message}"
+msgstr "Statistieke laden mislukt: {message}"
+
+msgid "Total tracks"
+msgstr "Totaal tracks"
+
+msgid "Completion"
+msgstr "Voortgang"
+
+msgid "Title copy clicks"
+msgstr "Titel-kopie kliks"
+
+msgid "Average energy"
+msgstr "Gemiddelde energy"
+
+msgid "No tracks found."
+msgstr "Geen tracks gevonden."
+
+msgid "Uncategorized"
+msgstr "Ongecategoriseerd"
+
+msgid "Home"
+msgstr "Home"
+
+msgid "Fetch tracks"
+msgstr "Tracks ophalen"
+
+msgid "Remove playlist"
+msgstr "Playlist verwijderen"
+
+msgid "1 playlist"
+msgstr "1 playlist"
+
+msgid "{count} playlists"
+msgstr "{count} playlists"
+
+msgid "Could not record click"
+msgstr "Kon klik niet registreren"
+
+msgid "Could not save click count"
+msgstr "Kon klikteller niet opslaon"
+
+msgid "Nothing to copy"
+msgstr "Niks om te kopieeren"
+
+msgid "{label} copied"
+msgstr "{label} gekopieerd"
+
+msgid "Could not copy {label}"
+msgstr "Kon {label} niet kopieeren"
+
+msgid "Title"
+msgstr "Titel"
+
+msgid "Click to copy title"
+msgstr "Klik om titel te kopieeren"
+
+msgid "Save"
+msgstr "Opslaon"
+
+msgid "Remove"
+msgstr "Verwijderen"
+
+msgid "Energy: {value}"
+msgstr "Energy: {value}"
+
+msgid "Save failed"
+msgstr "Opslaon mislukt"
+
+msgid "Saved — moved to Has URL list"
+msgstr "Opgeslaon — verplaats naor Heeft URL-lijst"
+
+msgid "Cleared — moved to Needs URL list"
+msgstr "Gewist — verplaats naor URL nodig-lijst"
+
+msgid "Remove \"{track}\" from the list?"
+msgstr "\"{track}\" uut de lijst verwijderen?"
+
+msgid "Remove failed"
+msgstr "Verwijderen mislukt"
+
+msgid "Track removed"
+msgstr "Track verwijderd"
+
+msgid "No tracks with a URL yet."
+msgstr "Nog geen tracks met 'n URL."
+
+msgid "All tracks have a reference URL."
+msgstr "Alle tracks hebben 'n referentie-URL."
+
+msgid "Loading tracks from database…"
+msgstr "Tracks laden uut database…"
+
+msgid "1 new track added to your to-do list."
+msgstr "1 nieuwe track toegevoeg aan je to-do lijst."
+
+msgid "{count} new tracks added to your to-do list."
+msgstr "{count} nieuwe tracks toegevoeg aan je to-do lijst."
+
+msgid "Found 1 track, but {skipped} already existed in your list."
+msgstr "1 track gevonden, mer {skipped} stond al in je lijst."
+
+msgid "Found {found} tracks, but {skipped} already existed in your list."
+msgstr "{found} tracks gevonden, mer {skipped} stond al in je lijst."
+
+msgid "Scanned your playlist — no new tracks between {since_date} and {until_date}."
+msgstr "Je playlist gescand — geen nieuwe tracks tussen {since_date} en {until_date}."
+
+msgid "Scanned your playlists — no new tracks between {since_date} and {until_date}."
+msgstr "Je playlists gescand — geen nieuwe tracks tussen {since_date} en {until_date}."
+
+msgid "Scanned 1 playlist — no new tracks between {since_date} and {until_date}."
+msgstr "1 playlist gescand — geen nieuwe tracks tussen {since_date} en {until_date}."
+
+msgid "Scanned {count} playlists — no new tracks between {since_date} and {until_date}."
+msgstr "{count} playlists gescand — geen nieuwe tracks tussen {since_date} en {until_date}."
+
+msgid "Track to-do — {app_name}"
+msgstr "Track to-do — {app_name}"
+
+msgid "Statistics — {app_name}"
+msgstr "Statistieke — {app_name}"
+
+msgid "Fetch tracks — {app_name}"
+msgstr "Tracks ophalen — {app_name}"
+
+msgid "Settings — {app_name}"
+msgstr "Instellinge — {app_name}"
+
+msgid "{genre} — Track to-do — {app_name}"
+msgstr "{genre} — Track to-do — {app_name}"

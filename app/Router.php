@@ -85,9 +85,19 @@ final class Router
     private static function servePage(): void
     {
         try {
+            $locale = AppConfig::loadLocale();
+            Translator::setLocale($locale);
             $renderer = new TemplateRenderer(
                 project_root() . '/spotify_playlist/templates',
-                ['ui_skin' => AppConfig::loadUiSkin()]
+                [
+                    'ui_skin' => AppConfig::loadUiSkin(),
+                    'locale' => Translator::htmlLang($locale),
+                    'locale_code' => $locale,
+                    'translations_json' => json_encode(
+                        Translator::exportJsonCatalog($locale),
+                        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                    ) ?: '{}',
+                ]
             );
             $html = $renderer->render('new_tracks_todo.html');
         } catch (Throwable $e) {

@@ -26,6 +26,7 @@ final class SettingsStore
 
         return [
             'ui_skin' => AppConfig::loadUiSkin(),
+            'locale' => AppConfig::loadLocale(),
             'destination_playlist' => $destination !== ''
                 ? self::formatPlaylistEntry($destination, $names)
                 : null,
@@ -63,6 +64,20 @@ final class SettingsStore
             }
 
             AppConfig::saveUiSkin($normalized);
+        }
+
+        if (array_key_exists('locale', $data)) {
+            $locale = $data['locale'];
+            if (!is_string($locale)) {
+                throw new InvalidArgumentException('locale must be a string');
+            }
+
+            $normalized = strtolower(trim($locale));
+            if (!in_array($normalized, ['en', 'nl', 'brab'], true)) {
+                throw new InvalidArgumentException("locale must be 'en', 'nl', or 'brab'");
+            }
+
+            AppConfig::saveLocale($normalized);
         }
 
         $config = self::loadPlaylistsConfig();
@@ -663,6 +678,7 @@ final class SettingsStore
         self::ensureAppConfigColumn($pdo, 'tracking_start_updated', 'DATETIME NULL');
         self::ensureAppConfigColumn($pdo, 'sync_start_date', 'DATETIME NULL');
         self::ensureAppConfigColumn($pdo, 'sync_start_updated', 'DATETIME NULL');
+        self::ensureAppConfigColumn($pdo, 'locale', "VARCHAR(16) NOT NULL DEFAULT 'en'");
 
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS playlist_source ('

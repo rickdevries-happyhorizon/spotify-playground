@@ -1,0 +1,42 @@
+<section class="settings-card settings-card--language">
+  <div class="settings-card__accent" aria-hidden="true"></div>
+  <div class="settings-card__header">
+    <span class="settings-card__icon" aria-hidden="true">🌐</span>
+    <div>
+      <h3>{{ _("Language") }}</h3>
+      <p>{{ _("Choose the language for labels and messages.") }}</p>
+    </div>
+  </div>
+  <div class="language-cards">
+    <label class="language-card">
+      <input type="radio" name="locale" value="en" />
+      <span class="language-card__frame">
+        <span class="language-card__label">
+          <strong>{{ _("English") }}</strong>
+          <small>English</small>
+        </span>
+        <span class="language-card__check" aria-hidden="true">✓</span>
+      </span>
+    </label>
+    <label class="language-card">
+      <input type="radio" name="locale" value="nl" />
+      <span class="language-card__frame">
+        <span class="language-card__label">
+          <strong>{{ _("Dutch") }}</strong>
+          <small>Nederlands</small>
+        </span>
+        <span class="language-card__check" aria-hidden="true">✓</span>
+      </span>
+    </label>
+    <label class="language-card">
+      <input type="radio" name="locale" value="brab" />
+      <span class="language-card__frame">
+        <span class="language-card__label">
+          <strong>{{ _("Brabants") }}</strong>
+          <small>Brabants</small>
+        </span>
+        <span class="language-card__check" aria-hidden="true">✓</span>
+      </span>
+    </label>
+  </div>
+</section>

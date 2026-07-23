@@ -3,8 +3,8 @@
     <div class="settings-hero__content">
       <span class="settings-hero__icon" aria-hidden="true">⚙</span>
       <div>
-        <h2 class="settings-hero__title">Control panel</h2>
-        <p class="settings-hero__subtitle">Tune the look, sync playlists, and set how new tracks are imported.</p>
+        <h2 class="settings-hero__title">{{ _("Control panel") }}</h2>
+        <p class="settings-hero__subtitle">{{ _("Tune the look, sync playlists, and set how new tracks are imported.") }}</p>
       </div>
     </div>
   </div>
@@ -12,6 +12,7 @@
   <form class="settings-form" id="settings-form">
     <div class="settings-grid">
       {% include "components/settings/theme_card.html" %}
+      {% include "components/settings/language_card.html" %}
       {% include "components/settings/playlists_card.html" %}
       {% include "components/settings/dates_card.html" %}
     </div>

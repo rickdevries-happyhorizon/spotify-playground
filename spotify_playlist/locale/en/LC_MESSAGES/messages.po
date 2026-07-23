@@ -1,0 +1,488 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Release Finder 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-23 12:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Release Finder"
+msgstr "Release Finder"
+
+msgid "Choose a tool to get started."
+msgstr "Choose a tool to get started."
+
+msgid "Loading…"
+msgstr "Loading…"
+
+msgid "Settings"
+msgstr "Settings"
+
+msgid "What would you like to do?"
+msgstr "What would you like to do?"
+
+msgid "Control panel"
+msgstr "Control panel"
+
+msgid "Tune the look, sync playlists, and set how new tracks are imported."
+msgstr "Tune the look, sync playlists, and set how new tracks are imported."
+
+msgid "Theme"
+msgstr "Theme"
+
+msgid "Pick the vibe for the whole app."
+msgstr "Pick the vibe for the whole app."
+
+msgid "Light"
+msgstr "Light"
+
+msgid "Clean black & white"
+msgstr "Clean black & white"
+
+msgid "Dark"
+msgstr "Dark"
+
+msgid "Flat dark mode"
+msgstr "Flat dark mode"
+
+msgid "Colorful"
+msgstr "Colorful"
+
+msgid "Gradients, glow, motion"
+msgstr "Gradients, glow, motion"
+
+msgid "Language"
+msgstr "Language"
+
+msgid "Choose the language for labels and messages."
+msgstr "Choose the language for labels and messages."
+
+msgid "English"
+msgstr "English"
+
+msgid "Dutch"
+msgstr "Dutch"
+
+msgid "Brabants"
+msgstr "Brabants"
+
+msgid "Playlists"
+msgstr "Playlists"
+
+msgid "Configure destination, sources, and tracking playlists."
+msgstr "Configure destination, sources, and tracking playlists."
+
+msgid "Destination playlist"
+msgstr "Destination playlist"
+
+msgid "Where synced tracks land."
+msgstr "Where synced tracks land."
+
+msgid "Source playlists"
+msgstr "Source playlists"
+
+msgid "Playlists to pull tracks from during sync."
+msgstr "Playlists to pull tracks from during sync."
+
+msgid "Tracking playlists"
+msgstr "Tracking playlists"
+
+msgid "Playlists scanned when importing new tracks."
+msgstr "Playlists scanned when importing new tracks."
+
+msgid "0 playlists"
+msgstr "0 playlists"
+
+msgid "+ Add source playlist"
+msgstr "+ Add source playlist"
+
+msgid "+ Add tracking playlist"
+msgstr "+ Add tracking playlist"
+
+msgid "Dates"
+msgstr "Dates"
+
+msgid "Control how far back sync and new-track import look."
+msgstr "Control how far back sync and new-track import look."
+
+msgid "Sync start date"
+msgstr "Sync start date"
+
+msgid "Artist releases and source playlist sync look back from this date."
+msgstr "Artist releases and source playlist sync look back from this date."
+
+msgid "Start date"
+msgstr "Start date"
+
+msgid "(empty = last 7 days)"
+msgstr "(empty = last 7 days)"
+
+msgid "New tracks start date"
+msgstr "New tracks start date"
+
+msgid "Only import tracks into new_tracks after this date."
+msgstr "Only import tracks into new_tracks after this date."
+
+msgid "Ready to save"
+msgstr "Ready to save"
+
+msgid "Save settings"
+msgstr "Save settings"
+
+msgid "Genres"
+msgstr "Genres"
+
+msgid "Choose a list"
+msgstr "Choose a list"
+
+msgid "Track lists"
+msgstr "Track lists"
+
+msgid "Has reference URL"
+msgstr "Has reference URL"
+
+msgid "Needs reference URL"
+msgstr "Needs reference URL"
+
+msgid "Add track"
+msgstr "Add track"
+
+msgid "Artist - Track name"
+msgstr "Artist - Track name"
+
+msgid "Reference URL (optional)"
+msgstr "Reference URL (optional)"
+
+msgid "Add"
+msgstr "Add"
+
+msgid "By genre"
+msgstr "By genre"
+
+msgid "Genre"
+msgstr "Genre"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "Has URL"
+msgstr "Has URL"
+
+msgid "Needs URL"
+msgstr "Needs URL"
+
+msgid "Complete"
+msgstr "Complete"
+
+msgid "Spotify import"
+msgstr "Spotify import"
+
+msgid "Fetching new tracks"
+msgstr "Fetching new tracks"
+
+msgid "Connecting to Spotify…"
+msgstr "Connecting to Spotify…"
+
+msgid "Starting…"
+msgstr "Starting…"
+
+msgid "Current playlist"
+msgstr "Current playlist"
+
+msgid "Prepare"
+msgstr "Prepare"
+
+msgid "Scan playlists"
+msgstr "Scan playlists"
+
+msgid "Fetch energy"
+msgstr "Fetch energy"
+
+msgid "Save tracks"
+msgstr "Save tracks"
+
+msgid "View to-do list"
+msgstr "View to-do list"
+
+msgid "Fetch again"
+msgstr "Fetch again"
+
+msgid "Back to home"
+msgstr "Back to home"
+
+msgid "Open settings"
+msgstr "Open settings"
+
+msgid "Try again"
+msgstr "Try again"
+
+msgid "Track to-do list"
+msgstr "Track to-do list"
+
+msgid "Manage reference URLs for new tracks by genre."
+msgstr "Manage reference URLs for new tracks by genre."
+
+msgid "Fetch new tracks"
+msgstr "Fetch new tracks"
+
+msgid "Import new tracks from your Spotify playlists into the to-do list."
+msgstr "Import new tracks from your Spotify playlists into the to-do list."
+
+msgid "Statistics"
+msgstr "Statistics"
+
+msgid "Overview of tracks, completion, and activity."
+msgstr "Overview of tracks, completion, and activity."
+
+msgid "Track to-do"
+msgstr "Track to-do"
+
+msgid "Choose a genre to manage reference URLs for its tracks."
+msgstr "Choose a genre to manage reference URLs for its tracks."
+
+msgid "Overview of your new tracks and reference URL progress."
+msgstr "Overview of your new tracks and reference URL progress."
+
+msgid "Working…"
+msgstr "Working…"
+
+msgid "Import complete"
+msgstr "Import complete"
+
+msgid "Done"
+msgstr "Done"
+
+msgid "Import failed"
+msgstr "Import failed"
+
+msgid "Something went wrong while fetching tracks."
+msgstr "Something went wrong while fetching tracks."
+
+msgid "Your to-do list is up to date."
+msgstr "Your to-do list is up to date."
+
+msgid "Fetch screen is unavailable. Restart the web server."
+msgstr "Fetch screen is unavailable. Restart the web server."
+
+msgid "Import started…"
+msgstr "Import started…"
+
+msgid "Importing the latest additions from your Spotify playlists."
+msgstr "Importing the latest additions from your Spotify playlists."
+
+msgid "Customize your sync workflow and visual style."
+msgstr "Customize your sync workflow and visual style."
+
+msgid "Unsaved changes"
+msgstr "Unsaved changes"
+
+msgid "Saving…"
+msgstr "Saving…"
+
+msgid "All changes saved"
+msgstr "All changes saved"
+
+msgid "Settings saved"
+msgstr "Settings saved"
+
+msgid "Choose whether to view tracks with or without a reference URL."
+msgstr "Choose whether to view tracks with or without a reference URL."
+
+msgid "tracks with a reference URL"
+msgstr "tracks with a reference URL"
+
+msgid "tracks still missing a reference URL"
+msgstr "tracks still missing a reference URL"
+
+msgid "Showing {filter_label}."
+msgstr "Showing {filter_label}."
+
+msgid "Loading settings…"
+msgstr "Loading settings…"
+
+msgid "Could not load settings"
+msgstr "Could not load settings"
+
+msgid "Failed to load settings: {message}"
+msgstr "Failed to load settings: {message}"
+
+msgid "Could not save settings"
+msgstr "Could not save settings"
+
+msgid "Loading track counts…"
+msgstr "Loading track counts…"
+
+msgid "Could not load tracks"
+msgstr "Could not load tracks"
+
+msgid "No tracks found for {genre}."
+msgstr "No tracks found for {genre}."
+
+msgid "Failed to load tracks: {message}"
+msgstr "Failed to load tracks: {message}"
+
+msgid "No genres found."
+msgstr "No genres found."
+
+msgid "Loading genres…"
+msgstr "Loading genres…"
+
+msgid "Could not load genres"
+msgstr "Could not load genres"
+
+msgid "No tracks found in new_tracks table."
+msgstr "No tracks found in new_tracks table."
+
+msgid "Failed to load genres: {message}"
+msgstr "Failed to load genres: {message}"
+
+msgid "1 track"
+msgstr "1 track"
+
+msgid "{count} tracks"
+msgstr "{count} tracks"
+
+msgid "Loading statistics…"
+msgstr "Loading statistics…"
+
+msgid "Failed to load statistics: {message}"
+msgstr "Failed to load statistics: {message}"
+
+msgid "Total tracks"
+msgstr "Total tracks"
+
+msgid "Completion"
+msgstr "Completion"
+
+msgid "Title copy clicks"
+msgstr "Title copy clicks"
+
+msgid "Average energy"
+msgstr "Average energy"
+
+msgid "No tracks found."
+msgstr "No tracks found."
+
+msgid "Uncategorized"
+msgstr "Uncategorized"
+
+msgid "Home"
+msgstr "Home"
+
+msgid "Fetch tracks"
+msgstr "Fetch tracks"
+
+msgid "Remove playlist"
+msgstr "Remove playlist"
+
+msgid "1 playlist"
+msgstr "1 playlist"
+
+msgid "{count} playlists"
+msgstr "{count} playlists"
+
+msgid "Could not record click"
+msgstr "Could not record click"
+
+msgid "Could not save click count"
+msgstr "Could not save click count"
+
+msgid "Nothing to copy"
+msgstr "Nothing to copy"
+
+msgid "{label} copied"
+msgstr "{label} copied"
+
+msgid "Could not copy {label}"
+msgstr "Could not copy {label}"
+
+msgid "Title"
+msgstr "Title"
+
+msgid "Click to copy title"
+msgstr "Click to copy title"
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Remove"
+msgstr "Remove"
+
+msgid "Energy: {value}"
+msgstr "Energy: {value}"
+
+msgid "Save failed"
+msgstr "Save failed"
+
+msgid "Saved — moved to Has URL list"
+msgstr "Saved — moved to Has URL list"
+
+msgid "Cleared — moved to Needs URL list"
+msgstr "Cleared — moved to Needs URL list"
+
+msgid "Remove \"{track}\" from the list?"
+msgstr "Remove \"{track}\" from the list?"
+
+msgid "Remove failed"
+msgstr "Remove failed"
+
+msgid "Track removed"
+msgstr "Track removed"
+
+msgid "No tracks with a URL yet."
+msgstr "No tracks with a URL yet."
+
+msgid "All tracks have a reference URL."
+msgstr "All tracks have a reference URL."
+
+msgid "Loading tracks from database…"
+msgstr "Loading tracks from database…"
+
+msgid "1 new track added to your to-do list."
+msgstr "1 new track added to your to-do list."
+
+msgid "{count} new tracks added to your to-do list."
+msgstr "{count} new tracks added to your to-do list."
+
+msgid "Found 1 track, but {skipped} already existed in your list."
+msgstr "Found 1 track, but {skipped} already existed in your list."
+
+msgid "Found {found} tracks, but {skipped} already existed in your list."
+msgstr "Found {found} tracks, but {skipped} already existed in your list."
+
+msgid "Scanned your playlist — no new tracks between {since_date} and {until_date}."
+msgstr "Scanned your playlist — no new tracks between {since_date} and {until_date}."
+
+msgid "Scanned your playlists — no new tracks between {since_date} and {until_date}."
+msgstr "Scanned your playlists — no new tracks between {since_date} and {until_date}."
+
+msgid "Scanned 1 playlist — no new tracks between {since_date} and {until_date}."
+msgstr "Scanned 1 playlist — no new tracks between {since_date} and {until_date}."
+
+msgid "Scanned {count} playlists — no new tracks between {since_date} and {until_date}."
+msgstr "Scanned {count} playlists — no new tracks between {since_date} and {until_date}."
+
+msgid "Track to-do — {app_name}"
+msgstr "Track to-do — {app_name}"
+
+msgid "Statistics — {app_name}"
+msgstr "Statistics — {app_name}"
+
+msgid "Fetch tracks — {app_name}"
+msgstr "Fetch tracks — {app_name}"
+
+msgid "Settings — {app_name}"
+msgstr "Settings — {app_name}"
+
+msgid "{genre} — Track to-do — {app_name}"
+msgstr "{genre} — Track to-do — {app_name}"

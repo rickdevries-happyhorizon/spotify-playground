@@ -5,6 +5,7 @@ declare(strict_types=1);
 final class AppConfig
 {
     private const VALID_SKINS = ['light', 'dark', 'colorful'];
+    private const VALID_LOCALES = ['en', 'nl', 'brab'];
 
     public static function loadUiSkin(): string
     {
@@ -30,6 +31,30 @@ final class AppConfig
         $stmt->execute(['ui_skin' => $normalized]);
     }
 
+    public static function loadLocale(): string
+    {
+        self::ensureSchema();
+
+        $stmt = Db::connection()->query(
+            'SELECT locale FROM app_config WHERE singleton = 1 LIMIT 1'
+        );
+        $row = $stmt->fetch();
+
+        return self::normalizeLocale(is_array($row) ? ($row['locale'] ?? null) : null);
+    }
+
+    public static function saveLocale(string $locale): void
+    {
+        $normalized = self::normalizeLocale($locale);
+        self::ensureSchema();
+
+        $stmt = Db::connection()->prepare(
+            'INSERT INTO app_config (singleton, locale) VALUES (1, :locale) '
+            . 'ON DUPLICATE KEY UPDATE locale = VALUES(locale)'
+        );
+        $stmt->execute(['locale' => $normalized]);
+    }
+
     public static function ensureSchema(): void
     {
         SettingsStore::ensureSchema();
@@ -46,5 +71,12 @@ final class AppConfig
         }
 
         return in_array($value, self::VALID_SKINS, true) ? $value : 'colorful';
+    }
+
+    private static function normalizeLocale(?string $locale): string
+    {
+        $value = strtolower(trim((string) ($locale ?? 'en')));
+
+        return in_array($value, self::VALID_LOCALES, true) ? $value : 'en';
     }
 }

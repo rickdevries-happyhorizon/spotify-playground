@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS app_config (
   tracking_start_updated DATETIME NULL,
   sync_start_date DATETIME NULL,
   sync_start_updated DATETIME NULL,
+  locale VARCHAR(16) NOT NULL DEFAULT 'en',
   CONSTRAINT fk_app_config_destination FOREIGN KEY (destination_playlist_ref_id) REFERENCES playlist(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

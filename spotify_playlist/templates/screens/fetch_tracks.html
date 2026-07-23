@@ -12,9 +12,9 @@
     </div>
 
     <div class="fetch-content">
-      <p class="fetch-eyebrow" id="fetch-eyebrow">Spotify import</p>
-      <h2 class="fetch-title" id="fetch-title">Fetching new tracks</h2>
-      <p class="fetch-message" id="fetch-message">Connecting to Spotify…</p>
+      <p class="fetch-eyebrow" id="fetch-eyebrow">{{ _("Spotify import") }}</p>
+      <h2 class="fetch-title" id="fetch-title">{{ _("Fetching new tracks") }}</h2>
+      <p class="fetch-message" id="fetch-message">{{ _("Connecting to Spotify…") }}</p>
 
       <div class="fetch-progress-wrap">
         <div class="fetch-progress-track">
@@ -22,7 +22,7 @@
           <div class="fetch-progress-glow" id="fetch-progress-glow"></div>
         </div>
         <div class="fetch-progress-meta">
-          <span id="fetch-progress-label">Starting…</span>
+          <span id="fetch-progress-label">{{ _("Starting…") }}</span>
           <span id="fetch-progress-percent">0%</span>
         </div>
       </div>
@@ -31,33 +31,33 @@
         <img class="fetch-playlist-card__art" id="fetch-playlist-art" alt="" hidden />
         <span class="fetch-playlist-card__placeholder" id="fetch-playlist-placeholder" aria-hidden="true">♪</span>
         <div class="fetch-playlist-card__body">
-          <span class="fetch-playlist-card__label">Current playlist</span>
+          <span class="fetch-playlist-card__label">{{ _("Current playlist") }}</span>
           <strong class="fetch-playlist-card__name" id="fetch-playlist-name"></strong>
         </div>
       </div>
 
       <ul class="fetch-steps" id="fetch-steps">
-        <li class="fetch-step" data-step="starting">Prepare</li>
-        <li class="fetch-step" data-step="playlists">Scan playlists</li>
-        <li class="fetch-step" data-step="energy">Fetch energy</li>
-        <li class="fetch-step" data-step="saving">Save tracks</li>
-        <li class="fetch-step" data-step="done">Complete</li>
+        <li class="fetch-step" data-step="starting">{{ _("Prepare") }}</li>
+        <li class="fetch-step" data-step="playlists">{{ _("Scan playlists") }}</li>
+        <li class="fetch-step" data-step="energy">{{ _("Fetch energy") }}</li>
+        <li class="fetch-step" data-step="saving">{{ _("Save tracks") }}</li>
+        <li class="fetch-step" data-step="done">{{ _("Complete") }}</li>
       </ul>
 
       <div class="fetch-result" id="fetch-result" hidden>
         <div class="fetch-result__stats" id="fetch-result-stats"></div>
         <div class="fetch-result__actions">
-          <a class="fetch-action fetch-action--primary" id="fetch-go-todo" href="/todo">View to-do list</a>
-          <button type="button" class="fetch-action fetch-action--ghost" id="fetch-run-again">Fetch again</button>
-          <a class="fetch-action fetch-action--ghost" id="fetch-go-home" href="/">Back to home</a>
+          <a class="fetch-action fetch-action--primary" id="fetch-go-todo" href="/todo">{{ _("View to-do list") }}</a>
+          <button type="button" class="fetch-action fetch-action--ghost" id="fetch-run-again">{{ _("Fetch again") }}</button>
+          <a class="fetch-action fetch-action--ghost" id="fetch-go-home" href="/">{{ _("Back to home") }}</a>
         </div>
       </div>
 
       <div class="fetch-error" id="fetch-error" hidden>
         <p id="fetch-error-message"></p>
         <div class="fetch-result__actions">
-          <a class="fetch-action fetch-action--primary" id="fetch-go-settings" href="/settings">Open settings</a>
-          <button type="button" class="fetch-action fetch-action--ghost" id="fetch-retry">Try again</button>
+          <a class="fetch-action fetch-action--primary" id="fetch-go-settings" href="/settings">{{ _("Open settings") }}</a>
+          <button type="button" class="fetch-action fetch-action--ghost" id="fetch-retry">{{ _("Try again") }}</button>
         </div>
       </div>
     </div>

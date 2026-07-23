@@ -371,6 +371,7 @@ def save_tracking_start_date(start_date: Any) -> None:
 
 
 _VALID_UI_SKINS = frozenset({"light", "dark", "colorful"})
+_VALID_LOCALES = frozenset({"en", "nl", "brab"})
 
 
 def _normalize_ui_skin(skin: Optional[str]) -> str:
@@ -380,6 +381,11 @@ def _normalize_ui_skin(skin: Optional[str]) -> str:
     elif value == "simple":
         value = "light"
     return value if value in _VALID_UI_SKINS else "colorful"
+
+
+def _normalize_locale(locale: Optional[str]) -> str:
+    value = (locale or "en").strip().lower()
+    return value if value in _VALID_LOCALES else "en"
 
 
 def _ensure_app_config_schema(conn) -> None:
@@ -430,6 +436,11 @@ def _ensure_app_config_schema(conn) -> None:
                 cur.execute(
                     "ALTER TABLE app_config ADD COLUMN sync_start_updated DATETIME NULL "
                     "AFTER sync_start_date"
+                )
+            if not _column_exists(conn, "app_config", "locale"):
+                cur.execute(
+                    "ALTER TABLE app_config ADD COLUMN locale VARCHAR(16) NOT NULL DEFAULT 'en' "
+                    "AFTER sync_start_updated"
                 )
         conn.commit()
         try:
@@ -548,6 +559,43 @@ def save_ui_skin(skin: str) -> None:
     except Exception as e:
         conn.rollback()
         print(f"Error saving UI skin: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def load_locale() -> str:
+    conn = get_connection()
+    try:
+        _ensure_app_config_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT locale FROM app_config WHERE singleton = 1 LIMIT 1"
+            )
+            row = cur.fetchone()
+            return _normalize_locale((row or {}).get("locale"))
+    except Exception as e:
+        print(f"Error loading locale: {e}")
+        return "en"
+    finally:
+        conn.close()
+
+
+def save_locale(locale: str) -> None:
+    normalized = _normalize_locale(locale)
+    conn = get_connection()
+    try:
+        _ensure_app_config_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO app_config (singleton, locale) VALUES (1, %s) "
+                "ON DUPLICATE KEY UPDATE locale = VALUES(locale)",
+                (normalized,),
+            )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error saving locale: {e}")
         raise
     finally:
         conn.close()

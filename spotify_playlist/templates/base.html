@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-skin="{{ ui_skin }}">
+<html lang="{{ locale }}" data-skin="{{ ui_skin }}" data-locale="{{ locale_code }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Release Finder{% endblock %}</title>
+  <link rel="icon" href="/static/favicon.ico" sizes="any">
+  <title>{% block title %}{{ _("Release Finder") }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/new_tracks_todo.css">
   {% block head_extra %}{% endblock %}
 </head>
@@ -12,6 +13,8 @@
   {% include "partials/breadcrumbs.html" %}
   {% block content %}{% endblock %}
   {% include "partials/app_chrome.html" %}
+  {% include "partials/i18n_bootstrap.html" %}
+  <script src="/static/js/i18n.js"></script>
   <script src="/static/js/new_tracks_todo.js"></script>
   {% block scripts_extra %}{% endblock %}
 </body>
