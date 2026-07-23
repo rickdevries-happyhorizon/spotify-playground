@@ -27,6 +27,7 @@ from db_store import (
     update_new_track_reference_url,
 )
 from spotify_playlist.fetch_playlist_info import resolve_playlist_details
+from spotify_playlist.import_job_manager import create_import_job, get_import_job
 from spotify_playlist.parse_spotify_playlist_id import parse_spotify_playlist_id
 from spotify_playlist.spotify_api_client import get_quiet_spotify_client
 
@@ -304,6 +305,23 @@ def create_app() -> Flask:
             return jsonify({"error": str(exc)}), 400
 
         return jsonify({"spotify_id": spotify_id, "name": names.get(spotify_id)})
+
+    @app.post("/api/import/tracks")
+    def start_track_import():
+        job_id, error = create_import_job()
+        if error:
+            status = 400
+            if "Spotify" in error or "token" in error.lower() or "login" in error.lower():
+                status = 401
+            return jsonify({"error": error}), status
+        return jsonify({"job_id": job_id}), 202
+
+    @app.get("/api/import/tracks/<job_id>")
+    def track_import_status(job_id: str):
+        job = get_import_job(job_id)
+        if not job:
+            return jsonify({"error": "Import job not found"}), 404
+        return jsonify(job)
 
     @app.get("/api/settings")
     def get_settings():

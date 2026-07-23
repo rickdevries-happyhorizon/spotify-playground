@@ -4,6 +4,26 @@ const tracksView = document.getElementById("tracks-view");
 const settingsView = document.getElementById("settings-view");
 const startView = document.getElementById("start-view");
 const statisticsView = document.getElementById("statistics-view");
+const fetchView = document.getElementById("fetch-view");
+const fetchTitle = document.getElementById("fetch-title");
+const fetchMessage = document.getElementById("fetch-message");
+const fetchProgressBar = document.getElementById("fetch-progress-bar");
+const fetchProgressGlow = document.getElementById("fetch-progress-glow");
+const fetchProgressWrap = document.querySelector(".fetch-progress-wrap");
+const fetchProgressLabel = document.getElementById("fetch-progress-label");
+const fetchProgressPercent = document.getElementById("fetch-progress-percent");
+const fetchPlaylistCard = document.getElementById("fetch-playlist-card");
+const fetchPlaylistArt = document.getElementById("fetch-playlist-art");
+const fetchPlaylistPlaceholder = document.getElementById("fetch-playlist-placeholder");
+const fetchPlaylistName = document.getElementById("fetch-playlist-name");
+const fetchSteps = document.getElementById("fetch-steps");
+const fetchResult = document.getElementById("fetch-result");
+const fetchResultStats = document.getElementById("fetch-result-stats");
+const fetchError = document.getElementById("fetch-error");
+const fetchErrorMessage = document.getElementById("fetch-error-message");
+const fetchParticles = document.getElementById("fetch-particles");
+const fetchRunAgainBtn = document.getElementById("fetch-run-again");
+const fetchRetryBtn = document.getElementById("fetch-retry");
 const appGrid = document.getElementById("app-grid");
 const statsSummary = document.getElementById("stats-summary");
 const statsGenreBody = document.getElementById("stats-genre-body");
@@ -36,6 +56,7 @@ const FILTER_WITH_URL = "with-url";
 const FILTER_WITHOUT_URL = "without-url";
 const START_PATH = "/";
 const TODO_PATH = "/todo";
+const FETCH_PATH = "/fetch";
 const STATISTICS_PATH = "/statistics";
 const SETTINGS_PATH = "/settings";
 const APP_NAME = "Release Finder";
@@ -50,6 +71,13 @@ const APP_MODULES = [
     icon: "✓",
     path: TODO_PATH,
     className: "app-card--todo",
+  },
+  {
+    label: "Fetch new tracks",
+    description: "Import new tracks from your Spotify playlists into the to-do list.",
+    icon: "↓",
+    path: FETCH_PATH,
+    className: "app-card--fetch",
   },
   {
     label: "Statistics",
@@ -72,6 +100,33 @@ const sourcePlaylistCount = document.getElementById("source-playlist-count");
 const trackingPlaylistCount = document.getElementById("tracking-playlist-count");
 const playlistLookupTimers = new WeakMap();
 let savedSettingsSkin = "colorful";
+let fetchPollTimer = null;
+let fetchFinishTimer = null;
+let fetchProgressRaf = null;
+let activeFetchJobId = null;
+let fetchStartedAt = 0;
+let fetchDisplayPercent = 0;
+let fetchTargetPercent = 0;
+let pendingSuccessJob = null;
+let lastFetchJobSnapshot = null;
+
+const FETCH_MIN_DURATION_MS = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ? 0
+  : 6500;
+const FETCH_POLL_MS = 500;
+const FETCH_PHASE_PROGRESS = {
+  queued: 4,
+  starting: 8,
+  playlist_start: 18,
+  fetching_tracks: 34,
+  playlist_done: 48,
+  playlist_skipped: 48,
+  playlist_error: 48,
+  fetching_energy: 72,
+  saving: 88,
+  done: 100,
+  error: 100,
+};
 
 function setPlaylistMeta(metaEl, name, state = "resolved") {
   if (!metaEl) return;
@@ -289,6 +344,9 @@ function parsePath(pathname) {
   if (path === STATISTICS_PATH) {
     return { view: "statistics", genre: null, filter: null };
   }
+  if (path === FETCH_PATH) {
+    return { view: "fetch", genre: null, filter: null };
+  }
   if (path === START_PATH) {
     return { view: "start", genre: null, filter: null };
   }
@@ -363,12 +421,17 @@ function hideAllViews() {
   tracksView.hidden = true;
   settingsView.hidden = true;
   statisticsView.hidden = true;
+  fetchView.hidden = true;
 }
 
 function handleAppModuleClick(event, path) {
   event.preventDefault();
   if (path === TODO_PATH) {
     navigateToTodo();
+    return;
+  }
+  if (path === FETCH_PATH) {
+    navigateToFetch();
     return;
   }
   if (path === STATISTICS_PATH) {
@@ -539,6 +602,10 @@ function handleBreadcrumbClick(event, href) {
     navigateToStatistics();
     return;
   }
+  if (href === FETCH_PATH) {
+    navigateToFetch();
+    return;
+  }
   if (href === SETTINGS_PATH) {
     navigateToSettings();
     return;
@@ -595,6 +662,8 @@ function updateBreadcrumbs() {
     crumbs.push({ label: "Settings", href: SETTINGS_PATH, current: true });
   } else if (currentView === "statistics") {
     crumbs.push({ label: "Statistics", href: STATISTICS_PATH, current: true });
+  } else if (currentView === "fetch") {
+    crumbs.push({ label: "Fetch tracks", href: FETCH_PATH, current: true });
   } else if (currentView === "home") {
     crumbs.push({ label: "Track to-do", href: TODO_PATH, current: true });
   } else if (currentView === "genre" && currentGenre) {
@@ -662,6 +731,464 @@ function showStatisticsView() {
   hideAllViews();
   statisticsView.hidden = false;
   updateBreadcrumbs();
+}
+
+function renderFetchParticles() {
+  if (!fetchParticles || fetchParticles.childElementCount) return;
+  for (let i = 0; i < 10; i += 1) {
+    const particle = document.createElement("li");
+    particle.className = "fetch-particle";
+    particle.style.left = `${12 + Math.random() * 76}%`;
+    particle.style.top = `${12 + Math.random() * 76}%`;
+    particle.style.animationDelay = `${Math.random() * 1.8}s`;
+    fetchParticles.appendChild(particle);
+  }
+}
+
+function resetFetchScreen() {
+  stopFetchPolling();
+  stopFetchFinishSequence();
+  stopFetchProgressAnimation();
+  activeFetchJobId = null;
+  pendingSuccessJob = null;
+  lastFetchJobSnapshot = null;
+  fetchStartedAt = 0;
+  fetchDisplayPercent = 0;
+  fetchTargetPercent = 0;
+  fetchView.classList.remove("is-success", "is-error");
+  fetchTitle.textContent = "Fetching new tracks";
+  fetchMessage.textContent = "Connecting to Spotify…";
+  fetchProgressBar.style.width = "0%";
+  fetchProgressGlow.style.left = "0%";
+  fetchProgressWrap?.classList.add("is-active");
+  fetchProgressLabel.textContent = "Starting…";
+  fetchProgressPercent.textContent = "0%";
+  fetchPlaylistCard.hidden = true;
+  fetchResult.hidden = true;
+  fetchError.hidden = true;
+  fetchResultStats.innerHTML = "";
+  for (const step of fetchSteps.querySelectorAll(".fetch-step")) {
+    step.classList.remove("is-active", "is-done");
+  }
+  fetchSteps.querySelector('[data-step="starting"]')?.classList.add("is-active");
+}
+
+function setFetchStepState(phase) {
+  const stepGroups = {
+    starting: ["starting"],
+    playlist_start: ["starting", "playlists"],
+    fetching_tracks: ["starting", "playlists"],
+    playlist_done: ["starting", "playlists"],
+    playlist_skipped: ["starting", "playlists"],
+    playlist_error: ["starting", "playlists"],
+    fetching_energy: ["starting", "playlists", "energy"],
+    saving: ["starting", "playlists", "energy", "saving"],
+    done: ["starting", "playlists", "energy", "saving", "done"],
+    error: ["starting", "playlists", "energy", "saving", "done"],
+  };
+  const activeKeys = new Set(stepGroups[phase] || ["starting"]);
+  const order = ["starting", "playlists", "energy", "saving", "done"];
+  let reachedActive = false;
+
+  for (const key of order) {
+    const step = fetchSteps.querySelector(`[data-step="${key}"]`);
+    if (!step) continue;
+    step.classList.remove("is-active", "is-done");
+    if (activeKeys.has(key)) {
+      if (!reachedActive) {
+        step.classList.add("is-active");
+        reachedActive = true;
+      } else {
+        step.classList.add("is-done");
+      }
+    } else if (phase === "done") {
+      step.classList.add("is-done");
+    }
+  }
+}
+
+function computeFetchPercent(job) {
+  const phase = job.phase || "starting";
+  let percent = FETCH_PHASE_PROGRESS[phase] ?? 8;
+
+  if (
+    phase === "playlist_start"
+    || phase === "fetching_tracks"
+    || phase === "playlist_done"
+  ) {
+    const index = Number(job.playlist_index || 0);
+    const total = Number(job.playlist_total || 1);
+    const sliceStart = FETCH_PHASE_PROGRESS.playlist_start;
+    const sliceEnd = FETCH_PHASE_PROGRESS.playlist_done;
+    const slice = sliceEnd - sliceStart;
+    const playlistProgress = total ? Math.min(1, Math.max(0, (index - 1) / total)) : 0;
+    percent = Math.round(sliceStart + slice * playlistProgress);
+    if (phase === "fetching_tracks") {
+      percent = Math.min(sliceEnd - 4, percent + Math.round(slice / total / 2));
+    }
+    if (phase === "playlist_done") {
+      percent = Math.round(sliceStart + slice * Math.min(1, index / total));
+    }
+  }
+
+  return percent;
+}
+
+function applyFetchJobPresentation(job) {
+  const phase = job.phase || "starting";
+  const percent = computeFetchPercent(job);
+  fetchTargetPercent = Math.max(fetchTargetPercent, percent);
+  fetchProgressLabel.textContent = job.message || "Working…";
+  fetchMessage.textContent = job.message || "Working…";
+  setFetchStepState(phase);
+
+  if (job.playlist_name) {
+    fetchPlaylistCard.hidden = false;
+    fetchPlaylistName.textContent = job.playlist_name;
+    if (job.playlist_image_url) {
+      fetchPlaylistArt.src = job.playlist_image_url;
+      fetchPlaylistArt.hidden = false;
+      fetchPlaylistPlaceholder.hidden = true;
+    } else {
+      fetchPlaylistArt.hidden = true;
+      fetchPlaylistPlaceholder.hidden = false;
+    }
+  }
+}
+
+function stopFetchProgressAnimation() {
+  if (fetchProgressRaf) {
+    cancelAnimationFrame(fetchProgressRaf);
+    fetchProgressRaf = null;
+  }
+}
+
+function startFetchProgressAnimation() {
+  stopFetchProgressAnimation();
+
+  const tick = () => {
+    if (fetchDisplayPercent < fetchTargetPercent) {
+      const delta = Math.max(0.35, (fetchTargetPercent - fetchDisplayPercent) * 0.08);
+      fetchDisplayPercent = Math.min(fetchTargetPercent, fetchDisplayPercent + delta);
+    }
+
+    fetchProgressBar.style.width = `${fetchDisplayPercent}%`;
+    fetchProgressGlow.style.left = `${fetchDisplayPercent}%`;
+    fetchProgressPercent.textContent = `${Math.round(fetchDisplayPercent)}%`;
+    fetchProgressRaf = requestAnimationFrame(tick);
+  };
+
+  fetchProgressRaf = requestAnimationFrame(tick);
+}
+
+function stopFetchFinishSequence() {
+  if (fetchFinishTimer) {
+    clearTimeout(fetchFinishTimer);
+    fetchFinishTimer = null;
+  }
+}
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    fetchFinishTimer = setTimeout(resolve, ms);
+  });
+}
+
+function buildFetchFinishSteps(job) {
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const pace = reducedMotion ? 0.15 : 1;
+  const playlistTotal = Number(
+    job.playlist_total
+    ?? job.result?.playlist_count
+    ?? job.result?.playlists_checked
+    ?? 0
+  );
+  const playlistLabel = playlistTotal
+    ? `${playlistTotal} playlist${playlistTotal === 1 ? "" : "s"}`
+    : "your playlists";
+  const found = Number(job.tracks_found ?? job.result?.tracks_found ?? 0);
+  const sinceDate = job.since_date ?? job.result?.since_date;
+  const untilDate = job.until_date ?? job.result?.until_date;
+  const dateRange = sinceDate && untilDate ? ` (${sinceDate} → ${untilDate})` : "";
+
+  return [
+    {
+      phase: "playlists",
+      message: `Scanning ${playlistLabel}${dateRange}…`,
+      percent: 42,
+      ms: Math.round(1400 * pace),
+    },
+    {
+      phase: "playlists",
+      message: found
+        ? `Found ${found} track${found === 1 ? "" : "s"} across ${playlistLabel}`
+        : `No new tracks in ${playlistLabel}${dateRange}`,
+      percent: 58,
+      ms: Math.round(1200 * pace),
+    },
+    {
+      phase: "energy",
+      message: found ? "Fetching track energy from Spotify…" : "Verifying track metadata…",
+      percent: 74,
+      ms: Math.round(1100 * pace),
+    },
+    {
+      phase: "saving",
+      message: found ? "Saving new tracks to your to-do list…" : "Updating tracking date…",
+      percent: 88,
+      ms: Math.round(1000 * pace),
+    },
+    {
+      phase: "done",
+      message: "Wrapping up…",
+      percent: 96,
+      ms: Math.round(800 * pace),
+    },
+  ];
+}
+
+async function scheduleFetchSuccess(job) {
+  const jobId = job.job_id ?? activeFetchJobId;
+  if (pendingSuccessJob || activeFetchJobId !== jobId) {
+    return;
+  }
+
+  pendingSuccessJob = job;
+  stopFetchPolling();
+  fetchPlaylistCard.hidden = true;
+
+  const elapsed = Date.now() - fetchStartedAt;
+  const skippedAhead = elapsed < 2200 || fetchDisplayPercent < 36;
+  const steps = skippedAhead ? buildFetchFinishSteps(job) : buildFetchFinishSteps(job).slice(2);
+
+  for (const step of steps) {
+    if (activeFetchJobId !== jobId) {
+      return;
+    }
+    fetchTargetPercent = Math.max(fetchTargetPercent, step.percent);
+    setFetchStepState(step.phase);
+    fetchProgressLabel.textContent = step.message;
+    fetchMessage.textContent = step.message;
+    await delay(step.ms);
+  }
+
+  const totalElapsed = Date.now() - fetchStartedAt;
+  if (totalElapsed < FETCH_MIN_DURATION_MS) {
+    await delay(FETCH_MIN_DURATION_MS - totalElapsed);
+  }
+
+  if (activeFetchJobId !== jobId) {
+    return;
+  }
+
+  fetchTargetPercent = 100;
+  setFetchStepState("done");
+  fetchProgressLabel.textContent = "Import complete";
+  fetchMessage.textContent = "Import complete";
+  await delay(450);
+
+  stopFetchProgressAnimation();
+  fetchDisplayPercent = 100;
+  fetchProgressBar.style.width = "100%";
+  fetchProgressGlow.style.left = "100%";
+  fetchProgressPercent.textContent = "100%";
+
+  const completedJob = pendingSuccessJob;
+  pendingSuccessJob = null;
+  renderFetchSuccess(completedJob);
+}
+
+function updateFetchProgress(job) {
+  lastFetchJobSnapshot = { ...job, job_id: job.job_id ?? activeFetchJobId };
+  applyFetchJobPresentation(job);
+}
+
+function renderFetchSuccess(job) {
+  fetchView.classList.add("is-success");
+  fetchView.classList.remove("is-error");
+  fetchTitle.textContent = "Import complete";
+
+  const inserted = Number(job.inserted ?? job.result?.inserted ?? 0);
+  const skipped = Number(job.skipped ?? job.result?.skipped ?? 0);
+  const found = Number(job.tracks_found ?? job.result?.tracks_found ?? 0);
+  const playlistCount = Number(
+    job.playlist_total
+    ?? job.result?.playlist_count
+    ?? job.result?.playlists_checked
+    ?? 0
+  );
+  const sinceDate = job.since_date ?? job.result?.since_date;
+  const untilDate = job.until_date ?? job.result?.until_date;
+
+  if (inserted > 0) {
+    fetchMessage.textContent = `${inserted} new track${inserted === 1 ? "" : "s"} added to your to-do list.`;
+  } else if (found > 0 && skipped > 0) {
+    fetchMessage.textContent = `Found ${found} track${found === 1 ? "" : "s"}, but ${skipped} already existed in your list.`;
+  } else if (sinceDate && untilDate) {
+    fetchMessage.textContent = `Scanned ${playlistCount || "your"} playlist${playlistCount === 1 ? "" : "s"} — no new tracks between ${sinceDate} and ${untilDate}.`;
+  } else {
+    fetchMessage.textContent = job.message || "Your to-do list is up to date.";
+  }
+
+  fetchProgressBar.style.width = "100%";
+  fetchProgressGlow.style.left = "100%";
+  fetchProgressPercent.textContent = "100%";
+  fetchProgressLabel.textContent = "Done";
+  fetchProgressWrap?.classList.remove("is-active");
+  fetchPlaylistCard.hidden = true;
+  fetchResult.hidden = false;
+  fetchError.hidden = true;
+  setFetchStepState("done");
+
+  fetchResultStats.innerHTML = `
+    <article class="fetch-stat">
+      <span class="fetch-stat__label">Playlists scanned</span>
+      <strong class="fetch-stat__value">${playlistCount || "—"}</strong>
+    </article>
+    <article class="fetch-stat">
+      <span class="fetch-stat__label">New tracks</span>
+      <strong class="fetch-stat__value">${inserted}</strong>
+    </article>
+    <article class="fetch-stat">
+      <span class="fetch-stat__label">Tracks found</span>
+      <strong class="fetch-stat__value">${found}</strong>
+    </article>
+  `;
+
+  if (inserted > 0) {
+    launchConfetti(window.innerWidth / 2, window.innerHeight / 3);
+  }
+}
+
+function renderFetchError(message) {
+  stopFetchProgressAnimation();
+  stopFetchFinishSequence();
+  fetchView.classList.add("is-error");
+  fetchView.classList.remove("is-success");
+  fetchTitle.textContent = "Import failed";
+  fetchMessage.textContent = message || "Something went wrong while fetching tracks.";
+  fetchProgressWrap?.classList.remove("is-active");
+  fetchPlaylistCard.hidden = true;
+  fetchResult.hidden = true;
+  fetchError.hidden = false;
+  fetchErrorMessage.textContent = message || "Something went wrong while fetching tracks.";
+}
+
+function stopFetchPolling() {
+  if (fetchPollTimer) {
+    clearTimeout(fetchPollTimer);
+    fetchPollTimer = null;
+  }
+}
+
+async function pollFetchJob(jobId) {
+  try {
+    const response = await fetch(`/api/import/tracks/${encodeURIComponent(jobId)}`);
+    const job = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(job.error || "Could not read import progress");
+    }
+
+    if (activeFetchJobId !== jobId) {
+      return;
+    }
+
+    updateFetchProgress(job);
+
+    if (job.status === "done") {
+      scheduleFetchSuccess({ ...job, job_id: jobId });
+      return;
+    }
+
+    if (job.status === "error") {
+      stopFetchPolling();
+      stopFetchFinishSequence();
+      stopFetchProgressAnimation();
+      renderFetchError(job.error || job.message || "Import failed");
+      return;
+    }
+
+    fetchPollTimer = setTimeout(() => {
+      pollFetchJob(jobId);
+    }, FETCH_POLL_MS);
+  } catch (error) {
+    stopFetchPolling();
+    renderFetchError(error.message || "Could not read import progress");
+  }
+}
+
+async function startTrackImport() {
+  if (!fetchView) {
+    showStatus("Fetch screen is unavailable. Restart the web server.", "error");
+    return;
+  }
+
+  resetFetchScreen();
+  renderFetchParticles();
+  fetchStartedAt = Date.now();
+  startFetchProgressAnimation();
+  fetchMessage.textContent = "Connecting to Spotify…";
+
+  try {
+    const introDelay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700;
+    await delay(introDelay);
+    if (currentView !== "fetch") {
+      stopFetchProgressAnimation();
+      return;
+    }
+
+    const response = await fetch("/api/import/tracks", { method: "POST" });
+    const raw = await response.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new Error(
+        response.ok
+          ? "Unexpected response from server"
+          : `Server error (${response.status}). Restart the web server and use .venv/bin/python3 run_new_tracks_todo.py`
+      );
+    }
+    if (!response.ok) {
+      throw new Error(data.error || `Could not start import (${response.status})`);
+    }
+
+    activeFetchJobId = data.job_id;
+    fetchMessage.textContent = "Import started…";
+    fetchTargetPercent = Math.max(fetchTargetPercent, FETCH_PHASE_PROGRESS.starting);
+    pollFetchJob(data.job_id);
+  } catch (error) {
+    stopFetchProgressAnimation();
+    renderFetchError(error.message || "Could not start import");
+  }
+}
+
+function showFetchView() {
+  restoreSettingsSkinIfNeeded();
+  currentView = "fetch";
+  currentGenre = null;
+  currentFilter = null;
+  document.title = `Fetch tracks — ${APP_NAME}`;
+  pageTitle.textContent = "Fetch new tracks";
+  pageSubtitle.textContent = "Importing the latest additions from your Spotify playlists.";
+  setPageCover(null);
+  setSettingsLinkActive(false);
+  hideAllViews();
+  fetchView.hidden = false;
+  setBanner("");
+  updateBreadcrumbs();
+  renderFetchParticles();
+  startTrackImport();
+}
+
+function navigateToFetch({ replace = false } = {}) {
+  const state = { view: "fetch", genre: null, filter: null };
+  if (replace) {
+    history.replaceState(state, "", FETCH_PATH);
+  } else {
+    history.pushState(state, "", FETCH_PATH);
+  }
+  showFetchView();
 }
 
 function showSettingsView() {
@@ -1555,6 +2082,10 @@ async function bootFromPath() {
     loadStatistics();
     return;
   }
+  if (view === "fetch") {
+    showFetchView();
+    return;
+  }
   if (view === "start") {
     showStartView();
     return;
@@ -1589,6 +2120,29 @@ async function bootFromPath() {
 }
 
 bootFromPath();
+
+fetchRunAgainBtn?.addEventListener("click", () => {
+  startTrackImport();
+});
+
+fetchRetryBtn?.addEventListener("click", () => {
+  startTrackImport();
+});
+
+document.getElementById("fetch-go-todo")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  navigateToTodo();
+});
+
+document.getElementById("fetch-go-home")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  navigateToStart();
+});
+
+document.getElementById("fetch-go-settings")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  navigateToSettings();
+});
 
 settingsLink.addEventListener("click", (event) => {
   event.preventDefault();
@@ -1658,6 +2212,11 @@ window.addEventListener("popstate", async (event) => {
   if (view === "statistics") {
     showStatisticsView();
     loadStatistics();
+    return;
+  }
+
+  if (view === "fetch") {
+    showFetchView();
     return;
   }
 

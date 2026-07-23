@@ -2283,3 +2283,486 @@ body:has(#settings-view:not([hidden])) .status {
 [data-skin="dark"] .settings-save__shine {
   display: none;
 }
+
+/* ── Fetch tracks screen ── */
+
+.fetch-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 9rem);
+  padding: 2rem 0 3rem;
+}
+
+.fetch-stage {
+  position: relative;
+  width: min(100%, 640px);
+  margin: 0 auto;
+  padding: 2rem 1.5rem 2.25rem;
+  border-radius: calc(var(--radius) + 6px);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--column-shadow);
+  overflow: hidden;
+  animation: fetchStageIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.fetch-stage::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(168, 85, 255, 0.18), transparent 45%),
+    radial-gradient(circle at 70% 80%, rgba(57, 255, 20, 0.12), transparent 40%);
+  animation: fetchAura 8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes fetchStageIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fetchAura {
+  0% { transform: translate(-2%, -2%) scale(1); }
+  100% { transform: translate(2%, 2%) scale(1.05); }
+}
+
+.fetch-visual {
+  position: relative;
+  width: 9.5rem;
+  height: 9.5rem;
+  margin: 0 auto 1.75rem;
+}
+
+.fetch-orbit {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px dashed rgba(168, 85, 255, 0.35);
+}
+
+.fetch-orbit--outer {
+  animation: fetchOrbitSpin 14s linear infinite;
+}
+
+.fetch-orbit--inner {
+  inset: 0.85rem;
+  border-color: rgba(57, 255, 20, 0.28);
+  animation: fetchOrbitSpin 9s linear infinite reverse;
+}
+
+.fetch-disc {
+  position: absolute;
+  inset: 1.65rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, #1a0a2e 0%, #0c0820 55%, #05030f 100%);
+  border: 2px solid rgba(168, 85, 255, 0.45);
+  box-shadow:
+    0 0 24px rgba(168, 85, 255, 0.25),
+    inset 0 0 18px rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  animation: fetchDiscSpin 3.2s linear infinite;
+}
+
+.fetch-disc__groove {
+  position: absolute;
+  inset: 0.55rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.fetch-disc__groove--2 {
+  inset: 1.1rem;
+}
+
+.fetch-disc__label {
+  font-size: 1.35rem;
+  color: var(--accent);
+  text-shadow: 0 0 12px var(--accent-glow);
+}
+
+.fetch-particles {
+  position: absolute;
+  inset: -0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+.fetch-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--neon-purple);
+  box-shadow: 0 0 10px rgba(168, 85, 255, 0.65);
+  animation: fetchParticleFloat 2.4s ease-in-out infinite;
+}
+
+.fetch-particle:nth-child(3n) {
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.fetch-particle:nth-child(3n + 1) {
+  background: var(--neon-pink);
+  box-shadow: 0 0 10px rgba(255, 43, 214, 0.55);
+}
+
+@keyframes fetchOrbitSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fetchDiscSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fetchParticleFloat {
+  0%, 100% {
+    opacity: 0.35;
+    transform: translateY(0) scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.1);
+  }
+}
+
+.fetch-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.fetch-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fetch-title {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  color: var(--heading-accent);
+  text-shadow: 0 0 14px rgba(168, 85, 255, 0.25);
+}
+
+.fetch-message {
+  margin: 0 0 1.35rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  min-height: 1.4em;
+}
+
+.fetch-progress-wrap {
+  margin-bottom: 1.35rem;
+}
+
+.fetch-progress-track {
+  position: relative;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.fetch-progress-bar {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--neon-purple), var(--accent));
+}
+
+.fetch-progress-glow {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 1;
+  width: 3rem;
+  height: 180%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(57, 255, 20, 0.55), transparent 70%);
+  opacity: 0;
+  transition: left 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s;
+  pointer-events: none;
+}
+
+.fetch-progress-wrap.is-active .fetch-progress-glow {
+  opacity: 1;
+}
+
+.fetch-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.55rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.fetch-playlist-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin: 0 auto 1.25rem;
+  max-width: 26rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  text-align: left;
+  animation: fetchCardPulse 0.45s ease both;
+}
+
+@keyframes fetchCardPulse {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fetch-playlist-card__art,
+.fetch-playlist-card__placeholder {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.fetch-playlist-card__art {
+  object-fit: cover;
+}
+
+.fetch-playlist-card__placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(168, 85, 255, 0.15);
+  border: 1px solid rgba(168, 85, 255, 0.28);
+  font-size: 1.1rem;
+}
+
+.fetch-playlist-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.fetch-playlist-card__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fetch-playlist-card__name {
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fetch-steps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fetch-step {
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.78rem;
+  transition: color 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.fetch-step.is-active {
+  color: var(--text);
+  border-color: rgba(168, 85, 255, 0.55);
+  background: rgba(168, 85, 255, 0.12);
+  box-shadow: 0 0 16px rgba(168, 85, 255, 0.18);
+}
+
+.fetch-step.is-done {
+  color: var(--accent);
+  border-color: rgba(57, 255, 20, 0.35);
+  background: rgba(57, 255, 20, 0.08);
+}
+
+.fetch-result,
+.fetch-error {
+  margin-top: 1.5rem;
+  animation: fetchStageIn 0.45s ease both;
+}
+
+.fetch-result__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.fetch-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 0.65rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.fetch-stat__label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.fetch-stat__value {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.fetch-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.fetch-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.fetch-action:hover {
+  transform: translateY(-1px);
+}
+
+.fetch-action--primary {
+  border-color: transparent;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+}
+
+.fetch-action--ghost:hover {
+  border-color: rgba(168, 85, 255, 0.45);
+}
+
+.fetch-error p {
+  margin: 0 0 1rem;
+  color: var(--status-error-color);
+}
+
+.fetch-screen.is-success .fetch-disc {
+  animation: fetchDiscSpin 3.2s linear infinite, fetchSuccessPulse 1.2s ease;
+}
+
+.fetch-screen.is-success .fetch-title {
+  color: var(--accent);
+}
+
+.fetch-screen.is-error .fetch-disc {
+  animation: none;
+  border-color: rgba(255, 43, 214, 0.55);
+}
+
+@keyframes fetchSuccessPulse {
+  0%, 100% { box-shadow: 0 0 24px rgba(168, 85, 255, 0.25); }
+  50% { box-shadow: 0 0 36px rgba(57, 255, 20, 0.45); }
+}
+
+.app-card--fetch .app-card__icon {
+  background: rgba(255, 159, 67, 0.14);
+  border: 1px solid rgba(255, 159, 67, 0.35);
+}
+
+.app-card--fetch:hover {
+  border-color: rgba(255, 159, 67, 0.45);
+  box-shadow: 0 0 22px rgba(255, 159, 67, 0.18);
+}
+
+@media (max-width: 640px) {
+  .fetch-result__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .fetch-stage {
+    padding: 1.5rem 1rem 1.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fetch-stage,
+  .fetch-orbit,
+  .fetch-disc,
+  .fetch-particle,
+  .fetch-stage::before {
+    animation: none !important;
+  }
+
+  .fetch-progress-bar,
+  .fetch-progress-glow {
+    transition: none;
+  }
+}
+
+[data-skin="light"] .fetch-stage {
+  box-shadow: none;
+}
+
+[data-skin="light"] .fetch-disc {
+  background: radial-gradient(circle at 50% 50%, #f0f0f0 0%, #e0e0e0 55%, #cccccc 100%);
+  border-color: #cccccc;
+  box-shadow: none;
+}
+
+[data-skin="light"] .fetch-progress-track {
+  background: #e8e8e8;
+}
+
+[data-skin="light"] .fetch-progress-bar {
+  background: linear-gradient(90deg, #444444, #111111);
+}
+
+[data-skin="dark"] .fetch-progress-bar {
+  background: linear-gradient(90deg, #888888, #ffffff);
+}
+

@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 from spotify_playlist.config import CACHE_FILE, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, SCOPE
-from spotify_playlist.deps import SpotifyOAuth, require_spotipy, spotipy
+from spotify_playlist.deps import SPOTIPY_AVAILABLE, SpotifyOAuth, spotipy
 
 
 def get_quiet_spotify_client():
     """Return an authenticated Spotify client or raise RuntimeError."""
-    require_spotipy()
+    if not SPOTIPY_AVAILABLE:
+        raise RuntimeError(
+            "spotipy is not installed. Install dependencies with: pip install -r requirements.txt"
+        )
 
     auth_manager = SpotifyOAuth(
         client_id=CLIENT_ID,

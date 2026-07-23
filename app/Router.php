@@ -26,6 +26,16 @@ final class Router
             return;
         }
 
+        if ($path === '/api/import/tracks' && $method === 'POST') {
+            self::startTrackImport();
+            return;
+        }
+
+        if (preg_match('#^/api/import/tracks/([a-f0-9-]+)$#', $path, $matches) === 1 && $method === 'GET') {
+            self::trackImportStatus($matches[1]);
+            return;
+        }
+
         if ($path === '/api/tracks' && $method === 'GET') {
             self::listTracks();
             return;
@@ -157,6 +167,39 @@ final class Router
         } catch (Throwable $e) {
             self::json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    private static function startTrackImport(): void
+    {
+        try {
+            self::json(ImportStore::start(), 202);
+        } catch (InvalidArgumentException $e) {
+            $message = $e->getMessage();
+            $status = stripos($message, 'spotify') !== false ? 401 : 400;
+            self::json(['error' => $message], $status);
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    private static function trackImportStatus(string $jobId): void
+    {
+        try {
+            $job = ImportStore::status($jobId);
+        } catch (InvalidArgumentException $e) {
+            self::json(['error' => $e->getMessage()], 400);
+            return;
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+            return;
+        }
+
+        if ($job === null) {
+            self::json(['error' => 'Import job not found'], 404);
+            return;
+        }
+
+        self::json($job);
     }
 
     private static function patchSettings(): void
