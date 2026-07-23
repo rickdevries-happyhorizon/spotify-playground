@@ -70,7 +70,7 @@ def _indeterminate_loop_stdlib(description: str, stop: threading.Event, file: An
 
 
 @contextmanager
-def loading_bar(description: str = "Laden...") -> Iterator[None]:
+def loading_bar(description: str = "Loading...") -> Iterator[None]:
     """Show an indeterminate progress bar on stderr while the block runs."""
     stop = threading.Event()
 

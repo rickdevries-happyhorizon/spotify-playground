@@ -5,35 +5,28 @@ from spotify_playlist.colors import Colors
 
 
 def show_menu():
-    """Toont het hoofdmenu en retourneert de keuze van de gebruiker."""
+    """Displays the main menu and returns the user's choice."""
     print(f"\n{Colors.DIM}{'─' * 60}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}Hoofdmenu{Colors.RESET} {Colors.DIM}— kies een optie{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}Main menu{Colors.RESET} {Colors.DIM}— choose an option{Colors.RESET}")
     print(f"{Colors.DIM}{'─' * 60}{Colors.RESET}")
-    print("\nKies een optie:")
-    print("  1. Synchroniseer playlists (check bron-playlists)")
-    print("  2. Haal nieuwe releases op van gevolgde artiesten")
-    print("  3. Synchroniseer alles (playlists + artiest releases)")
-    print("  4. Exporteer playlist naar CSV")
-    print("  5. Toon meest beluisterde tracks (week/maand/jaar)")
-    print("  6. Beheer playlist configuratie")
-    print("  7. Importeer nieuwe tracks sinds datum in database")
-    print("  8. Voeg Spotify metadata toe aan WAV/AIFF bestanden")
-    print("  9. Download YouTube naar AIFF")
-    print(" 10. Installeer alle packages")
-    print(" 11. Voeg Spotify cover art toe aan WAV/AIFF bestanden")
-    print("  0. Afsluiten")
+    print("\nChoose an option:")
+    print("  1. Sync everything (playlists + artist releases)")
+    print("  2. Import new tracks since date into database")
+    print("  3. Download YouTube to AIFF")
+    print("  4. Manage playlist configuration")
+    print("  0. Exit")
     print("\n" + "-"*60)
 
     while True:
         try:
-            choice = input("Voer je keuze in (0-11): ").strip()
-            if choice in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']:
+            choice = input("Enter your choice (0-4): ").strip()
+            if choice in ['0', '1', '2', '3', '4']:
                 play_selection()
                 return int(choice)
             else:
-                print("❌ Ongeldige keuze. Voer 0 t/m 11 in.")
+                print("❌ Invalid choice. Enter 0 through 4.")
         except KeyboardInterrupt:
-            print("\n\nAfsluiten...")
+            print("\n\nExiting...")
             sys.exit(0)
         except Exception as e:
-            print(f"❌ Fout: {e}")
+            print(f"❌ Error: {e}")

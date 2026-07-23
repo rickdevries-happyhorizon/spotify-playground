@@ -2,7 +2,7 @@ import socket
 
 
 def is_port_available(port):
-    """Controleer of een poort beschikbaar is."""
+    """Check whether a port is available."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
             s.bind(('127.0.0.1', port))

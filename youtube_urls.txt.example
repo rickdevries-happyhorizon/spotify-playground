@@ -1,6 +1,6 @@
-# YouTube URL's voor batch-download naar WAV (menu-optie 9)
-# Kopieer dit bestand naar youtube_urls.txt en vul je URL's in.
-# Eén URL per regel. Regels die beginnen met # worden genegeerd.
+# YouTube URLs for batch download to WAV (menu option 3)
+# Copy this file to youtube_urls.txt and add your URLs.
+# One URL per line. Lines starting with # are ignored.
 
 https://www.youtube.com/watch?v=VIDEO_ID_1
 https://www.youtube.com/watch?v=VIDEO_ID_2

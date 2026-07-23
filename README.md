@@ -1,6 +1,6 @@
 # Short Jack's Release Finder
 
-Spotify playlist sync tool with a terminal menu, MySQL or text-file storage, and optional YouTube-to-AIFF downloads.
+Spotify playlist sync tool with a terminal menu, MySQL storage, and optional YouTube-to-AIFF downloads.
 
 This guide walks through setup on a **fresh MacBook** (no developer tools pre-installed).
 
@@ -12,16 +12,16 @@ This guide walks through setup on a **fresh MacBook** (no developer tools pre-in
 |-----------|--------------|-------------|
 | **Homebrew** | Easy installs on macOS | [brew.sh](https://brew.sh) |
 | **Python 3.10+** | Main app | `brew install python` |
-| **MySQL 8** | Database (MySQL mode only) | `brew install mysql` |
+| **MySQL 8** | Database | `brew install mysql` |
 | **Git** | Clone the repo (optional) | `brew install git` |
-| **ffmpeg** | YouTube → AIFF downloads (menu option 9) | `brew install ffmpeg` |
+| **ffmpeg** | YouTube → AIFF downloads (menu option 3) | `brew install ffmpeg` |
 | **Node.js** | Reliable YouTube downloads with yt-dlp | `brew install node` |
 | **PHP 8+** | PHP web UI only (optional alternative to Flask) | `brew install php` |
 
 Python packages (installed with `pip`):
 
 - `spotipy` — Spotify API
-- `pymysql` — MySQL (only when `STORAGE_BACKEND=mysql`)
+- `pymysql` — MySQL
 - `tqdm` — progress bars
 - `flask` — new-tracks web UI
 - `mutagen` — WAV/AIFF metadata tagging
@@ -73,41 +73,7 @@ cd /path/to/spotify-playground
 
 ---
 
-## Storage: MySQL or text file
-
-The app supports two storage backends, selected with `STORAGE_BACKEND` in `.env`:
-
-| Mode | Value | Requires MySQL? |
-|------|-------|-----------------|
-| **MySQL** (default) | `STORAGE_BACKEND=mysql` | Yes |
-| **Text file** | `STORAGE_BACKEND=txt` | No |
-
-### MySQL (default)
-
-Follow step 3 below to create the database.
-
-### Text file (simpler setup)
-
-No MySQL needed. All data is stored in a single JSON text file (default: `data/store.txt`).
-
-```bash
-cp .env.example .env
-# Edit .env and set:
-# STORAGE_BACKEND=txt
-
-mkdir -p data
-cp data/store.txt.example data/store.txt
-```
-
-Optional: set a custom path with `STORAGE_FILE=/path/to/your/store.txt`.
-
-The Flask new-tracks web UI (`run_new_tracks_todo.py`) works with text-file storage. The PHP web UI still requires MySQL.
-
----
-
-## 3. Set up the database (MySQL mode only)
-
-Skip this step if you use `STORAGE_BACKEND=txt`.
+## 3. Set up the database
 
 Create the database and load the schema:
 
@@ -128,21 +94,14 @@ Copy the example env file and edit it if needed:
 cp .env.example .env
 ```
 
-Default values for MySQL mode:
+Default values:
 
 ```
-STORAGE_BACKEND=mysql
 MYSQL_HOST=127.0.0.1
 MYSQL_PORT=3306
 MYSQL_USER=root
 MYSQL_PASSWORD=
 MYSQL_DATABASE=spotify_playground
-```
-
-For text-file mode, only this is needed:
-
-```
-STORAGE_BACKEND=txt
 ```
 
 **Important:** Python scripts read these from your shell environment. The `./run_sync.sh` script loads `.env` automatically. For manual runs:
@@ -195,8 +154,8 @@ You should see `(.venv)` at the start of your prompt when the virtual environmen
 
 Optional settings in the same file:
 
-- `YOUTUBE_DOWNLOAD_DIR` — folder for AIFF downloads (menu option 9)
-- `WAV_METADATA_DIR` — folder with WAV/AIFF files for metadata tagging (menu option 8)
+- `YOUTUBE_DOWNLOAD_DIR` — folder for AIFF downloads (menu option 3)
+- `WAV_METADATA_DIR` — folder with WAV/AIFF files for metadata tagging (applied during YouTube download)
 - `CHECK_ARTIST_RELEASES` — sync new releases from followed artists
 
 ---
@@ -224,7 +183,6 @@ On first run, your browser opens for Spotify login. After that, credentials are 
 | Command | Purpose |
 |---------|---------|
 | `./run_sync.sh` | Interactive menu (recommended) |
-| Menu option **10** | Install Python packages and optional system tools (ffmpeg, Node, MySQL) |
 | `python3 playlist_sync.py --export` | Export new tracks with saved settings |
 | `python3 run_new_tracks_todo.py` | Web UI for managing new tracks (Flask, port 5050) |
 | `python3 import_new_numbers.py` | Import tracks from `new.numbers` (Apple Numbers) |
@@ -244,7 +202,7 @@ Open http://127.0.0.1:8080/
 
 ## 8. Optional: YouTube downloads
 
-For menu option **9 — Download YouTube naar AIFF** you need:
+For menu option **3 — Download YouTube to AIFF** you need:
 
 - `ffmpeg` (installed above)
 - `node` (recommended; yt-dlp uses it for YouTube extraction)
@@ -282,7 +240,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### "Kan geen verbinding maken met de database"
+### "Cannot connect to the database"
 
 - Check MySQL is running: `brew services list`
 - Start it: `brew services start mysql`
@@ -301,7 +259,7 @@ http://127.0.0.1:8888/
 
 Either close the app using that port, or change `REDIRECT_URI` in `config.py` (e.g. to `http://127.0.0.1:8889/`) and update Spotify Dashboard to match.
 
-### "ffmpeg is niet geïnstalleerd"
+### "ffmpeg is not installed"
 
 ```bash
 brew install ffmpeg
@@ -320,10 +278,8 @@ brew install node
 ## Quick setup checklist
 
 - [ ] Homebrew, Python, MySQL, ffmpeg, Node installed
-- [ ] Storage mode chosen (`mysql` or `txt`)
-- [ ] MySQL running and schema imported *(MySQL mode only)*
-- [ ] `data/store.txt` created *(text-file mode only)*
-- [ ] `.env` copied and configured
+- [ ] MySQL running and schema imported
+- [ ] `.env` copied and configured *(optional if defaults work)*
 - [ ] `.venv` created; `pip install -r requirements.txt` done
 - [ ] Spotify Client ID/Secret and redirect URI set in `config.py`
 - [ ] `source .env` before running Python

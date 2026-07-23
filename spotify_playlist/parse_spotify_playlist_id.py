@@ -1,5 +1,5 @@
 def parse_spotify_playlist_id(text: str) -> str:
-    """Haal playlist-ID uit ruwe invoer: alleen ID, spotify:playlist:… of open.spotify.com/playlist/…"""
+    """Extract playlist ID from raw input: plain ID, spotify:playlist:…, or open.spotify.com/playlist/…"""
     s = (text or "").strip()
     if not s:
         return ""

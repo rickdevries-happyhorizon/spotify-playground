@@ -38,10 +38,10 @@ def main() -> int:
             limit=args.limit,
         )
     except KeyboardInterrupt:
-        print('\nAfgebroken. Gebruik --resume-log om verder te gaan.')
+        print('\nInterrupted. Use --resume-log to continue.')
         return 130
     except Exception as exc:
-        print(f'Fout: {exc}')
+        print(f'Error: {exc}')
         return 1
 
     return 0 if error_count == 0 or success_count > 0 else 1

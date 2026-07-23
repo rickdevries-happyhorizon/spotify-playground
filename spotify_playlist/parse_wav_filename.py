@@ -15,7 +15,7 @@ def parse_wav_filename(stem: str) -> tuple[list[str], str]:
         -> title: Ultra Naté, Tedd Patterson - RESTLESS (Analu Andrade Remix)
     """
     if ' - ' not in stem:
-        raise ValueError(f"Bestandsnaam mist ' - ' scheiding: {stem!r}")
+        raise ValueError(f"Filename missing ' - ' separator: {stem!r}")
 
     artists_part, track_title = stem.split(' - ', 1)
     original_artists = [
@@ -25,9 +25,9 @@ def parse_wav_filename(stem: str) -> tuple[list[str], str]:
     track_title = normalize_track_name(track_title.strip())
 
     if not artists:
-        raise ValueError(f"Geen artiesten gevonden in bestandsnaam: {stem!r}")
+        raise ValueError(f"No artists found in filename: {stem!r}")
     if not track_title:
-        raise ValueError(f"Geen tracktitel gevonden in bestandsnaam: {stem!r}")
+        raise ValueError(f"No track title found in filename: {stem!r}")
 
     remix_match = re.search(r'\(([^)]+)\)\s*$', track_title)
     if remix_match and re.search(r'\bremix\b', remix_match.group(1), flags=re.IGNORECASE):

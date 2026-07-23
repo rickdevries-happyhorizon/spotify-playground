@@ -4,24 +4,24 @@ from spotify_playlist.deps import SpotifyException
 
 
 def get_artist_new_releases(sp, artist_id, days_back=30):
-    """Haalt nieuwe releases van een artiest op binnen het opgegeven aantal dagen."""
+    """Fetches new releases from an artist within the specified number of days."""
     new_tracks = {}
     try:
-        # Bereken de datum X dagen geleden
+        # Calculate the date X days ago
         cutoff_date = datetime.now() - timedelta(days=days_back)
 
-        # Haal albums van de artiest op
+        # Fetch albums from the artist
         albums = sp.artist_albums(artist_id, album_type='album,single', limit=50)
 
         for album in albums['items']:
-            # Controleer release datum
+            # Check release date
             release_date = album.get('release_date', '')
             if not release_date:
                 continue
 
-            # Parse release datum (kan YYYY, YYYY-MM, of YYYY-MM-DD zijn)
+            # Parse release date (can be YYYY, YYYY-MM, or YYYY-MM-DD)
             try:
-                if len(release_date) == 4:  # Alleen jaar
+                if len(release_date) == 4:  # Year only
                     release_dt = datetime(int(release_date), 1, 1)
                 elif len(release_date) == 7:  # YYYY-MM
                     year, month = release_date.split('-')
@@ -29,9 +29,9 @@ def get_artist_new_releases(sp, artist_id, days_back=30):
                 else:  # YYYY-MM-DD
                     release_dt = datetime.strptime(release_date, '%Y-%m-%d')
 
-                # Alleen albums die recent zijn uitgebracht
+                # Only albums released recently
                 if release_dt >= cutoff_date:
-                    # Haal tracks van het album op
+                    # Fetch tracks from the album
                     album_tracks = sp.album_tracks(album['id'])
                     for track_item in album_tracks['items']:
                         if track_item and track_item.get('uri'):
@@ -44,13 +44,13 @@ def get_artist_new_releases(sp, artist_id, days_back=30):
                                 'release_date': release_date
                             }
             except (ValueError, TypeError):
-                # Skip albums met ongeldige datum
+                # Skip albums with invalid dates
                 continue
 
         return new_tracks
     except SpotifyException as e:
-        print(f"❌ Spotify API fout bij ophalen releases voor artiest {artist_id}: {e}")
+        print(f"❌ Spotify API error fetching releases for artist {artist_id}: {e}")
         return {}
     except Exception as e:
-        print(f"❌ Onverwachte fout bij ophalen releases: {e}")
+        print(f"❌ Unexpected error fetching releases: {e}")
         return {}

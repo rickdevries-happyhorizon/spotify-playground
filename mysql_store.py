@@ -69,7 +69,7 @@ def load_playlists_config() -> Dict[str, Any]:
             "tracking_playlists": tracking_playlists,
         }
     except Exception as e:
-        print(f"❌ Fout bij laden playlist configuratie uit database: {e}")
+        print(f"❌ Error loading playlist configuration from database: {e}")
         return {"source_playlists": [], "destination_playlist": "", "tracking_playlists": []}
     finally:
         conn.close()
@@ -104,7 +104,7 @@ def save_playlists_config(config: Dict[str, Any]) -> None:
         conn.commit()
     except Exception as e:
         conn.rollback()
-        print(f"❌ Fout bij opslaan playlist configuratie: {e}")
+        print(f"❌ Error saving playlist configuration: {e}")
         raise
     finally:
         conn.close()
@@ -120,7 +120,7 @@ def load_historical_data(bron_playlists: Optional[List[str]] = None) -> Dict[str
             for row in cur.fetchall():
                 data[row["playlist_key"]].add(row["track_uri"])
     except Exception as e:
-        print(f"Fout bij laden historische gegevens: {e}")
+        print(f"Error loading historical data: {e}")
         if bron_playlists:
             return {pl_id: set() for pl_id in bron_playlists}
         return {}
@@ -151,70 +151,11 @@ def save_historical_data(data: Dict[str, Set[str]]) -> None:
                     rows,
                 )
         conn.commit()
-        print("\n✅ Historische gegevens opgeslagen in de database")
+        print("\n✅ Historical data saved to the database")
     except Exception as e:
         conn.rollback()
-        print(f"Fout bij opslaan historische gegevens: {e}")
+        print(f"Error saving historical data: {e}")
         raise
-    finally:
-        conn.close()
-
-
-def load_play_counts() -> Dict[str, Any]:
-    conn = get_connection()
-    try:
-        out: Dict[str, Any] = {}
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT track_uri, track_name, artists, play_count, first_played, last_played "
-                "FROM play_counts"
-            )
-            for row in cur.fetchall():
-                uri = row["track_uri"]
-                out[uri] = {
-                    "name": row["track_name"] or "Unknown",
-                    "artists": row["artists"] or "",
-                    "play_count": int(row["play_count"] or 0),
-                    "first_played": dt_to_iso_str(row["first_played"]),
-                    "last_played": dt_to_iso_str(row["last_played"]),
-                }
-        return out
-    except Exception as e:
-        print(f"Fout bij laden play counts: {e}")
-        return {}
-    finally:
-        conn.close()
-
-
-def save_play_counts(play_counts: Dict[str, Any]) -> None:
-    conn = get_connection()
-    try:
-        rows = []
-        for uri, entry in play_counts.items():
-            if not isinstance(entry, dict):
-                continue
-            rows.append(
-                (
-                    uri,
-                    normalize_track_name(entry.get("name", "Unknown")),
-                    entry.get("artists", ""),
-                    int(entry.get("play_count", 0)),
-                    parse_datetime(entry.get("first_played")),
-                    parse_datetime(entry.get("last_played")),
-                )
-            )
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM play_counts")
-            if rows:
-                cur.executemany(
-                    "INSERT INTO play_counts (track_uri, track_name, artists, play_count, "
-                    "first_played, last_played) VALUES (%s, %s, %s, %s, %s, %s)",
-                    rows,
-                )
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Fout bij opslaan play counts: {e}")
     finally:
         conn.close()
 
@@ -231,7 +172,7 @@ def load_tracking_start_date() -> Optional[datetime]:
                 return None
             return parse_datetime(row["start_date"])
     except Exception as e:
-        print(f"Fout bij laden tracking start datum: {e}")
+        print(f"Error loading tracking start date: {e}")
         return None
     finally:
         conn.close()
@@ -256,7 +197,7 @@ def save_tracking_start_date(start_date: Any) -> None:
         conn.commit()
     except Exception as e:
         conn.rollback()
-        print(f"Fout bij opslaan tracking start datum: {e}")
+        print(f"Error saving tracking start date: {e}")
     finally:
         conn.close()
 
@@ -335,7 +276,7 @@ def update_new_track_reference_url(track_id: int, reference_url: Optional[str]) 
         return updated
     except Exception as e:
         conn.rollback()
-        print(f"Fout bij bijwerken reference URL: {e}")
+        print(f"Error updating reference URL: {e}")
         raise
     finally:
         conn.close()
@@ -352,18 +293,17 @@ def delete_new_track(track_id: int) -> bool:
         return deleted
     except Exception as e:
         conn.rollback()
-        print(f"Fout bij verwijderen track: {e}")
+        print(f"Error deleting track: {e}")
         raise
     finally:
         conn.close()
 
 
-def strip_radio_suffixes_from_db() -> tuple[int, int, int]:
-    """Remove radio edit/mix suffixes from new_tracks and play_counts."""
+def strip_radio_suffixes_from_db() -> tuple[int, int]:
+    """Remove radio edit/mix suffixes from new_tracks."""
     conn = get_connection()
     new_tracks_updated = 0
     new_tracks_deleted = 0
-    play_counts_updated = 0
     try:
         with conn.cursor() as cur:
             cur.execute(
@@ -395,25 +335,11 @@ def strip_radio_suffixes_from_db() -> tuple[int, int, int]:
                     )
                     new_tracks_updated += 1
 
-            cur.execute(
-                "SELECT track_uri, track_name FROM play_counts "
-                "WHERE LOWER(track_name) LIKE '%radio edit%' OR LOWER(track_name) LIKE '%radio mix%'"
-            )
-            for row in cur.fetchall():
-                normalized = normalize_track_name(row["track_name"])
-                if normalized == row["track_name"]:
-                    continue
-                cur.execute(
-                    "UPDATE play_counts SET track_name = %s WHERE track_uri = %s",
-                    (normalized, row["track_uri"]),
-                )
-                play_counts_updated += 1
-
         conn.commit()
-        return new_tracks_updated, new_tracks_deleted, play_counts_updated
+        return new_tracks_updated, new_tracks_deleted
     except Exception as e:
         conn.rollback()
-        print(f"Fout bij opschonen radio edit/mix suffixen: {e}")
+        print(f"Error cleaning radio edit/mix suffixes: {e}")
         raise
     finally:
         conn.close()
@@ -453,7 +379,7 @@ def create_new_track(
         raise ValueError("Track already exists") from e
     except Exception as e:
         conn.rollback()
-        print(f"Fout bij toevoegen track: {e}")
+        print(f"Error adding track: {e}")
         raise
     finally:
         conn.close()
@@ -519,7 +445,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
         return inserted, skipped
     except Exception as e:
         conn.rollback()
-        print(f"Fout bij opslaan nieuwe tracks: {e}")
+        print(f"Error saving new tracks: {e}")
         raise
     finally:
         conn.close()

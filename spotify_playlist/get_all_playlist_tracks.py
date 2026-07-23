@@ -2,16 +2,16 @@ from spotify_playlist.deps import SpotifyException
 
 
 def get_all_playlist_tracks(sp, playlist_id, return_track_info=False):
-    """Haalt alle nummers (tracks) URI's van een afspeellijst op (houdt rekening met paginering).
+    """Fetches all track URIs from a playlist (handles pagination).
 
     Args:
         sp: Spotify client
-        playlist_id: ID van de playlist
-        return_track_info: Als True, retourneert ook track informatie (naam, artiesten)
+        playlist_id: Playlist ID
+        return_track_info: If True, also returns track information (name, artists)
 
     Returns:
-        Als return_track_info=False: set van track URIs
-        Als return_track_info=True: dict met URI als key en {'name': ..., 'artists': ...} als value
+        If return_track_info=False: set of track URIs
+        If return_track_info=True: dict with URI as key and {'name': ..., 'artists': ...} as value
     """
     track_data = {} if return_track_info else set()
     try:
@@ -23,7 +23,7 @@ def get_all_playlist_tracks(sp, playlist_id, return_track_info=False):
 
         while results:
             for item in results['items']:
-                # Controleer of 'track' bestaat om te filteren op potentieel lege items
+                # Check that 'track' exists to filter out potentially empty items
                 track = item.get('track')
                 if track and track.get('uri'):
                     uri = track['uri']
@@ -40,8 +40,8 @@ def get_all_playlist_tracks(sp, playlist_id, return_track_info=False):
 
         return track_data
     except SpotifyException as e:
-        print(f"❌ Spotify API fout bij ophalen tracks: {e}")
+        print(f"❌ Spotify API error fetching tracks: {e}")
         raise
     except Exception as e:
-        print(f"❌ Onverwachte fout bij ophalen tracks: {e}")
+        print(f"❌ Unexpected error fetching tracks: {e}")
         raise

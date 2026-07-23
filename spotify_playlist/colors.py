@@ -1,4 +1,4 @@
-# ANSI color codes voor terminal kleuren
+# ANSI color codes for terminal colors
 
 
 class Colors:

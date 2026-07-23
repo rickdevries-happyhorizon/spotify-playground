@@ -34,16 +34,6 @@ CREATE TABLE IF NOT EXISTS historical_tracks (
   KEY idx_hist_playlist (playlist_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS play_counts (
-  track_uri VARCHAR(255) NOT NULL,
-  track_name VARCHAR(512) NOT NULL DEFAULT '',
-  artists TEXT,
-  play_count INT UNSIGNED NOT NULL DEFAULT 0,
-  first_played DATETIME NULL,
-  last_played DATETIME NULL,
-  PRIMARY KEY (track_uri)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE TABLE IF NOT EXISTS tracking_start (
   singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY,
   start_date DATETIME NULL,
@@ -63,6 +53,7 @@ CREATE TABLE IF NOT EXISTS new_tracks (
 -- Existing database? Run once:
 -- ALTER TABLE new_tracks ADD COLUMN genre VARCHAR(512) NULL AFTER reference_url;
 -- ALTER TABLE new_tracks ADD COLUMN release_year SMALLINT UNSIGNED NULL AFTER genre;
+-- DROP TABLE IF EXISTS play_counts;
 
 INSERT IGNORE INTO destination_config (singleton, playlist_id) VALUES (1, '');
 INSERT IGNORE INTO tracking_start (singleton, start_date, last_updated) VALUES (1, NULL, NULL);

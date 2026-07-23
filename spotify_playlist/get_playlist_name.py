@@ -1,7 +1,7 @@
 def get_playlist_name(sp, playlist_id):
-    """Haalt de naam van een playlist op."""
+    """Fetches the name of a playlist."""
     try:
         playlist_info = sp.playlist(playlist_id, fields='name')
-        return playlist_info.get('name', 'Onbekend')
+        return playlist_info.get('name', 'Unknown')
     except Exception:
         return None

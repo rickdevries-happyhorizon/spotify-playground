@@ -19,59 +19,59 @@ def _is_revoked_token_error(exc: Exception) -> bool:
 
 
 def get_spotify_client():
-    """Authenticeert en retourneert een Spotify client."""
+    """Authenticates and returns a Spotify client."""
     require_spotipy()
 
-    # Authenticatie
-    print("\n🔐 Authenticatie met Spotify...")
+    # Authentication
+    print("\n🔐 Authenticating with Spotify...")
 
-    # Controleer of de redirect URI poort beschikbaar is
+    # Check if the redirect URI port is available
     redirect_port = int(REDIRECT_URI.split(':')[-1].rstrip('/'))
     if not is_port_available(redirect_port):
-        print(f"⚠️  Waarschuwing: Poort {redirect_port} is al in gebruik.")
-        print(f"   Zorg dat poort {redirect_port} vrij is, of wijzig REDIRECT_URI in het script")
-        print(f"   (en update ook je Spotify Developer Dashboard met de nieuwe redirect URI)")
-        print(f"   Huidige redirect URI: {REDIRECT_URI}\n")
+        print(f"⚠️  Warning: Port {redirect_port} is already in use.")
+        print(f"   Make sure port {redirect_port} is free, or change REDIRECT_URI in the script")
+        print(f"   (and also update your Spotify Developer Dashboard with the new redirect URI)")
+        print(f"   Current redirect URI: {REDIRECT_URI}\n")
 
     try:
-        # Controleer eerst of er al een cached token bestaat
+        # First check if a cached token already exists
         auth_manager = SpotifyOAuth(
             client_id=CLIENT_ID,
             client_secret=CLIENT_SECRET,
             redirect_uri=REDIRECT_URI,
             scope=SCOPE,
             cache_path=CACHE_FILE,
-            open_browser=False  # Standaard geen browser openen
+            open_browser=False  # Do not open browser by default
         )
 
-        # Probeer een token uit de cache te halen
+        # Try to get a token from the cache
         token_info = auth_manager.get_cached_token()
 
-        # Controleer of de cached token de juiste scope heeft
-        # Als de scope is gewijzigd, moeten we opnieuw authenticeren
+        # Check if the cached token has the correct scope
+        # If the scope has changed, we need to re-authenticate
         if token_info and 'scope' in token_info:
             cached_scope = set(token_info.get('scope', '').split())
             required_scope = set(SCOPE.split())
             if not required_scope.issubset(cached_scope):
-                print("⚠️  Scope is gewijzigd. Cache wordt verwijderd voor nieuwe authenticatie...")
+                print("⚠️  Scope has changed. Clearing cache for new authentication...")
                 if os.path.exists(CACHE_FILE):
                     os.remove(CACHE_FILE)
                 token_info = None
 
-        # Bepaal of we de browser moeten openen
+        # Determine whether we need to open the browser
         needs_browser = False
         if not token_info:
             needs_browser = True
-            print("Geen cached token gevonden. Browser wordt geopend voor authenticatie...")
+            print("No cached token found. Opening browser for authentication...")
         elif auth_manager.is_token_expired(token_info):
-            # Probeer eerst te refreshen zonder browser
+            # Try refreshing first without the browser
             try:
-                print("Token verlopen, probeer te refreshen...")
-                with loading_bar("Token verversen..."):
+                print("Token expired, attempting to refresh...")
+                with loading_bar("Refreshing token..."):
                     token_info = auth_manager.refresh_access_token(token_info['refresh_token'])
             except Exception as e:
                 if _is_revoked_token_error(e):
-                    print("⚠️  Refresh token ingetrokken. Cache wordt gewist voor nieuwe login...")
+                    print("⚠️  Refresh token revoked. Clearing cache for new login...")
                     _clear_spotify_cache()
                     token_info = None
                     auth_manager = SpotifyOAuth(
@@ -83,40 +83,40 @@ def get_spotify_client():
                         open_browser=False,
                     )
                 needs_browser = True
-                print("Browser wordt geopend voor nieuwe authenticatie...")
+                print("Opening browser for new authentication...")
 
-        # Als browser nodig is, trigger de OAuth flow
+        # If browser is needed, trigger the OAuth flow
         if needs_browser:
             auth_manager.open_browser = True
             try:
-                # Onderdruk deprecation warning voor get_access_token()
-                # Het resultaat wordt automatisch gecached door auth_manager
-                with loading_bar("Authenticatie in browser..."):
+                # Suppress deprecation warning for get_access_token()
+                # The result is automatically cached by auth_manager
+                with loading_bar("Authenticating in browser..."):
                     with warnings.catch_warnings():
                         warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*get_access_token.*")
                         auth_manager.get_access_token()  # Trigger OAuth flow
             except OSError as e:
                 if "Address already in use" in str(e) or e.errno == 48:
-                    print(f"\n❌ Fout: Poort {REDIRECT_URI.split(':')[-1].rstrip('/')} is al in gebruik.")
-                    print("Mogelijke oplossingen:")
-                    print("  1. Sluit andere applicaties die deze poort gebruiken")
-                    print("  2. Wijzig REDIRECT_URI in het script naar een andere poort (bijv. 8889)")
-                    print("  3. Update ook de redirect URI in je Spotify Developer Dashboard")
-                    print(f"\nHuidige redirect URI: {REDIRECT_URI}")
+                    print(f"\n❌ Error: Port {REDIRECT_URI.split(':')[-1].rstrip('/')} is already in use.")
+                    print("Possible solutions:")
+                    print("  1. Close other applications using this port")
+                    print("  2. Change REDIRECT_URI in the script to a different port (e.g. 8889)")
+                    print("  3. Also update the redirect URI in your Spotify Developer Dashboard")
+                    print(f"\nCurrent redirect URI: {REDIRECT_URI}")
                     sys.exit(1)
                 else:
                     raise
 
-        # Maak Spotify client met de auth manager
+        # Create Spotify client with the auth manager
         sp = spotipy.Spotify(auth_manager=auth_manager)
 
-        # Test authenticatie door gebruikersinfo op te halen
+        # Test authentication by fetching user info
         try:
-            with loading_bar("Verbinden met Spotify..."):
+            with loading_bar("Connecting to Spotify..."):
                 user = sp.current_user()
         except Exception as e:
             if _is_revoked_token_error(e):
-                print("⚠️  Spotify-sessie verlopen. Opnieuw inloggen via browser...")
+                print("⚠️  Spotify session expired. Logging in again via browser...")
                 _clear_spotify_cache()
                 auth_manager = SpotifyOAuth(
                     client_id=CLIENT_ID,
@@ -126,7 +126,7 @@ def get_spotify_client():
                     cache_path=CACHE_FILE,
                     open_browser=True,
                 )
-                with loading_bar("Authenticatie in browser..."):
+                with loading_bar("Authenticating in browser..."):
                     with warnings.catch_warnings():
                         warnings.filterwarnings(
                             "ignore",
@@ -135,48 +135,48 @@ def get_spotify_client():
                         )
                         auth_manager.get_access_token()
                 sp = spotipy.Spotify(auth_manager=auth_manager)
-                with loading_bar("Verbinden met Spotify..."):
+                with loading_bar("Connecting to Spotify..."):
                     user = sp.current_user()
             else:
                 raise
-        print(f"✅ Ingelogd als: {user['display_name']} ({user['id']})")
+        print(f"✅ Logged in as: {user['display_name']} ({user['id']})")
         return sp
 
     except SpotifyException as e:
         error_msg = str(e)
-        print(f"❌ Authenticatie mislukt: {error_msg}")
+        print(f"❌ Authentication failed: {error_msg}")
 
         if "INVALID_CLIENT" in error_msg or "Invalid redirect URI" in error_msg:
-            print("\n⚠️  Redirect URI komt niet overeen met Spotify instellingen!")
-            print(f"   Huidige redirect URI in script: {REDIRECT_URI}")
-            print("\n   Oplossing:")
-            print("   1. Ga naar: https://developer.spotify.com/dashboard")
-            print("   2. Selecteer je app")
-            print("   3. Klik op 'Settings'")
-            print("   4. Voeg deze redirect URI toe aan 'Redirect URIs':")
+            print("\n⚠️  Redirect URI does not match Spotify settings!")
+            print(f"   Current redirect URI in script: {REDIRECT_URI}")
+            print("\n   Solution:")
+            print("   1. Go to: https://developer.spotify.com/dashboard")
+            print("   2. Select your app")
+            print("   3. Click 'Settings'")
+            print("   4. Add this redirect URI to 'Redirect URIs':")
             print(f"      {REDIRECT_URI}")
-            print("   5. Klik op 'Add' en dan 'Save'")
-            print("   6. Voer het script opnieuw uit")
+            print("   5. Click 'Add' and then 'Save'")
+            print("   6. Run the script again")
         else:
-            print("Controleer je CLIENT_ID, CLIENT_SECRET en REDIRECT_URI.")
+            print("Check your CLIENT_ID, CLIENT_SECRET, and REDIRECT_URI.")
         sys.exit(1)
     except OSError as e:
         if "Address already in use" in str(e) or e.errno == 48:
             port = REDIRECT_URI.split(':')[-1].rstrip('/')
-            print(f"\n❌ Fout: Poort {port} is al in gebruik.")
-            print("Mogelijke oplossingen:")
-            print("  1. Sluit andere applicaties die deze poort gebruiken")
-            print("  2. Wijzig REDIRECT_URI in het script naar een andere poort (bijv. 8889)")
-            print("  3. Update ook de redirect URI in je Spotify Developer Dashboard")
-            print(f"\nHuidige redirect URI: {REDIRECT_URI}")
+            print(f"\n❌ Error: Port {port} is already in use.")
+            print("Possible solutions:")
+            print("  1. Close other applications using this port")
+            print("  2. Change REDIRECT_URI in the script to a different port (e.g. 8889)")
+            print("  3. Also update the redirect URI in your Spotify Developer Dashboard")
+            print(f"\nCurrent redirect URI: {REDIRECT_URI}")
         else:
-            print(f"❌ Onverwachte fout bij authenticatie: {e}")
+            print(f"❌ Unexpected error during authentication: {e}")
         sys.exit(1)
     except Exception as e:
         if _is_revoked_token_error(e):
-            print("❌ Spotify refresh token is ingetrokken.")
-            print("   Verwijder .spotipy_cache en start de app opnieuw om opnieuw in te loggen.")
+            print("❌ Spotify refresh token has been revoked.")
+            print("   Delete .spotipy_cache and restart the app to log in again.")
             _clear_spotify_cache()
         else:
-            print(f"❌ Onverwachte fout bij authenticatie: {e}")
+            print(f"❌ Unexpected error during authentication: {e}")
         sys.exit(1)

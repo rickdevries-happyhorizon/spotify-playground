@@ -9,7 +9,7 @@ def _require_librosa():
         import numpy as np
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(
-            "librosa is niet geïnstalleerd. Voer uit: pip install -r requirements.txt"
+            "librosa is not installed. Run: pip install -r requirements.txt"
         ) from exc
     return librosa, np
 
@@ -25,7 +25,7 @@ def analyze_track_energy(path: str) -> float:
 
     audio, _sample_rate = librosa.load(path, sr=None, mono=True)
     if audio.size == 0:
-        raise ValueError('Leeg audiobestand')
+        raise ValueError('Empty audio file')
 
     rms = librosa.feature.rms(y=audio, frame_length=2048, hop_length=512)[0]
     peak_rms = float(np.percentile(rms, 95))

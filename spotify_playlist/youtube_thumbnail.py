@@ -58,7 +58,7 @@ def square_center_crop(image_bytes: bytes, size: int = 600) -> bytes:
         from PIL import Image
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(
-            "Pillow is niet geïnstalleerd. Voer uit: pip install -r requirements.txt"
+            "Pillow is not installed. Run: pip install -r requirements.txt"
         ) from exc
 
     image = Image.open(io.BytesIO(image_bytes)).convert('RGB')

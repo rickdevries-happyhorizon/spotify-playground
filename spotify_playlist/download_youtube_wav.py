@@ -23,7 +23,7 @@ def _require_yt_dlp():
         import yt_dlp
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(
-            "yt-dlp is niet geïnstalleerd. Voer uit: pip install -r requirements.txt"
+            "yt-dlp is not installed. Run: pip install -r requirements.txt"
         ) from exc
     return yt_dlp
 
@@ -31,7 +31,7 @@ def _require_yt_dlp():
 def _require_ffmpeg() -> None:
     if not shutil.which('ffmpeg'):
         raise FileNotFoundError(
-            "ffmpeg is niet geïnstalleerd. Op macOS: brew install ffmpeg"
+            "ffmpeg is not installed. On macOS: brew install ffmpeg"
         )
 
 
@@ -97,7 +97,7 @@ def _convert_to_aiff(source_path: str, aiff_path: str) -> None:
     )
     if result.returncode != 0:
         stderr = (result.stderr or '').strip()
-        raise RuntimeError(stderr or 'ffmpeg AIFF-conversie mislukt')
+        raise RuntimeError(stderr or 'ffmpeg AIFF conversion failed')
 
 
 def download_youtube_to_aiff(
@@ -147,7 +147,7 @@ def download_youtube_to_aiff(
 
     if not os.path.isfile(source_path):
         print(
-            f"{Colors.BRIGHT_RED}❌ Audiobestand niet gevonden na download: "
+            f"{Colors.BRIGHT_RED}❌ Audio file not found after download: "
             f"{source_path}{Colors.RESET}"
         )
         return None
@@ -155,14 +155,14 @@ def download_youtube_to_aiff(
     try:
         _convert_to_aiff(source_path, audio_path)
     except RuntimeError as exc:
-        print(f"{Colors.BRIGHT_RED}❌ AIFF-conversie mislukt: {exc}{Colors.RESET}")
+        print(f"{Colors.BRIGHT_RED}❌ AIFF conversion failed: {exc}{Colors.RESET}")
         return None
     finally:
         if os.path.isfile(source_path):
             os.remove(source_path)
 
     if not os.path.isfile(audio_path):
-        print(f"{Colors.BRIGHT_RED}❌ AIFF bestand niet gevonden na download: {audio_path}{Colors.RESET}")
+        print(f"{Colors.BRIGHT_RED}❌ AIFF file not found after download: {audio_path}{Colors.RESET}")
         return None
 
     if tag_metadata:
@@ -173,37 +173,37 @@ def download_youtube_to_aiff(
             energy_label = format_energy_label(energy)
         except Exception as exc:
             print(
-                f"    {Colors.BRIGHT_YELLOW}⚠️  Energy niet geanalyseerd: {exc}{Colors.RESET}"
+                f"    {Colors.BRIGHT_YELLOW}⚠️  Energy not analyzed: {exc}{Colors.RESET}"
             )
 
         try:
             _tag_audio_from_filename(audio_path, genre, release_year, energy_label)
             details = []
             if release_year is not None:
-                details.append(f'jaar {release_year}')
+                details.append(f'year {release_year}')
             if energy_label is not None:
                 details.append(f'energy {energy_label}')
             if details:
                 print(
-                    f"    {Colors.BRIGHT_GREEN}✅ ID3 metadata toegevoegd "
+                    f"    {Colors.BRIGHT_GREEN}✅ ID3 metadata added "
                     f"(incl. {', '.join(details)}){Colors.RESET}"
                 )
             else:
-                print(f"    {Colors.BRIGHT_GREEN}✅ ID3 metadata toegevoegd{Colors.RESET}")
+                print(f"    {Colors.BRIGHT_GREEN}✅ ID3 metadata added{Colors.RESET}")
         except Exception as exc:
             print(
-                f"    {Colors.BRIGHT_YELLOW}⚠️  Metadata niet toegepast "
-                f"(bestandsnaam moet 'Artiest - Titel.aiff' zijn): {exc}{Colors.RESET}"
+                f"    {Colors.BRIGHT_YELLOW}⚠️  Metadata not applied "
+                f"(filename must be 'Artist - Title.aiff'): {exc}{Colors.RESET}"
             )
 
         try:
             cover_art = cover_art_from_youtube_info(info)
             if cover_art:
                 apply_cover_art(audio_path, cover_art)
-                print(f"    {Colors.BRIGHT_GREEN}✅ YouTube cover art toegevoegd{Colors.RESET}")
+                print(f"    {Colors.BRIGHT_GREEN}✅ YouTube cover art added{Colors.RESET}")
         except Exception as exc:
             print(
-                f"    {Colors.BRIGHT_YELLOW}⚠️  Cover art niet toegepast: {exc}{Colors.RESET}"
+                f"    {Colors.BRIGHT_YELLOW}⚠️  Cover art not applied: {exc}{Colors.RESET}"
             )
 
     return audio_path
@@ -230,12 +230,12 @@ def download_youtube_urls(
                 tag_metadata=tag_metadata,
             )
             if audio_path:
-                print(f"    {Colors.BRIGHT_GREEN}✅ Opgeslagen: {audio_path}{Colors.RESET}")
+                print(f"    {Colors.BRIGHT_GREEN}✅ Saved: {audio_path}{Colors.RESET}")
                 success_count += 1
             else:
                 error_count += 1
         except Exception as exc:
-            print(f"    {Colors.BRIGHT_RED}❌ Fout: {exc}{Colors.RESET}")
+            print(f"    {Colors.BRIGHT_RED}❌ Error: {exc}{Colors.RESET}")
             error_count += 1
 
     if success_count:
@@ -254,8 +254,8 @@ def load_tracks_from_app() -> list[dict]:
     ]
     if not with_url:
         raise ValueError(
-            "Geen tracks met YouTube URL gevonden in de app. "
-            "Voeg eerst reference URL's toe in de new tracks todo."
+            "No tracks with YouTube URL found in the app. "
+            "Add reference URLs in the new tracks todo first."
         )
     return with_url
 
@@ -290,29 +290,29 @@ def download_youtube_tracks(
                 year=track.get('release_year'),
             )
             if audio_path:
-                print(f"    {Colors.BRIGHT_GREEN}✅ Opgeslagen: {audio_path}{Colors.RESET}")
+                print(f"    {Colors.BRIGHT_GREEN}✅ Saved: {audio_path}{Colors.RESET}")
                 track_id = track.get('id')
                 if track_id is not None:
                     try:
                         if delete_new_track(track_id):
                             print(
-                                f"    {Colors.BRIGHT_GREEN}✅ Verwijderd uit database{Colors.RESET}"
+                                f"    {Colors.BRIGHT_GREEN}✅ Removed from database{Colors.RESET}"
                             )
                         else:
                             print(
-                                f"    {Colors.BRIGHT_YELLOW}⚠️  Track niet gevonden in database "
+                                f"    {Colors.BRIGHT_YELLOW}⚠️  Track not found in database "
                                 f"(id={track_id}){Colors.RESET}"
                             )
                     except Exception as exc:
                         print(
-                            f"    {Colors.BRIGHT_YELLOW}⚠️  Kon track niet verwijderen uit "
+                            f"    {Colors.BRIGHT_YELLOW}⚠️  Could not remove track from "
                             f"database: {exc}{Colors.RESET}"
                         )
                 success_count += 1
             else:
                 error_count += 1
         except Exception as exc:
-            print(f"    {Colors.BRIGHT_RED}❌ Fout: {exc}{Colors.RESET}")
+            print(f"    {Colors.BRIGHT_RED}❌ Error: {exc}{Colors.RESET}")
             error_count += 1
 
     if success_count:
@@ -324,7 +324,7 @@ def download_youtube_tracks(
 def load_urls_from_file(path: str) -> list[str]:
     """Load YouTube URLs from a text file (one per line, # comments allowed)."""
     if not os.path.isfile(path):
-        raise FileNotFoundError(f"Bestand niet gevonden: {path}")
+        raise FileNotFoundError(f"File not found: {path}")
 
     urls: list[str] = []
     with open(path, encoding='utf-8') as handle:
@@ -335,15 +335,15 @@ def load_urls_from_file(path: str) -> list[str]:
             urls.append(cleaned)
 
     if not urls:
-        raise ValueError(f"Geen URL's gevonden in: {path}")
+        raise ValueError(f"No URLs found in: {path}")
 
     return urls
 
 
 def _read_urls_from_input() -> list[str]:
     print(
-        f"\n{Colors.DIM}Plak YouTube URL(s), één per regel. "
-        f"Druk Enter op een lege regel om te starten.{Colors.RESET}\n"
+        f"\n{Colors.DIM}Paste YouTube URL(s), one per line. "
+        f"Press Enter on a blank line to start.{Colors.RESET}\n"
     )
     urls: list[str] = []
     while True:
@@ -370,40 +370,40 @@ def run_download_youtube_wav(
         return
 
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🎵  YouTube naar AIFF Downloaden  🎵{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🎵  Download YouTube to AIFF  🎵{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}")
     print(
-        f"\n{Colors.DIM}Alleen voor persoonlijk gebruik. "
-        f"Download geen auteursrechtelijk beschermd materiaal zonder toestemming.{Colors.RESET}"
+        f"\n{Colors.DIM}For personal use only. "
+        f"Do not download copyrighted material without permission.{Colors.RESET}"
     )
 
     if default_directory:
         directory = os.path.abspath(os.path.expanduser(default_directory))
         os.makedirs(directory, exist_ok=True)
         print(
-            f"\n{Colors.BRIGHT_CYAN}Opslagmap:{Colors.RESET} "
+            f"\n{Colors.BRIGHT_CYAN}Output directory:{Colors.RESET} "
             f"{Colors.BRIGHT_WHITE}{directory}{Colors.RESET}"
         )
     else:
         directory = input(
-            f"\n{Colors.BRIGHT_CYAN}Opslagmap ('q' om terug): {Colors.RESET}"
+            f"\n{Colors.BRIGHT_CYAN}Output directory ('q' to go back): {Colors.RESET}"
         ).strip()
 
         if directory.lower() == 'q':
             return
 
         if not directory:
-            print(f"{Colors.BRIGHT_RED}❌ Geen map opgegeven.{Colors.RESET}")
+            print(f"{Colors.BRIGHT_RED}❌ No directory specified.{Colors.RESET}")
             return
 
         directory = os.path.abspath(os.path.expanduser(directory))
         os.makedirs(directory, exist_ok=True)
 
     if default_urls_file:
-        print(f"{Colors.DIM}Standaard URL-bestand: {default_urls_file}{Colors.RESET}")
+        print(f"{Colors.DIM}Default URL file: {default_urls_file}{Colors.RESET}")
 
     source = input(
-        f"\n{Colors.BRIGHT_CYAN}URL-bron: [Enter] app-database  [1] plakken  [2] bestand: {Colors.RESET}"
+        f"\n{Colors.BRIGHT_CYAN}URL source: [Enter] app database  [1] paste  [2] file: {Colors.RESET}"
     ).strip().lower()
 
     tracks_from_app: list[dict] = []
@@ -413,12 +413,12 @@ def run_download_youtube_wav(
         try:
             tracks_from_app = load_tracks_from_app()
             print(
-                f"\n{Colors.BRIGHT_GREEN}✅ {len(tracks_from_app)} track(s) met YouTube URL "
-                f"geladen uit de app{Colors.RESET}"
+                f"\n{Colors.BRIGHT_GREEN}✅ {len(tracks_from_app)} track(s) with YouTube URL "
+                f"loaded from the app{Colors.RESET}"
             )
             print(
-                f"{Colors.DIM}Succesvol gedownloade tracks worden automatisch uit de "
-                f"database verwijderd.{Colors.RESET}\n"
+                f"{Colors.DIM}Successfully downloaded tracks are automatically removed from the "
+                f"database.{Colors.RESET}\n"
             )
             for track in tracks_from_app:
                 print(f"  • {track['track']}")
@@ -427,21 +427,21 @@ def run_download_youtube_wav(
             print(f"{Colors.BRIGHT_RED}❌ {exc}{Colors.RESET}")
             return
         except Exception as exc:
-            print(f"{Colors.BRIGHT_RED}❌ Kon tracks niet laden uit database: {exc}{Colors.RESET}")
+            print(f"{Colors.BRIGHT_RED}❌ Could not load tracks from database: {exc}{Colors.RESET}")
             return
     elif source in ('2', 'f', 'file', 'bestand'):
         urls_path = input(
-            f"{Colors.BRIGHT_CYAN}Pad naar URL-bestand (Enter voor standaard): {Colors.RESET}"
+            f"{Colors.BRIGHT_CYAN}Path to URL file (Enter for default): {Colors.RESET}"
         ).strip()
         if not urls_path:
             urls_path = default_urls_file
         if not urls_path:
-            print(f"{Colors.BRIGHT_RED}❌ Geen URL-bestand opgegeven.{Colors.RESET}")
+            print(f"{Colors.BRIGHT_RED}❌ No URL file specified.{Colors.RESET}")
             return
         urls_path = os.path.expanduser(urls_path)
         try:
             urls = load_urls_from_file(urls_path)
-            print(f"{Colors.BRIGHT_GREEN}✅ {len(urls)} URL(s) geladen uit {urls_path}{Colors.RESET}")
+            print(f"{Colors.BRIGHT_GREEN}✅ {len(urls)} URL(s) loaded from {urls_path}{Colors.RESET}")
         except (OSError, ValueError) as exc:
             print(f"{Colors.BRIGHT_RED}❌ {exc}{Colors.RESET}")
             return
@@ -449,20 +449,20 @@ def run_download_youtube_wav(
         urls = _read_urls_from_input()
 
     if not tracks_from_app and not urls:
-        print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen URL(s) opgegeven.{Colors.RESET}")
+        print(f"{Colors.BRIGHT_YELLOW}⚠️  No URL(s) specified.{Colors.RESET}")
         return
 
     overwrite = input(
-        f"{Colors.BRIGHT_CYAN}Bestaande bestanden overschrijven? (j/n): {Colors.RESET}"
-    ).strip().lower() == 'j'
+        f"{Colors.BRIGHT_CYAN}Overwrite existing files? (y/n): {Colors.RESET}"
+    ).strip().lower() == 'y'
 
     tag_metadata = input(
-        f"{Colors.BRIGHT_CYAN}ID3 metadata toevoegen vanuit bestandsnaam? (j/n): {Colors.RESET}"
+        f"{Colors.BRIGHT_CYAN}Add ID3 metadata from filename? (y/n): {Colors.RESET}"
     ).strip().lower() != 'n'
 
     print(
-        f"\n{Colors.BRIGHT_WHITE}Downloaden van "
-        f"{len(tracks_from_app) or len(urls)} track(s) naar:{Colors.RESET}\n"
+        f"\n{Colors.BRIGHT_WHITE}Downloading "
+        f"{len(tracks_from_app) or len(urls)} track(s) to:{Colors.RESET}\n"
         f"  {Colors.BRIGHT_CYAN}{directory}{Colors.RESET}\n"
     )
 
@@ -482,14 +482,13 @@ def run_download_youtube_wav(
         )
 
     print(
-        f"\n{Colors.BRIGHT_GREEN}Klaar: {success_count} gedownload, {error_count} mislukt.{Colors.RESET}"
+        f"\n{Colors.BRIGHT_GREEN}Done: {success_count} downloaded, {error_count} failed.{Colors.RESET}"
     )
     if success_count and tracks_from_app:
         print(
-            f"{Colors.DIM}Succesvol gedownloade tracks zijn uit je todo-app verwijderd.{Colors.RESET}"
+            f"{Colors.DIM}Successfully downloaded tracks were removed from your todo app.{Colors.RESET}"
         )
     elif success_count:
         print(
-            f"{Colors.DIM}Tip: gebruik menu-optie 8 om metadata later aan te passen, "
-            f"of hernoem bestanden naar 'Artiest - Titel.aiff'.{Colors.RESET}"
+            f"{Colors.DIM}Tip: rename files to 'Artist - Title.aiff' if metadata was not applied.{Colors.RESET}"
         )

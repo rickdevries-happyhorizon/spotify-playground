@@ -29,7 +29,7 @@ def require_spotipy() -> None:
     if SPOTIPY_AVAILABLE:
         return
 
-    print("❌ Fout: spotipy module niet gevonden!")
-    print("\n   Oplossing:")
-    print("   Kies menu-optie 10 om alle packages te installeren.")
+    print("❌ Error: spotipy module not found!")
+    print("\n   Fix:")
+    print("   Install packages with: pip install -r requirements.txt")
     sys.exit(1)

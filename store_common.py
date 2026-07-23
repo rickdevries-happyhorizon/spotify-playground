@@ -1,4 +1,4 @@
-"""Shared helpers for storage backends (MySQL and text file)."""
+"""Shared helpers for MySQL storage."""
 from __future__ import annotations
 
 from datetime import datetime

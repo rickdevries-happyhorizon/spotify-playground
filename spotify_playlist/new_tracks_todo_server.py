@@ -100,22 +100,22 @@ def run_server(port: int = DEFAULT_PORT) -> None:
         tracks = load_new_tracks()
     except ImportError as e:
         print(f"❌ {e}")
-        print("   Installeer dependencies: pip install -r requirements.txt")
+        print("   Install dependencies: pip install -r requirements.txt")
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Kan geen verbinding maken met de database: {e}")
+        print(f"❌ Could not connect to the database: {e}")
         print(
-            "   Controleer MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD en MYSQL_DATABASE."
+            "   Check MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, and MYSQL_DATABASE."
         )
         sys.exit(1)
 
     if not is_port_available(port):
-        print(f"❌ Poort {port} is al in gebruik.")
+        print(f"❌ Port {port} is already in use.")
         sys.exit(1)
 
     with_url = sum(1 for t in tracks if t.get("reference_url"))
     without_url = len(tracks) - with_url
-    print(f"📀 {len(tracks)} tracks geladen ({with_url} met URL, {without_url} zonder)")
+    print(f"📀 {len(tracks)} tracks loaded ({with_url} with URL, {without_url} without)")
 
     app = create_app()
     print(f"🌐 New tracks to-do: http://127.0.0.1:{port}/")

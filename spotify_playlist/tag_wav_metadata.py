@@ -18,7 +18,7 @@ def _require_mutagen():
         from mutagen.wave import WAVE
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(
-            "mutagen is niet geïnstalleerd. Voer uit: pip install -r requirements.txt"
+            "mutagen is not installed. Run: pip install -r requirements.txt"
         ) from exc
     return APIC, TALB, TCON, TDRC, TIT2, TPE1, TPUB, TYER, WAVE, AIFF
 
@@ -62,7 +62,7 @@ def apply_rekordbox_fields(
     elif extension in ('.aiff', '.aif'):
         audio = AIFF(path)
     else:
-        raise ValueError(f'Niet ondersteund bestandstype: {extension}')
+        raise ValueError(f'Unsupported file type: {extension}')
 
     if audio.tags is None:
         audio.add_tags()
@@ -100,7 +100,7 @@ def apply_cover_art(path: str, image_bytes: bytes, *, mime: str = 'image/jpeg') 
     elif extension in ('.aiff', '.aif'):
         audio = AIFF(path)
     else:
-        raise ValueError(f'Niet ondersteund bestandstype: {extension}')
+        raise ValueError(f'Unsupported file type: {extension}')
 
     if audio.tags is None:
         audio.add_tags()
@@ -128,7 +128,7 @@ def remove_cover_art(path: str) -> None:
     elif extension in ('.aiff', '.aif'):
         audio = AIFF(path)
     else:
-        raise ValueError(f'Niet ondersteund bestandstype: {extension}')
+        raise ValueError(f'Unsupported file type: {extension}')
 
     if audio.tags is None:
         return
@@ -227,7 +227,7 @@ def apply_audio_metadata(
     elif extension in ('.aiff', '.aif'):
         apply_aiff_metadata(path, artists, title, genre, year, label)
     else:
-        raise ValueError(f'Niet ondersteund bestandstype: {extension}')
+        raise ValueError(f'Unsupported file type: {extension}')
 
 
 def tag_wavs_in_directory(directory: str, *, dry_run: bool = False) -> tuple[int, int]:
@@ -237,7 +237,7 @@ def tag_wavs_in_directory(directory: str, *, dry_run: bool = False) -> tuple[int
     Returns (success_count, error_count).
     """
     if not os.path.isdir(directory):
-        raise NotADirectoryError(f"Map niet gevonden: {directory}")
+        raise NotADirectoryError(f"Directory not found: {directory}")
 
     audio_files = sorted(
         filename
@@ -247,11 +247,11 @@ def tag_wavs_in_directory(directory: str, *, dry_run: bool = False) -> tuple[int
 
     if not audio_files:
         print(
-            f"{Colors.BRIGHT_YELLOW}⚠️  Geen WAV/AIFF bestanden gevonden in: {directory}{Colors.RESET}"
+            f"{Colors.BRIGHT_YELLOW}⚠️  No WAV/AIFF files found in: {directory}{Colors.RESET}"
         )
         return 0, 0
 
-    print(f"\n{Colors.BRIGHT_WHITE}Gevonden audio bestanden ({len(audio_files)}):{Colors.RESET}\n")
+    print(f"\n{Colors.BRIGHT_WHITE}Found audio files ({len(audio_files)}):{Colors.RESET}\n")
 
     success_count = 0
     error_count = 0
@@ -264,10 +264,10 @@ def tag_wavs_in_directory(directory: str, *, dry_run: bool = False) -> tuple[int
             artists, title = parse_wav_filename(stem)
             artists_display = ', '.join(artists)
             print(f"  {Colors.BRIGHT_CYAN}{filename}{Colors.RESET}")
-            print(f"    Artiesten: {Colors.BRIGHT_WHITE}{artists_display}{Colors.RESET}")
-            print(f"    Titel:     {Colors.BRIGHT_WHITE}{title}{Colors.RESET}")
-            print(f"    Album:     {Colors.DIM}(leeg){Colors.RESET}")
-            print(f"    Jaar:      {Colors.DIM}(leeg){Colors.RESET}")
+            print(f"    Artists:  {Colors.BRIGHT_WHITE}{artists_display}{Colors.RESET}")
+            print(f"    Title:    {Colors.BRIGHT_WHITE}{title}{Colors.RESET}")
+            print(f"    Album:    {Colors.DIM}(empty){Colors.RESET}")
+            print(f"    Year:     {Colors.DIM}(empty){Colors.RESET}")
             print(f"    Label:     {Colors.DIM}(energy){Colors.RESET}")
 
             if not dry_run:
@@ -276,11 +276,11 @@ def tag_wavs_in_directory(directory: str, *, dry_run: bool = False) -> tuple[int
                     energy_label = format_energy_label(analyze_track_energy(path))
                 except Exception as exc:
                     print(
-                        f"    {Colors.BRIGHT_YELLOW}⚠️  Energy niet geanalyseerd: {exc}{Colors.RESET}"
+                        f"    {Colors.BRIGHT_YELLOW}⚠️  Energy not analyzed: {exc}{Colors.RESET}"
                     )
 
                 apply_audio_metadata(path, artists, title, label=energy_label)
-                print(f"    {Colors.BRIGHT_GREEN}✅ Metadata bijgewerkt{Colors.RESET}\n")
+                print(f"    {Colors.BRIGHT_GREEN}✅ Metadata updated{Colors.RESET}\n")
             else:
                 print(f"    {Colors.DIM}(preview only){Colors.RESET}\n")
 

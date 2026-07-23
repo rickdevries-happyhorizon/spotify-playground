@@ -4,23 +4,23 @@ from spotify_playlist.deps import SpotifyException
 
 
 def get_recent_playlist_tracks(sp, playlist_id, days_back=7, return_track_info=False):
-    """Haalt alleen tracks op die in de laatste X dagen zijn toegevoegd aan de playlist.
+    """Fetches only tracks added to the playlist in the last X days.
 
     Args:
         sp: Spotify client
-        playlist_id: ID van de playlist
-        days_back: Aantal dagen terug om te kijken (standaard 7)
-        return_track_info: Als True, retourneert ook track informatie (naam, artiesten)
+        playlist_id: Playlist ID
+        days_back: Number of days to look back (default 7)
+        return_track_info: If True, also returns track information (name, artists)
 
     Returns:
-        Als return_track_info=False: set van track URIs
-        Als return_track_info=True: dict met URI als key en {'name': ..., 'artists': ...} als value
+        If return_track_info=False: set of track URIs
+        If return_track_info=True: dict with URI as key and {'name': ..., 'artists': ...} as value
     """
     track_data = {} if return_track_info else set()
     cutoff_date = datetime.now() - timedelta(days=days_back)
 
     try:
-        # Haal playlist items op met added_at datum
+        # Fetch playlist items with added_at date
         results = sp.playlist_items(
             playlist_id,
             fields='items.added_at,items.track.uri,items.track.name,items.track.artists,next',
@@ -29,29 +29,29 @@ def get_recent_playlist_tracks(sp, playlist_id, days_back=7, return_track_info=F
 
         while results:
             for item in results['items']:
-                # Controleer of track bestaat
+                # Check that track exists
                 track = item.get('track')
                 if not track or not track.get('uri'):
                     continue
 
-                # Controleer wanneer de track is toegevoegd
+                # Check when the track was added
                 added_at_str = item.get('added_at')
                 if added_at_str:
                     try:
-                        # Parse de ISO 8601 datum
+                        # Parse ISO 8601 date
                         added_at = datetime.fromisoformat(added_at_str.replace('Z', '+00:00'))
-                        # Converteer naar local timezone voor vergelijking
+                        # Convert to local timezone for comparison
                         if added_at.tzinfo:
                             added_at = added_at.astimezone().replace(tzinfo=None)
 
-                        # Alleen tracks die in de laatste X dagen zijn toegevoegd
+                        # Only tracks added in the last X days
                         if added_at < cutoff_date:
-                            # Stop met itereren als we voorbij de cutoff datum zijn
-                            # (tracks zijn gesorteerd van nieuw naar oud)
+                            # Stop iterating once we pass the cutoff date
+                            # (tracks are sorted newest to oldest)
                             results = None
                             break
                     except (ValueError, AttributeError):
-                        # Als parsing mislukt, negeer deze track
+                        # If parsing fails, skip this track
                         continue
 
                 uri = track['uri']
@@ -69,8 +69,8 @@ def get_recent_playlist_tracks(sp, playlist_id, days_back=7, return_track_info=F
 
         return track_data
     except SpotifyException as e:
-        print(f"❌ Spotify API fout bij ophalen tracks: {e}")
+        print(f"❌ Spotify API error fetching tracks: {e}")
         raise
     except Exception as e:
-        print(f"❌ Onverwachte fout bij ophalen tracks: {e}")
+        print(f"❌ Unexpected error fetching tracks: {e}")
         raise

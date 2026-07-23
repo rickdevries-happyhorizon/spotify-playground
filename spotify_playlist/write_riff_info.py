@@ -81,7 +81,7 @@ def apply_riff_info(
         data = fileobj.read()
 
     if len(data) < 12 or data[:4] != b'RIFF' or data[8:12] != b'WAVE':
-        raise ValueError('Geen geldig RIFF/WAVE bestand')
+        raise ValueError('Not a valid RIFF/WAVE file')
 
     rebuilt = bytearray(data[:12])
     info_chunk = _build_list_info_chunk(title, artist, genre, year, album)

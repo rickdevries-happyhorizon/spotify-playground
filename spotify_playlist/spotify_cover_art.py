@@ -141,15 +141,15 @@ def process_file(sp, path: str) -> tuple[dict[str, Any] | None, str | None]:
 
     track = spotify_call_with_retry(lambda: find_spotify_track(sp, artists, stem))
     if track is None:
-        return None, 'Geen passende Spotify track gevonden'
+        return None, 'No matching Spotify track found'
 
     art_url = _album_art_url(track)
     if not art_url:
-        return track, 'Spotify track heeft geen album artwork'
+        return track, 'Spotify track has no album artwork'
 
     image_bytes = spotify_call_with_retry(lambda: fetch_image_bytes(art_url))
     if not image_bytes:
-        return track, 'Album artwork download leverde lege data op'
+        return track, 'Album artwork download returned empty data'
 
     mime = 'image/jpeg'
     if art_url.lower().endswith('.png'):
@@ -173,14 +173,14 @@ def run_spotify_cover_art_batch(
     require_spotipy()
 
     if not os.path.isdir(directory):
-        raise NotADirectoryError(f'Map niet gevonden: {directory}')
+        raise NotADirectoryError(f'Directory not found: {directory}')
 
     audio_files = discover_audio_files(directory)
     if limit is not None:
         audio_files = audio_files[:limit]
 
     if not audio_files:
-        print(f"{Colors.BRIGHT_YELLOW}⚠️  Geen WAV/AIFF bestanden gevonden in: {directory}{Colors.RESET}")
+        print(f"{Colors.BRIGHT_YELLOW}⚠️  No WAV/AIFF files found in: {directory}{Colors.RESET}")
         return 0, 0
 
     log_stem = os.path.splitext(os.path.basename(resume_log))[0] if resume_log else (
@@ -196,8 +196,8 @@ def run_spotify_cover_art_batch(
             audio_files = [path for path in audio_files if path not in completed_paths]
             skipped = before - len(audio_files)
             print(
-                f"{Colors.DIM}Hervatten vanaf log: {skipped} bestanden al OK, "
-                f"{len(audio_files)} resterend{Colors.RESET}"
+                f"{Colors.DIM}Resuming from log: {skipped} files already OK, "
+                f"{len(audio_files)} remaining{Colors.RESET}"
             )
 
     total = len(audio_files) + len(completed_paths)
@@ -206,8 +206,8 @@ def run_spotify_cover_art_batch(
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🖼️  Spotify Cover Art Batch{Colors.RESET}")
     print(f"{Colors.DIM}Map: {directory}{Colors.RESET}")
     print(f"{Colors.DIM}Log CSV: {csv_path}{Colors.RESET}")
-    print(f"{Colors.DIM}Log tekst: {text_path}{Colors.RESET}")
-    print(f"{Colors.BRIGHT_WHITE}Te verwerken: {len(audio_files)} bestand(en){Colors.RESET}\n")
+    print(f"{Colors.DIM}Log text: {text_path}{Colors.RESET}")
+    print(f"{Colors.BRIGHT_WHITE}To process: {len(audio_files)} file(s){Colors.RESET}\n")
 
     success_count = 0
     error_count = 0
@@ -270,8 +270,8 @@ def run_spotify_cover_art_batch(
         text_file.close()
 
     print(
-        f"\n{Colors.BRIGHT_GREEN}Klaar: {success_count} met cover art, "
-        f"{error_count} zonder cover art (fout){Colors.RESET}"
+        f"\n{Colors.BRIGHT_GREEN}Done: {success_count} with cover art, "
+        f"{error_count} without cover art (error){Colors.RESET}"
     )
     print(f"{Colors.DIM}Log: {csv_path}{Colors.RESET}")
 
@@ -304,19 +304,19 @@ def run_spotify_cover_art(default_directory: str = '') -> None:
         return
 
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🖼️  Spotify Cover Art Toevoegen  🖼️{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🖼️  Add Spotify Cover Art  🖼️{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}\n")
     print(
-        f"{Colors.DIM}Zoekt cover art op Spotify op basis van bestandsnamen "
-        f"(Artiest - Titel). Bestaande cover art wordt overschreven. "
-        f"Bij fouten blijft het bestand zonder cover art.{Colors.RESET}\n"
+        f"{Colors.DIM}Looks up cover art on Spotify based on filenames "
+        f"(Artist - Title). Existing cover art is overwritten. "
+        f"On errors the file remains without cover art.{Colors.RESET}\n"
     )
 
     if default_directory:
-        print(f"{Colors.DIM}Standaard map: {default_directory}{Colors.RESET}")
+        print(f"{Colors.DIM}Default directory: {default_directory}{Colors.RESET}")
 
     directory = input(
-        f"{Colors.BRIGHT_CYAN}Map met WAV/AIFF bestanden (Enter voor standaard, 'q' om terug): {Colors.RESET}"
+        f"{Colors.BRIGHT_CYAN}Directory with WAV/AIFF files (Enter for default, 'q' to go back): {Colors.RESET}"
     ).strip()
 
     if directory.lower() == 'q':
@@ -326,42 +326,42 @@ def run_spotify_cover_art(default_directory: str = '') -> None:
         directory = default_directory
 
     if not directory:
-        print(f"{Colors.BRIGHT_RED}❌ Geen map opgegeven.{Colors.RESET}")
+        print(f"{Colors.BRIGHT_RED}❌ No directory specified.{Colors.RESET}")
         return
 
     directory = os.path.expanduser(directory)
 
     if not os.path.isdir(directory):
-        print(f"{Colors.BRIGHT_RED}❌ Map niet gevonden: {directory}{Colors.RESET}")
+        print(f"{Colors.BRIGHT_RED}❌ Directory not found: {directory}{Colors.RESET}")
         return
 
     try:
         file_count = len(discover_audio_files(directory))
     except Exception as exc:
-        print(f"{Colors.BRIGHT_RED}❌ Fout: {exc}{Colors.RESET}")
+        print(f"{Colors.BRIGHT_RED}❌ Error: {exc}{Colors.RESET}")
         return
 
     if file_count == 0:
         print(
-            f"{Colors.BRIGHT_YELLOW}⚠️  Geen WAV/AIFF bestanden gevonden in: {directory}{Colors.RESET}"
+            f"{Colors.BRIGHT_YELLOW}⚠️  No WAV/AIFF files found in: {directory}{Colors.RESET}"
         )
         return
 
-    print(f"\n{Colors.BRIGHT_WHITE}Gevonden: {file_count} WAV/AIFF bestand(en){Colors.RESET}")
-    print(f"{Colors.DIM}Logs worden opgeslagen in: {LOG_DIR}{Colors.RESET}")
+    print(f"\n{Colors.BRIGHT_WHITE}Found: {file_count} WAV/AIFF file(s){Colors.RESET}")
+    print(f"{Colors.DIM}Logs are saved in: {LOG_DIR}{Colors.RESET}")
 
     resume_log = ''
     recent_logs = _list_recent_log_stems()
     if recent_logs:
         resume_choice = input(
-            f"\n{Colors.BRIGHT_CYAN}Hervatten vanaf eerdere log? (j/n): {Colors.RESET}"
+            f"\n{Colors.BRIGHT_CYAN}Resume from a previous log? (y/n): {Colors.RESET}"
         ).strip().lower()
-        if resume_choice == 'j':
-            print(f"\n{Colors.BRIGHT_WHITE}Recente logs:{Colors.RESET}")
+        if resume_choice == 'y':
+            print(f"\n{Colors.BRIGHT_WHITE}Recent logs:{Colors.RESET}")
             for index, stem in enumerate(recent_logs[:5], start=1):
                 print(f"  {index}. {stem}")
             log_choice = input(
-                f"{Colors.BRIGHT_CYAN}Kies nummer (Enter voor nieuwste, 'q' om nieuw te starten): {Colors.RESET}"
+                f"{Colors.BRIGHT_CYAN}Choose number (Enter for newest, 'q' to start fresh): {Colors.RESET}"
             ).strip()
             if log_choice.lower() == 'q' or not log_choice:
                 resume_log = recent_logs[0] if log_choice != 'q' and not log_choice else ''
@@ -369,20 +369,20 @@ def run_spotify_cover_art(default_directory: str = '') -> None:
                 try:
                     resume_log = recent_logs[int(log_choice) - 1]
                 except (ValueError, IndexError):
-                    print(f"{Colors.BRIGHT_RED}❌ Ongeldige keuze.{Colors.RESET}")
+                    print(f"{Colors.BRIGHT_RED}❌ Invalid choice.{Colors.RESET}")
                     return
 
     confirm = input(
-        f"\n{Colors.BRIGHT_CYAN}Cover art ophalen en toepassen op {file_count} bestand(en)? (j/n): {Colors.RESET}"
+        f"\n{Colors.BRIGHT_CYAN}Fetch and apply cover art to {file_count} file(s)? (y/n): {Colors.RESET}"
     ).strip().lower()
 
-    if confirm != 'j':
-        print(f"{Colors.DIM}Geannuleerd.{Colors.RESET}")
+    if confirm != 'y':
+        print(f"{Colors.DIM}Cancelled.{Colors.RESET}")
         return
 
     try:
         run_spotify_cover_art_batch(directory, resume_log=resume_log)
     except KeyboardInterrupt:
-        print(f"\n{Colors.BRIGHT_YELLOW}Afgebroken. Gebruik optie 11 om te hervatten via de log.{Colors.RESET}")
+        print(f"\n{Colors.BRIGHT_YELLOW}Interrupted. Restart the cover art flow to resume via the log.{Colors.RESET}")
     except Exception as exc:
-        print(f"{Colors.BRIGHT_RED}❌ Fout: {exc}{Colors.RESET}")
+        print(f"{Colors.BRIGHT_RED}❌ Error: {exc}{Colors.RESET}")

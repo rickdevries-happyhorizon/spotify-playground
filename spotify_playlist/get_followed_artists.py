@@ -2,7 +2,7 @@ from spotify_playlist.deps import SpotifyException
 
 
 def get_followed_artists(sp):
-    """Haalt alle gevolgde artiesten op."""
+    """Fetches all followed artists."""
     artist_ids = []
     try:
         results = sp.current_user_followed_artists(limit=50)
@@ -24,8 +24,8 @@ def get_followed_artists(sp):
 
         return artist_ids
     except SpotifyException as e:
-        print(f"❌ Spotify API fout bij ophalen gevolgde artiesten: {e}")
+        print(f"❌ Spotify API error fetching followed artists: {e}")
         raise
     except Exception as e:
-        print(f"❌ Onverwachte fout bij ophalen gevolgde artiesten: {e}")
+        print(f"❌ Unexpected error fetching followed artists: {e}")
         raise

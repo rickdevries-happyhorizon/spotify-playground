@@ -241,7 +241,7 @@ def process_metadata_file(sp, path: str) -> dict[str, Any]:
             'spotify_track': spotify_track,
             'applied': applied,
             'skipped_fields': sorted(set(skipped_fields)),
-            'error': 'Geen metadata gevonden om toe te passen',
+            'error': 'No metadata found to apply',
         }
 
     apply_rekordbox_fields(path, **apply_kwargs)
@@ -263,7 +263,7 @@ def run_spotify_metadata_batch(
     require_spotipy()
 
     if not os.path.isdir(directory):
-        raise NotADirectoryError(f'Map niet gevonden: {directory}')
+        raise NotADirectoryError(f'Directory not found: {directory}')
 
     audio_files = discover_audio_files(directory)
     if limit is not None:
@@ -271,7 +271,7 @@ def run_spotify_metadata_batch(
 
     if not audio_files:
         print(
-            f"{Colors.BRIGHT_YELLOW}⚠️  Geen WAV/AIFF bestanden gevonden in: {directory}{Colors.RESET}"
+            f"{Colors.BRIGHT_YELLOW}⚠️  No WAV/AIFF files found in: {directory}{Colors.RESET}"
         )
         return 0, 0
 
@@ -288,8 +288,8 @@ def run_spotify_metadata_batch(
             audio_files = [path for path in audio_files if path not in completed_paths]
             skipped = before - len(audio_files)
             print(
-                f"{Colors.DIM}Hervatten vanaf log: {skipped} bestanden al OK, "
-                f"{len(audio_files)} resterend{Colors.RESET}"
+                f"{Colors.DIM}Resuming from log: {skipped} files already OK, "
+                f"{len(audio_files)} remaining{Colors.RESET}"
             )
 
     total = len(audio_files) + len(completed_paths)
@@ -299,8 +299,8 @@ def run_spotify_metadata_batch(
     print(f"{Colors.DIM}Map: {directory}{Colors.RESET}")
     print(f"{Colors.DIM}Log CSV: {logs['csv_path']}{Colors.RESET}")
     print(f"{Colors.DIM}Skipped CSV: {logs['skipped_path']}{Colors.RESET}")
-    print(f"{Colors.DIM}Log tekst: {logs['text_path']}{Colors.RESET}")
-    print(f"{Colors.BRIGHT_WHITE}Te verwerken: {len(audio_files)} bestand(en){Colors.RESET}\n")
+    print(f"{Colors.DIM}Log text: {logs['text_path']}{Colors.RESET}")
+    print(f"{Colors.BRIGHT_WHITE}To process: {len(audio_files)} file(s){Colors.RESET}\n")
 
     success_count = 0
     error_count = 0
@@ -365,8 +365,8 @@ def run_spotify_metadata_batch(
         _close_batch_logs(logs)
 
     print(
-        f"\n{Colors.BRIGHT_GREEN}Klaar: {success_count} bijgewerkt, "
-        f"{error_count} mislukt{Colors.RESET}"
+        f"\n{Colors.BRIGHT_GREEN}Done: {success_count} updated, "
+        f"{error_count} failed{Colors.RESET}"
     )
     print(f"{Colors.DIM}Log: {logs['csv_path']}{Colors.RESET}")
     print(f"{Colors.DIM}Skipped log: {logs['skipped_path']}{Colors.RESET}")
@@ -402,19 +402,19 @@ def run_spotify_metadata(default_directory: str = '') -> None:
         return
 
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🏷️  Spotify Metadata Toevoegen  🏷️{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🏷️  Add Spotify Metadata  🏷️{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}\n")
     print(
-        f"{Colors.DIM}Zoekt op Spotify: jaar, release datum en album. "
-        f"Berekent energy en slaat die op in Rekordbox Label. "
-        f"Ontbrekende velden worden overgeslagen en gelogd.{Colors.RESET}\n"
+        f"{Colors.DIM}Looks up on Spotify: year, release date, and album. "
+        f"Calculates energy and stores it in Rekordbox Label. "
+        f"Missing fields are skipped and logged.{Colors.RESET}\n"
     )
 
     if default_directory:
-        print(f"{Colors.DIM}Standaard map: {default_directory}{Colors.RESET}")
+        print(f"{Colors.DIM}Default directory: {default_directory}{Colors.RESET}")
 
     directory = input(
-        f"{Colors.BRIGHT_CYAN}Map met WAV/AIFF bestanden (Enter voor standaard, 'q' om terug): {Colors.RESET}"
+        f"{Colors.BRIGHT_CYAN}Directory with WAV/AIFF files (Enter for default, 'q' to go back): {Colors.RESET}"
     ).strip()
 
     if directory.lower() == 'q':
@@ -424,42 +424,42 @@ def run_spotify_metadata(default_directory: str = '') -> None:
         directory = default_directory
 
     if not directory:
-        print(f"{Colors.BRIGHT_RED}❌ Geen map opgegeven.{Colors.RESET}")
+        print(f"{Colors.BRIGHT_RED}❌ No directory specified.{Colors.RESET}")
         return
 
     directory = os.path.expanduser(directory)
 
     if not os.path.isdir(directory):
-        print(f"{Colors.BRIGHT_RED}❌ Map niet gevonden: {directory}{Colors.RESET}")
+        print(f"{Colors.BRIGHT_RED}❌ Directory not found: {directory}{Colors.RESET}")
         return
 
     try:
         file_count = len(discover_audio_files(directory))
     except Exception as exc:
-        print(f"{Colors.BRIGHT_RED}❌ Fout: {exc}{Colors.RESET}")
+        print(f"{Colors.BRIGHT_RED}❌ Error: {exc}{Colors.RESET}")
         return
 
     if file_count == 0:
         print(
-            f"{Colors.BRIGHT_YELLOW}⚠️  Geen WAV/AIFF bestanden gevonden in: {directory}{Colors.RESET}"
+            f"{Colors.BRIGHT_YELLOW}⚠️  No WAV/AIFF files found in: {directory}{Colors.RESET}"
         )
         return
 
-    print(f"\n{Colors.BRIGHT_WHITE}Gevonden: {file_count} WAV/AIFF bestand(en){Colors.RESET}")
-    print(f"{Colors.DIM}Logs worden opgeslagen in: {LOG_DIR}{Colors.RESET}")
+    print(f"\n{Colors.BRIGHT_WHITE}Found: {file_count} WAV/AIFF file(s){Colors.RESET}")
+    print(f"{Colors.DIM}Logs are saved in: {LOG_DIR}{Colors.RESET}")
 
     resume_log = ''
     recent_logs = _list_recent_log_stems()
     if recent_logs:
         resume_choice = input(
-            f"\n{Colors.BRIGHT_CYAN}Hervatten vanaf eerdere log? (j/n): {Colors.RESET}"
+            f"\n{Colors.BRIGHT_CYAN}Resume from a previous log? (y/n): {Colors.RESET}"
         ).strip().lower()
-        if resume_choice == 'j':
-            print(f"\n{Colors.BRIGHT_WHITE}Recente logs:{Colors.RESET}")
+        if resume_choice == 'y':
+            print(f"\n{Colors.BRIGHT_WHITE}Recent logs:{Colors.RESET}")
             for index, stem in enumerate(recent_logs[:5], start=1):
                 print(f"  {index}. {stem}")
             log_choice = input(
-                f"{Colors.BRIGHT_CYAN}Kies nummer (Enter voor nieuwste, 'q' om nieuw te starten): {Colors.RESET}"
+                f"{Colors.BRIGHT_CYAN}Choose number (Enter for newest, 'q' to start fresh): {Colors.RESET}"
             ).strip()
             if log_choice.lower() == 'q' or not log_choice:
                 resume_log = recent_logs[0] if log_choice != 'q' and not log_choice else ''
@@ -467,26 +467,26 @@ def run_spotify_metadata(default_directory: str = '') -> None:
                 try:
                     resume_log = recent_logs[int(log_choice) - 1]
                 except (ValueError, IndexError):
-                    print(f"{Colors.BRIGHT_RED}❌ Ongeldige keuze.{Colors.RESET}")
+                    print(f"{Colors.BRIGHT_RED}❌ Invalid choice.{Colors.RESET}")
                     return
 
     confirm = input(
-        f"\n{Colors.BRIGHT_CYAN}Metadata ophalen en toepassen op {file_count} bestand(en)? (j/n): {Colors.RESET}"
+        f"\n{Colors.BRIGHT_CYAN}Fetch and apply metadata to {file_count} file(s)? (y/n): {Colors.RESET}"
     ).strip().lower()
 
-    if confirm != 'j':
-        print(f"{Colors.DIM}Geannuleerd.{Colors.RESET}")
+    if confirm != 'y':
+        print(f"{Colors.DIM}Cancelled.{Colors.RESET}")
         return
 
     try:
         run_spotify_metadata_batch(directory, resume_log=resume_log)
     except KeyboardInterrupt:
         print(
-            f"\n{Colors.BRIGHT_YELLOW}Afgebroken. Gebruik optie 8 om te hervatten via de log.{Colors.RESET}"
+            f"\n{Colors.BRIGHT_YELLOW}Interrupted. Use run_spotify_metadata.py --resume-log to continue via the log.{Colors.RESET}"
         )
     except Exception as exc:
-        print(f"{Colors.BRIGHT_RED}❌ Fout: {exc}{Colors.RESET}")
+        print(f"{Colors.BRIGHT_RED}❌ Error: {exc}{Colors.RESET}")
 
     print(
-        f"\n{Colors.DIM}Tip: in Rekordbox rechtsklik op de tracks → Reload Tag om de metadata te laden.{Colors.RESET}"
+        f"\n{Colors.DIM}Tip: in Rekordbox right-click the tracks → Reload Tag to load the metadata.{Colors.RESET}"
     )

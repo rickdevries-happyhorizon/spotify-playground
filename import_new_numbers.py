@@ -41,18 +41,18 @@ def load_tracks_from_numbers(path: Path) -> list[dict]:
 def main() -> int:
     numbers_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_NUMBERS_FILE
     if not numbers_path.is_file():
-        print(f"❌ Bestand niet gevonden: {numbers_path}")
+        print(f"❌ File not found: {numbers_path}")
         return 1
 
     tracks = load_tracks_from_numbers(numbers_path)
     if not tracks:
-        print(f"⚠️  Geen tracks gevonden in {numbers_path}")
+        print(f"⚠️  No tracks found in {numbers_path}")
         return 1
 
     inserted, _skipped = save_new_tracks(tracks, replace=True)
 
-    print(f"✅ {inserted} tracks geïmporteerd uit {numbers_path.name}")
-    print(f"   Bestand: {numbers_path.resolve()}")
+    print(f"✅ {inserted} tracks imported from {numbers_path.name}")
+    print(f"   File: {numbers_path.resolve()}")
     return 0
 
 
