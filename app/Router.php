@@ -21,6 +21,15 @@ final class Router
             return;
         }
 
+        if (preg_match('#^/api/tracks/(\d+)/copy-title$#', $path, $matches) === 1) {
+            $trackId = (int) $matches[1];
+
+            if ($method === 'POST') {
+                self::recordCopyTitle($trackId);
+                return;
+            }
+        }
+
         if (preg_match('#^/api/tracks/(\d+)$#', $path, $matches) === 1) {
             $trackId = (int) $matches[1];
 
@@ -133,6 +142,26 @@ final class Router
             'id' => $trackId,
             'reference_url' => $url,
             'has_url' => $url !== null && $url !== '',
+        ]);
+    }
+
+    private static function recordCopyTitle(int $trackId): void
+    {
+        try {
+            $count = TrackStore::incrementCopyTitleCount($trackId);
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+            return;
+        }
+
+        if ($count === null) {
+            self::json(['error' => 'Track not found'], 404);
+            return;
+        }
+
+        self::json([
+            'id' => $trackId,
+            'copy_title_count' => $count,
         ]);
     }
 

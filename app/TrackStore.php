@@ -9,7 +9,7 @@ final class TrackStore
         self::ensureOptionalColumns();
 
         $stmt = Db::connection()->query(
-            'SELECT id, track, reference_url, genre, release_year FROM new_tracks ORDER BY track ASC'
+            'SELECT id, track, reference_url, genre, release_year, copy_title_count FROM new_tracks ORDER BY track ASC'
         );
 
         $tracks = [];
@@ -20,6 +20,7 @@ final class TrackStore
                 'reference_url' => $row['reference_url'] ?: null,
                 'genre' => !empty($row['genre']) ? $row['genre'] : null,
                 'release_year' => isset($row['release_year']) ? (int) $row['release_year'] : null,
+                'copy_title_count' => (int) ($row['copy_title_count'] ?? 0),
             ];
         }
 
@@ -60,7 +61,29 @@ final class TrackStore
             'reference_url' => $url,
             'genre' => null,
             'release_year' => null,
+            'copy_title_count' => 0,
         ];
+    }
+
+    public static function incrementCopyTitleCount(int $trackId): ?int
+    {
+        self::ensureOptionalColumns();
+
+        $pdo = Db::connection();
+        $stmt = $pdo->prepare(
+            'UPDATE new_tracks SET copy_title_count = copy_title_count + 1 WHERE id = :id'
+        );
+        $stmt->execute(['id' => $trackId]);
+
+        if ($stmt->rowCount() === 0) {
+            return null;
+        }
+
+        $countStmt = $pdo->prepare('SELECT copy_title_count FROM new_tracks WHERE id = :id');
+        $countStmt->execute(['id' => $trackId]);
+        $row = $countStmt->fetch();
+
+        return $row ? (int) $row['copy_title_count'] : null;
     }
 
     public static function updateReferenceUrl(int $trackId, ?string $referenceUrl): ?string
@@ -95,6 +118,10 @@ final class TrackStore
         self::ensureColumn(
             'release_year',
             'ALTER TABLE new_tracks ADD COLUMN release_year SMALLINT UNSIGNED NULL AFTER genre'
+        );
+        self::ensureColumn(
+            'copy_title_count',
+            'ALTER TABLE new_tracks ADD COLUMN copy_title_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER energy'
         );
     }
 

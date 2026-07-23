@@ -163,7 +163,18 @@
       word-break: break-word;
       padding-right: 1.25rem;
       border-radius: 6px;
+      cursor: pointer;
       transition: color 0.4s ease, background 0.4s ease, transform 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    .track-name:hover {
+      color: var(--accent);
+    }
+
+    .track-name-count {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.85em;
     }
 
     .track-heading {
@@ -306,33 +317,6 @@
       border-color: #c0392b;
     }
 
-    .copy-buttons {
-      display: flex;
-      gap: 0.4rem;
-      flex-wrap: wrap;
-      margin-top: 0.5rem;
-    }
-
-    .copy-buttons button {
-      padding: 0.35rem 0.65rem;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: #0d1016;
-      color: var(--muted);
-      font-size: 0.78rem;
-      cursor: pointer;
-    }
-
-    .copy-buttons button:hover:not(:disabled) {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .copy-buttons button:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
     .empty {
       padding: 2rem 1rem;
       text-align: center;
@@ -440,6 +424,7 @@
     <div class="stats">
       <span id="stat-done">With URL: 0</span>
       <span id="stat-todo">Without URL: 0</span>
+      <span id="stat-copy-title">Copy title clicks: 0</span>
     </div>
   </header>
 
@@ -484,6 +469,64 @@
     let statusTimer = null;
     let copyToastTimer = null;
     let lastHighlightedName = null;
+    let totalCopyTitleClicks = 0;
+
+    function setCopyTitleCount(nameEl, count) {
+      nameEl.dataset.count = String(count);
+      let countEl = nameEl.querySelector(".track-name-count");
+      if (count > 0) {
+        if (!countEl) {
+          countEl = document.createElement("span");
+          countEl.className = "track-name-count";
+          countEl.setAttribute("aria-hidden", "true");
+          nameEl.appendChild(countEl);
+        }
+        countEl.textContent = ` (${count})`;
+      } else if (countEl) {
+        countEl.remove();
+      }
+    }
+
+    function getCopyTitleCount(item) {
+      return Number(item.querySelector(".track-name")?.dataset.count || 0);
+    }
+
+    function updateCopyTitleStat(delta = 0) {
+      totalCopyTitleClicks = Math.max(0, totalCopyTitleClicks + delta);
+      document.getElementById("stat-copy-title").textContent =
+        `Copy title clicks: ${totalCopyTitleClicks}`;
+    }
+
+    function sumCopyTitleCounts(tracks) {
+      return tracks.reduce(
+        (total, track) => total + Number(track.copy_title_count || 0),
+        0
+      );
+    }
+
+    async function recordCopyTitleClick(item, trackId) {
+      const nameEl = item.querySelector(".track-name");
+      const previous = Number(nameEl.dataset.count || 0);
+      const optimistic = previous + 1;
+      setCopyTitleCount(nameEl, optimistic);
+      updateCopyTitleStat(1);
+
+      try {
+        const response = await fetch(`/api/tracks/${trackId}/copy-title`, {
+          method: "POST",
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || "Could not record click");
+        }
+
+        setCopyTitleCount(nameEl, Number(data.copy_title_count || optimistic));
+      } catch (error) {
+        setCopyTitleCount(nameEl, previous);
+        updateCopyTitleStat(-1);
+        showStatus(error.message || "Could not save click count", "error");
+      }
+    }
 
     function highlightTrackTitle(trackItem) {
       if (lastHighlightedName) {
@@ -622,8 +665,8 @@
       li.className = "track-item";
       li.dataset.id = String(track.id);
 
-      const hasUrl = Boolean(track.reference_url);
       const safeUrl = track.reference_url ? escapeHtml(track.reference_url) : "";
+      const copyTitleCount = Number(track.copy_title_count || 0);
       const genreHtml = track.genre
         ? `<div class="track-genre">${escapeHtml(track.genre)}</div>`
         : "";
@@ -633,13 +676,9 @@
 
       li.innerHTML = `
         <div class="track-heading">
-          <div class="track-name">${escapeHtml(track.track)}</div>
+          <div class="track-name" data-count="${copyTitleCount}" role="button" tabindex="0" title="Click to copy title">${escapeHtml(track.track)}</div>
           ${genreHtml}
           ${energyHtml}
-        </div>
-        <div class="copy-buttons">
-          <button type="button" class="copy-title">Copy title</button>
-          <button type="button" class="copy-url" ${hasUrl ? "" : "disabled"}>Copy URL</button>
         </div>
         <form class="track-form">
           <input type="url" name="reference_url" placeholder="https://..." value="${safeUrl}" />
@@ -648,15 +687,23 @@
         </form>
       `;
 
-      li.querySelector("button.copy-title").addEventListener("click", () => {
+      const nameEl = li.querySelector(".track-name");
+      if (copyTitleCount > 0) {
+        setCopyTitleCount(nameEl, copyTitleCount);
+      }
+
+      function handleTitleCopy() {
         highlightTrackTitle(li);
         copyText(track.track, "Title");
-      });
+        recordCopyTitleClick(li, track.id);
+      }
 
-      const copyUrlButton = li.querySelector("button.copy-url");
-      copyUrlButton.addEventListener("click", () => {
-        highlightTrackTitle(li);
-        copyText(track.reference_url, "URL");
+      nameEl.addEventListener("click", handleTitleCopy);
+      nameEl.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleTitleCopy();
+        }
       });
 
       const form = li.querySelector("form");
@@ -686,6 +733,7 @@
             reference_url: updated.reference_url,
             genre: track.genre,
             energy: track.energy,
+            copy_title_count: getCopyTitleCount(li),
           });
           showStatus(updated.has_url ? "Saved — moved to left column" : "Cleared — moved to right column");
         } catch (error) {
@@ -722,7 +770,11 @@
         launchConfetti(originX, originY);
 
         await new Promise((resolve) => setTimeout(resolve, 450));
+        const removedCount = getCopyTitleCount(item);
         item.remove();
+        if (removedCount > 0) {
+          updateCopyTitleStat(-removedCount);
+        }
         if (lastHighlightedName && !document.contains(lastHighlightedName)) {
           lastHighlightedName = null;
         }
@@ -826,6 +878,11 @@
         renderList(listDone, data.with_url);
         renderList(listTodo, data.without_url);
         updateCounts();
+        totalCopyTitleClicks = sumCopyTitleCounts([
+          ...(data.with_url || []),
+          ...(data.without_url || []),
+        ]);
+        updateCopyTitleStat();
 
         if (!data.total) {
           setBanner("No tracks found in new_tracks table.", "error");

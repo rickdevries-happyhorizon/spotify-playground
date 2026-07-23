@@ -248,10 +248,26 @@ def _ensure_new_tracks_energy_column(conn) -> None:
     conn.commit()
 
 
+def _ensure_new_tracks_copy_title_count_column(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'new_tracks' "
+            "AND COLUMN_NAME = 'copy_title_count'"
+        )
+        if cur.fetchone()["cnt"] == 0:
+            cur.execute(
+                "ALTER TABLE new_tracks ADD COLUMN copy_title_count INT UNSIGNED NOT NULL DEFAULT 0 "
+                "AFTER energy"
+            )
+    conn.commit()
+
+
 def _ensure_new_tracks_columns(conn) -> None:
     _ensure_new_tracks_genre_column(conn)
     _ensure_new_tracks_release_year_column(conn)
     _ensure_new_tracks_energy_column(conn)
+    _ensure_new_tracks_copy_title_count_column(conn)
 
 
 def load_new_tracks() -> List[Dict[str, Any]]:
@@ -261,7 +277,7 @@ def load_new_tracks() -> List[Dict[str, Any]]:
         _ensure_new_tracks_columns(conn)
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, track, reference_url, genre, release_year, energy "
+                "SELECT id, track, reference_url, genre, release_year, energy, copy_title_count "
                 "FROM new_tracks ORDER BY track ASC"
             )
             return [
@@ -272,6 +288,7 @@ def load_new_tracks() -> List[Dict[str, Any]]:
                     "genre": row.get("genre") or None,
                     "release_year": row.get("release_year") or None,
                     "energy": float(row["energy"]) if row.get("energy") is not None else None,
+                    "copy_title_count": int(row.get("copy_title_count") or 0),
                 }
                 for row in cur.fetchall()
             ]
@@ -295,6 +312,34 @@ def update_new_track_reference_url(track_id: int, reference_url: Optional[str]) 
     except Exception as e:
         conn.rollback()
         print(f"Error updating reference URL: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def increment_new_track_copy_title_count(track_id: int) -> Optional[int]:
+    """Increment copy_title_count for a track. Returns new count or None if not found."""
+    conn = get_connection()
+    try:
+        _ensure_new_tracks_columns(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE new_tracks SET copy_title_count = copy_title_count + 1 WHERE id = %s",
+                (track_id,),
+            )
+            if cur.rowcount == 0:
+                conn.rollback()
+                return None
+            cur.execute(
+                "SELECT copy_title_count FROM new_tracks WHERE id = %s",
+                (track_id,),
+            )
+            row = cur.fetchone()
+        conn.commit()
+        return int(row["copy_title_count"]) if row else None
+    except Exception as e:
+        conn.rollback()
+        print(f"Error incrementing copy title count: {e}")
         raise
     finally:
         conn.close()
@@ -394,6 +439,7 @@ def create_new_track(
             "reference_url": url,
             "genre": genre_value,
             "energy": energy_value,
+            "copy_title_count": 0,
         }
     except IntegrityError as e:
         conn.rollback()

@@ -10,6 +10,7 @@ from flask import Flask, jsonify, render_template, request
 from db_store import (
     create_new_track,
     delete_new_track,
+    increment_new_track_copy_title_count,
     load_new_tracks,
     normalize_reference_url,
     update_new_track_reference_url,
@@ -83,6 +84,18 @@ def create_app() -> Flask:
                 "has_url": bool(url),
             }
         )
+
+    @app.post("/api/tracks/<int:track_id>/copy-title")
+    def record_copy_title(track_id: int):
+        try:
+            count = increment_new_track_copy_title_count(track_id)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        if count is None:
+            return jsonify({"error": "Track not found"}), 404
+
+        return jsonify({"id": track_id, "copy_title_count": count})
 
     @app.delete("/api/tracks/<int:track_id>")
     def remove_track(track_id: int):
