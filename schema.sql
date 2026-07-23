@@ -78,3 +78,10 @@ CREATE TABLE IF NOT EXISTS genre_images (
 
 INSERT IGNORE INTO destination_config (singleton, playlist_ref_id) VALUES (1, NULL);
 INSERT IGNORE INTO tracking_start (singleton, start_date, last_updated) VALUES (1, NULL, NULL);
+
+CREATE TABLE IF NOT EXISTS app_config (
+  singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+  ui_skin VARCHAR(32) NOT NULL DEFAULT 'neon'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'neon');

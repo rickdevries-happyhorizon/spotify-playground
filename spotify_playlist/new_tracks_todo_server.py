@@ -7,13 +7,13 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
-from spotify_playlist.config import UI_SKIN
 from db_store import (
     create_new_track,
     delete_new_track,
     increment_new_track_copy_title_count,
     load_genre_images,
     load_new_tracks,
+    load_ui_skin,
     normalize_reference_url,
     resolve_genre_image,
     update_new_track_reference_url,
@@ -32,7 +32,7 @@ def create_app() -> Flask:
     )
 
     def _render_page():
-        return render_template("new_tracks_todo.html", ui_skin=UI_SKIN)
+        return render_template("new_tracks_todo.html", ui_skin=load_ui_skin())
 
     @app.get("/")
     def index():

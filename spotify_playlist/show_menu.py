@@ -14,17 +14,18 @@ def show_menu():
     print("  2. Import new tracks since specified date into database")
     print("  3. Download tracks to AIFF")
     print("  4. Manage playlist configuration")
+    print("  5. Manage UI skin")
     print("  0. Exit")
     print("\n" + "-"*60)
 
     while True:
         try:
-            choice = input("Enter your choice (0-4): ").strip()
-            if choice in ['0', '1', '2', '3', '4']:
+            choice = input("Enter your choice (0-5): ").strip()
+            if choice in ['0', '1', '2', '3', '4', '5']:
                 play_selection()
                 return int(choice)
             else:
-                print("❌ Invalid choice. Enter 0 through 4.")
+                print("❌ Invalid choice. Enter 0 through 5.")
         except KeyboardInterrupt:
             print("\n\nExiting...")
             sys.exit(0)

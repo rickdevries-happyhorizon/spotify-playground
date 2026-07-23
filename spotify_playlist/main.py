@@ -3,6 +3,7 @@ import sys
 import spotify_playlist.config as config
 from spotify_playlist.get_spotify_client import get_spotify_client
 from spotify_playlist.manage_playlists_config import manage_playlists_config
+from spotify_playlist.manage_ui_skin import manage_ui_skin
 from spotify_playlist.import_new_tracks_menu import run_import_new_tracks_menu
 from spotify_playlist.run_export_new_tracks import run_export_new_tracks
 from spotify_playlist.show_menu import show_menu
@@ -57,3 +58,5 @@ def main():
             )
         elif choice == 4:
             manage_playlists_config()
+        elif choice == 5:
+            manage_ui_skin()

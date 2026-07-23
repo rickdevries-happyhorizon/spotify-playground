@@ -66,11 +66,7 @@ final class Router
             return;
         }
 
-        $skin = env('UI_SKIN', 'neon') ?? 'neon';
-        $skin = strtolower(trim($skin));
-        if (!in_array($skin, ['neon', 'simple'], true)) {
-            $skin = 'neon';
-        }
+        $skin = AppConfig::loadUiSkin();
 
         $html = file_get_contents($template);
         if ($html === false) {

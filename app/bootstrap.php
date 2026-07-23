@@ -64,4 +64,5 @@ require_once __DIR__ . '/UrlNormalizer.php';
 require_once __DIR__ . '/TrackNormalizer.php';
 require_once __DIR__ . '/Db.php';
 require_once __DIR__ . '/TrackStore.php';
+require_once __DIR__ . '/AppConfig.php';
 require_once __DIR__ . '/Router.php';

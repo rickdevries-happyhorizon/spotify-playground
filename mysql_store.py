@@ -231,6 +231,68 @@ def save_tracking_start_date(start_date: Any) -> None:
         conn.close()
 
 
+_VALID_UI_SKINS = frozenset({"neon", "simple"})
+
+
+def _normalize_ui_skin(skin: Optional[str]) -> str:
+    value = (skin or "neon").strip().lower()
+    return value if value in _VALID_UI_SKINS else "neon"
+
+
+def _ensure_app_config_table(conn) -> None:
+    if _table_exists(conn, "app_config"):
+        return
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "CREATE TABLE app_config ("
+            "singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY, "
+            "ui_skin VARCHAR(32) NOT NULL DEFAULT 'neon'"
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        )
+        cur.execute(
+            "INSERT INTO app_config (singleton, ui_skin) VALUES (1, 'neon')"
+        )
+    conn.commit()
+
+
+def load_ui_skin() -> str:
+    conn = get_connection()
+    try:
+        _ensure_app_config_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT ui_skin FROM app_config WHERE singleton = 1 LIMIT 1"
+            )
+            row = cur.fetchone()
+            return _normalize_ui_skin((row or {}).get("ui_skin"))
+    except Exception as e:
+        print(f"Error loading UI skin: {e}")
+        return "neon"
+    finally:
+        conn.close()
+
+
+def save_ui_skin(skin: str) -> None:
+    normalized = _normalize_ui_skin(skin)
+    conn = get_connection()
+    try:
+        _ensure_app_config_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO app_config (singleton, ui_skin) VALUES (1, %s) "
+                "ON DUPLICATE KEY UPDATE ui_skin = VALUES(ui_skin)",
+                (normalized,),
+            )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error saving UI skin: {e}")
+        raise
+    finally:
+        conn.close()
+
+
 def _column_exists(conn, table_name: str, column_name: str) -> bool:
     with conn.cursor() as cur:
         cur.execute(
