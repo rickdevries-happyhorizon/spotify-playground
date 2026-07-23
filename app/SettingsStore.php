@@ -286,14 +286,13 @@ final class SettingsStore
             return null;
         }
 
-        $script = project_root() . '/spotify_playlist/lookup_playlist_cli.py';
-        if (!is_readable($script)) {
-            return null;
-        }
-
-        $command = escapeshellarg($python)
-            . ' ' . escapeshellarg($script)
-            . ' ' . escapeshellarg($rawId)
+        $root = project_root();
+        $command = 'cd '
+            . escapeshellarg($root)
+            . ' && '
+            . escapeshellarg($python)
+            . ' -m spotify_playlist.lookup_playlist_cli '
+            . escapeshellarg($rawId)
             . ' 2>/dev/null';
         $output = shell_exec($command);
         if (!is_string($output) || trim($output) === '') {
@@ -315,19 +314,19 @@ final class SettingsStore
             return null;
         }
 
-        $script = project_root() . '/spotify_playlist/resolve_playlists_cli.py';
-        if (!is_readable($script)) {
-            return null;
-        }
-
         $payload = json_encode(array_values($spotifyIds), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($payload === false) {
             return null;
         }
 
-        $command = 'printf %s ' . escapeshellarg($payload)
-            . ' | ' . escapeshellarg($python)
-            . ' ' . escapeshellarg($script)
+        $root = project_root();
+        $command = 'cd '
+            . escapeshellarg($root)
+            . ' && printf %s '
+            . escapeshellarg($payload)
+            . ' | '
+            . escapeshellarg($python)
+            . ' -m spotify_playlist.resolve_playlists_cli'
             . ' 2>/dev/null';
         $output = shell_exec($command);
         if (!is_string($output) || trim($output) === '') {
