@@ -2,12 +2,18 @@ const genreView = document.getElementById("genre-view");
 const genreHubView = document.getElementById("genre-hub-view");
 const tracksView = document.getElementById("tracks-view");
 const settingsView = document.getElementById("settings-view");
+const startView = document.getElementById("start-view");
+const statisticsView = document.getElementById("statistics-view");
+const appGrid = document.getElementById("app-grid");
+const statsSummary = document.getElementById("stats-summary");
+const statsGenreBody = document.getElementById("stats-genre-body");
 const genreGrid = document.getElementById("genre-grid");
 const filterGrid = document.getElementById("filter-grid");
 const pageTitle = document.getElementById("page-title");
 const pageSubtitle = document.getElementById("page-subtitle");
 const pageCover = document.getElementById("page-cover");
-const backLink = document.getElementById("back-link");
+const breadcrumbsBar = document.getElementById("breadcrumbs-bar");
+const breadcrumbsList = document.getElementById("breadcrumbs-list");
 const settingsLink = document.getElementById("settings-link");
 const settingsForm = document.getElementById("settings-form");
 const settingsDock = document.getElementById("settings-dock");
@@ -28,7 +34,31 @@ const copyToastEl = document.getElementById("copy-toast");
 const bannerEl = document.getElementById("banner");
 const FILTER_WITH_URL = "with-url";
 const FILTER_WITHOUT_URL = "without-url";
+const START_PATH = "/";
+const TODO_PATH = "/todo";
+const STATISTICS_PATH = "/statistics";
 const SETTINGS_PATH = "/settings";
+const APP_NAME = "Release Finder";
+const FILTER_LABELS = {
+  [FILTER_WITH_URL]: "Has reference URL",
+  [FILTER_WITHOUT_URL]: "Needs reference URL",
+};
+const APP_MODULES = [
+  {
+    label: "Track to-do list",
+    description: "Manage reference URLs for new tracks by genre.",
+    icon: "✓",
+    path: TODO_PATH,
+    className: "app-card--todo",
+  },
+  {
+    label: "Statistics",
+    description: "Overview of tracks, completion, and activity.",
+    icon: "📊",
+    path: STATISTICS_PATH,
+    className: "app-card--stats",
+  },
+];
 let statusTimer = null;
 let copyToastTimer = null;
 let lastHighlightedName = null;
@@ -37,7 +67,7 @@ let currentFilter = null;
 let cachedTracks = { with_url: [], without_url: [] };
 let knownGenres = [];
 let genreImageBySlug = {};
-let currentView = "home";
+let currentView = "start";
 const sourcePlaylistCount = document.getElementById("source-playlist-count");
 const trackingPlaylistCount = document.getElementById("tracking-playlist-count");
 const playlistLookupTimers = new WeakMap();
@@ -245,30 +275,59 @@ function resolveGenreSlug(urlSlug) {
 }
 
 function genrePath(slug, filter = null) {
-  const base = `/${toUrlSlug(slug)}`;
+  const base = `${TODO_PATH}/${toUrlSlug(slug)}`;
   if (filter === FILTER_WITH_URL) return `${base}/${FILTER_WITH_URL}`;
   if (filter === FILTER_WITHOUT_URL) return `${base}/${FILTER_WITHOUT_URL}`;
   return base;
 }
 
 function parsePath(pathname) {
-  const path = pathname.replace(/\/+$/, "") || "/";
+  const path = pathname.replace(/\/+$/, "") || START_PATH;
   if (path === SETTINGS_PATH) {
     return { view: "settings", genre: null, filter: null };
   }
-  if (path === "/") {
+  if (path === STATISTICS_PATH) {
+    return { view: "statistics", genre: null, filter: null };
+  }
+  if (path === START_PATH) {
+    return { view: "start", genre: null, filter: null };
+  }
+  if (path === TODO_PATH) {
     return { view: "home", genre: null, filter: null };
   }
 
-  const segments = path.slice(1).split("/").map((segment) => decodeURIComponent(segment.replace(/\+/g, " ")));
-  const last = segments[segments.length - 1];
-
-  if (last === FILTER_WITH_URL || last === FILTER_WITHOUT_URL) {
-    const genre = segments.slice(0, -1).join("/");
-    return { view: "tracks", genre: genre || null, filter: last };
+  let segments;
+  let usesTodoPrefix = false;
+  if (path.startsWith(`${TODO_PATH}/`)) {
+    usesTodoPrefix = true;
+    segments = path
+      .slice(TODO_PATH.length + 1)
+      .split("/")
+      .map((segment) => decodeURIComponent(segment.replace(/\+/g, " ")));
+  } else {
+    segments = path
+      .slice(1)
+      .split("/")
+      .map((segment) => decodeURIComponent(segment.replace(/\+/g, " ")));
   }
 
-  return { view: "genre", genre: segments.join("/"), filter: null };
+  const last = segments[segments.length - 1];
+  if (last === FILTER_WITH_URL || last === FILTER_WITHOUT_URL) {
+    const genre = segments.slice(0, -1).join("/");
+    return {
+      view: "tracks",
+      genre: genre || null,
+      filter: last,
+      legacy: !usesTodoPrefix,
+    };
+  }
+
+  return {
+    view: "genre",
+    genre: segments.join("/"),
+    filter: null,
+    legacy: !usesTodoPrefix,
+  };
 }
 
 async function ensureKnownGenres() {
@@ -288,11 +347,291 @@ function normalizeRoutePath(genre, filter = null) {
   }
 }
 
+function setSettingsLinkActive(active) {
+  settingsLink.classList.toggle("settings-link--active", active);
+  if (active) {
+    settingsLink.setAttribute("aria-current", "page");
+  } else {
+    settingsLink.removeAttribute("aria-current");
+  }
+}
+
 function hideAllViews() {
+  startView.hidden = true;
   genreView.hidden = true;
   genreHubView.hidden = true;
   tracksView.hidden = true;
   settingsView.hidden = true;
+  statisticsView.hidden = true;
+}
+
+function handleAppModuleClick(event, path) {
+  event.preventDefault();
+  if (path === TODO_PATH) {
+    navigateToTodo();
+    return;
+  }
+  if (path === STATISTICS_PATH) {
+    navigateToStatistics();
+  }
+}
+
+function renderStartScreen() {
+  if (appGrid.childElementCount) return;
+
+  for (const module of APP_MODULES) {
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.className = `app-card ${module.className}`;
+    link.href = module.path;
+    link.innerHTML = `
+      <span class="app-card__icon" aria-hidden="true">${module.icon}</span>
+      <span class="app-card__body">
+        <span class="app-card__name">${escapeHtml(module.label)}</span>
+        <span class="app-card__desc">${escapeHtml(module.description)}</span>
+      </span>
+    `;
+    link.addEventListener("click", (event) => handleAppModuleClick(event, module.path));
+    item.appendChild(link);
+    appGrid.appendChild(item);
+  }
+}
+
+function formatPercent(value) {
+  if (!Number.isFinite(value)) return "—";
+  return `${Math.round(value)}%`;
+}
+
+function formatEnergy(value) {
+  if (value == null || !Number.isFinite(Number(value))) return "—";
+  return Number(value).toFixed(2);
+}
+
+function renderStatistics({ genres, withUrl, withoutUrl }) {
+  const total = withUrl.length + withoutUrl.length;
+  const completion = total ? (withUrl.length / total) * 100 : 0;
+  const copyClicks = [...withUrl, ...withoutUrl].reduce(
+    (sum, track) => sum + Number(track.copy_title_count || 0),
+    0
+  );
+  const energyValues = [...withUrl, ...withoutUrl]
+    .map((track) => track.energy)
+    .filter((value) => value != null && Number.isFinite(Number(value)));
+  const avgEnergy = energyValues.length
+    ? energyValues.reduce((sum, value) => sum + Number(value), 0) / energyValues.length
+    : null;
+
+  statsSummary.innerHTML = `
+    <article class="stats-card">
+      <span class="stats-card__label">Total tracks</span>
+      <strong class="stats-card__value">${total}</strong>
+    </article>
+    <article class="stats-card stats-card--done">
+      <span class="stats-card__label">Has reference URL</span>
+      <strong class="stats-card__value">${withUrl.length}</strong>
+    </article>
+    <article class="stats-card stats-card--todo">
+      <span class="stats-card__label">Needs reference URL</span>
+      <strong class="stats-card__value">${withoutUrl.length}</strong>
+    </article>
+    <article class="stats-card">
+      <span class="stats-card__label">Completion</span>
+      <strong class="stats-card__value">${formatPercent(completion)}</strong>
+    </article>
+    <article class="stats-card">
+      <span class="stats-card__label">Title copy clicks</span>
+      <strong class="stats-card__value">${copyClicks}</strong>
+    </article>
+    <article class="stats-card">
+      <span class="stats-card__label">Average energy</span>
+      <strong class="stats-card__value">${formatEnergy(avgEnergy)}</strong>
+    </article>
+  `;
+
+  const genreStats = new Map();
+  for (const track of withUrl) {
+    const genre = (track.genre || "").trim() || "Uncategorized";
+    const entry = genreStats.get(genre) || { withUrl: 0, withoutUrl: 0 };
+    entry.withUrl += 1;
+    genreStats.set(genre, entry);
+  }
+  for (const track of withoutUrl) {
+    const genre = (track.genre || "").trim() || "Uncategorized";
+    const entry = genreStats.get(genre) || { withUrl: 0, withoutUrl: 0 };
+    entry.withoutUrl += 1;
+    genreStats.set(genre, entry);
+  }
+
+  const genreOrder = (genres || []).map((genre) => genre.label);
+  for (const genre of genreStats.keys()) {
+    if (!genreOrder.includes(genre)) {
+      genreOrder.push(genre);
+    }
+  }
+
+  statsGenreBody.replaceChildren();
+  if (!genreOrder.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.className = "stats-table__empty";
+    cell.textContent = "No tracks found.";
+    row.appendChild(cell);
+    statsGenreBody.appendChild(row);
+    return;
+  }
+
+  for (const genre of genreOrder) {
+    const entry = genreStats.get(genre);
+    if (!entry) continue;
+    const genreTotal = entry.withUrl + entry.withoutUrl;
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <th scope="row">${escapeHtml(genre)}</th>
+      <td>${genreTotal}</td>
+      <td>${entry.withUrl}</td>
+      <td>${entry.withoutUrl}</td>
+      <td>${formatPercent(genreTotal ? (entry.withUrl / genreTotal) * 100 : 0)}</td>
+    `;
+    statsGenreBody.appendChild(row);
+  }
+}
+
+async function loadStatistics() {
+  setBanner("Loading statistics…", "loading");
+  try {
+    const [genresResponse, tracksResponse] = await Promise.all([
+      fetch("/api/genres"),
+      fetch("/api/tracks"),
+    ]);
+    const genresData = await genresResponse.json().catch(() => ({}));
+    const tracksData = await tracksResponse.json().catch(() => ({}));
+    if (!genresResponse.ok) {
+      throw new Error(genresData.error || "Could not load genres");
+    }
+    if (!tracksResponse.ok) {
+      throw new Error(tracksData.error || "Could not load tracks");
+    }
+
+    renderStatistics({
+      genres: genresData.genres || [],
+      withUrl: tracksData.with_url || [],
+      withoutUrl: tracksData.without_url || [],
+    });
+    setBanner("");
+  } catch (error) {
+    setBanner(`Failed to load statistics: ${error.message}`, "error");
+    showStatus(error.message, "error");
+  }
+}
+
+function handleBreadcrumbClick(event, href) {
+  event.preventDefault();
+  if (href === START_PATH) {
+    navigateToStart();
+    return;
+  }
+  if (href === TODO_PATH) {
+    navigateToTodo();
+    return;
+  }
+  if (href === STATISTICS_PATH) {
+    navigateToStatistics();
+    return;
+  }
+  if (href === SETTINGS_PATH) {
+    navigateToSettings();
+    return;
+  }
+
+  const { genre: urlSlug, filter } = parsePath(href);
+  const genre = resolveGenreSlug(urlSlug);
+  if (!genre) {
+    navigateToTodo();
+    return;
+  }
+  if (filter) {
+    navigateToFilter(genre, filter);
+    return;
+  }
+  navigateToGenre(genre);
+}
+
+function createBreadcrumbItem(label, href, { current = false } = {}) {
+  const item = document.createElement("li");
+  item.className = "breadcrumbs__item";
+
+  if (current) {
+    item.classList.add("breadcrumbs__item--current");
+    item.setAttribute("aria-current", "page");
+    const currentEl = document.createElement("span");
+    currentEl.className = "breadcrumbs__current";
+    currentEl.textContent = label;
+    item.appendChild(currentEl);
+    return item;
+  }
+
+  const link = document.createElement("a");
+  link.className = "breadcrumbs__link";
+  link.href = href;
+  link.textContent = label;
+  link.addEventListener("click", (event) => handleBreadcrumbClick(event, href));
+  item.appendChild(link);
+  return item;
+}
+
+function updateBreadcrumbs() {
+  breadcrumbsList.replaceChildren();
+
+  if (currentView === "start") {
+    breadcrumbsBar.hidden = true;
+    return;
+  }
+
+  breadcrumbsBar.hidden = false;
+  const crumbs = [{ label: "Home", href: START_PATH }];
+
+  if (currentView === "settings") {
+    crumbs.push({ label: "Settings", href: SETTINGS_PATH, current: true });
+  } else if (currentView === "statistics") {
+    crumbs.push({ label: "Statistics", href: STATISTICS_PATH, current: true });
+  } else if (currentView === "home") {
+    crumbs.push({ label: "Track to-do", href: TODO_PATH, current: true });
+  } else if (currentView === "genre" && currentGenre) {
+    crumbs.push({ label: "Track to-do", href: TODO_PATH });
+    crumbs.push({ label: currentGenre, href: genrePath(currentGenre), current: true });
+  } else if (currentView === "tracks" && currentGenre) {
+    crumbs.push({ label: "Track to-do", href: TODO_PATH });
+    crumbs.push({ label: currentGenre, href: genrePath(currentGenre) });
+    crumbs.push({
+      label: FILTER_LABELS[currentFilter] || currentFilter,
+      href: genrePath(currentGenre, currentFilter),
+      current: true,
+    });
+  }
+
+  for (const crumb of crumbs) {
+    breadcrumbsList.appendChild(
+      createBreadcrumbItem(crumb.label, crumb.href, { current: Boolean(crumb.current) })
+    );
+  }
+}
+
+function showStartView() {
+  restoreSettingsSkinIfNeeded();
+  currentView = "start";
+  currentGenre = null;
+  currentFilter = null;
+  document.title = APP_NAME;
+  pageTitle.textContent = APP_NAME;
+  pageSubtitle.textContent = "Choose a tool to get started.";
+  setPageCover(null);
+  setSettingsLinkActive(false);
+  hideAllViews();
+  startView.hidden = false;
+  renderStartScreen();
+  setBanner("");
+  updateBreadcrumbs();
 }
 
 function showGenreView() {
@@ -300,32 +639,43 @@ function showGenreView() {
   currentView = "home";
   currentGenre = null;
   currentFilter = null;
-  document.title = "New Tracks To-Do";
-  pageTitle.textContent = "New Tracks To-Do";
+  document.title = `Track to-do — ${APP_NAME}`;
+  pageTitle.textContent = "Track to-do";
   pageSubtitle.textContent = "Choose a genre to manage reference URLs for its tracks.";
   setPageCover(null);
-  backLink.hidden = true;
-  backLink.textContent = "← All genres";
-  backLink.href = "/";
-  settingsLink.hidden = false;
+  setSettingsLinkActive(false);
   hideAllViews();
   genreView.hidden = false;
+  updateBreadcrumbs();
+}
+
+function showStatisticsView() {
+  restoreSettingsSkinIfNeeded();
+  currentView = "statistics";
+  currentGenre = null;
+  currentFilter = null;
+  document.title = `Statistics — ${APP_NAME}`;
+  pageTitle.textContent = "Statistics";
+  pageSubtitle.textContent = "Overview of your new tracks and reference URL progress.";
+  setPageCover(null);
+  setSettingsLinkActive(false);
+  hideAllViews();
+  statisticsView.hidden = false;
+  updateBreadcrumbs();
 }
 
 function showSettingsView() {
   currentView = "settings";
   currentGenre = null;
   currentFilter = null;
-  document.title = "Settings — New Tracks To-Do";
+  document.title = `Settings — ${APP_NAME}`;
   pageTitle.textContent = "Settings";
   pageSubtitle.textContent = "Customize your sync workflow and visual style.";
   setPageCover(null);
-  backLink.hidden = false;
-  backLink.textContent = "← Back to genres";
-  backLink.href = "/";
-  settingsLink.hidden = true;
+  setSettingsLinkActive(true);
   hideAllViews();
   settingsView.hidden = false;
+  updateBreadcrumbs();
 }
 
 function formatPlaylistCount(count) {
@@ -359,16 +709,14 @@ function showGenreHub(genre) {
   currentView = "genre";
   currentGenre = genre;
   currentFilter = null;
-  document.title = `${genre} — New Tracks To-Do`;
+  document.title = `${genre} — Track to-do — ${APP_NAME}`;
   pageTitle.textContent = genre;
   pageSubtitle.textContent = "Choose whether to view tracks with or without a reference URL.";
   setPageCover(genreImageBySlug[genre] || null);
-  backLink.hidden = false;
-  backLink.textContent = "← All genres";
-  backLink.href = "/";
-  settingsLink.hidden = false;
+  setSettingsLinkActive(false);
   hideAllViews();
   genreHubView.hidden = false;
+  updateBreadcrumbs();
 }
 
 function showTracksView(genre, filter) {
@@ -379,17 +727,15 @@ function showTracksView(genre, filter) {
   const filterLabel = filter === FILTER_WITH_URL
     ? "tracks with a reference URL"
     : "tracks still missing a reference URL";
-  document.title = `${genre} — New Tracks To-Do`;
+  document.title = `${genre} — Track to-do — ${APP_NAME}`;
   pageTitle.textContent = genre;
   pageSubtitle.textContent = `Showing ${filterLabel}.`;
   setPageCover(genreImageBySlug[genre] || null);
-  backLink.hidden = false;
-  backLink.textContent = "← Back to lists";
-  backLink.href = genrePath(genre);
-  settingsLink.hidden = false;
+  setSettingsLinkActive(false);
   hideAllViews();
   tracksView.hidden = false;
   applyFilterView();
+  updateBreadcrumbs();
 }
 
 function applyFilterView() {
@@ -456,15 +802,36 @@ function navigateToFilter(genre, filter, { replace = false } = {}) {
   }
 }
 
-function navigateHome({ replace = false } = {}) {
+function navigateToStart({ replace = false } = {}) {
+  const state = { view: "start", genre: null, filter: null };
+  if (replace) {
+    history.replaceState(state, "", START_PATH);
+  } else {
+    history.pushState(state, "", START_PATH);
+  }
+  showStartView();
+}
+
+function navigateToTodo({ replace = false } = {}) {
   const state = { view: "home", genre: null, filter: null };
   if (replace) {
-    history.replaceState(state, "", "/");
+    history.replaceState(state, "", TODO_PATH);
   } else {
-    history.pushState(state, "", "/");
+    history.pushState(state, "", TODO_PATH);
   }
   showGenreView();
   loadGenres();
+}
+
+function navigateToStatistics({ replace = false } = {}) {
+  const state = { view: "statistics", genre: null, filter: null };
+  if (replace) {
+    history.replaceState(state, "", STATISTICS_PATH);
+  } else {
+    history.pushState(state, "", STATISTICS_PATH);
+  }
+  showStatisticsView();
+  loadStatistics();
 }
 
 function navigateToSettings({ replace = false } = {}) {
@@ -566,7 +933,7 @@ async function saveSettings(event) {
 
 function navigateToGenreHub({ replace = false } = {}) {
   if (!currentGenre) {
-    navigateHome({ replace });
+    navigateToTodo({ replace });
     return;
   }
   const path = genrePath(currentGenre);
@@ -1183,7 +1550,16 @@ async function bootFromPath() {
     loadSettings();
     return;
   }
-  if (view === "home" || !urlSlug) {
+  if (view === "statistics") {
+    showStatisticsView();
+    loadStatistics();
+    return;
+  }
+  if (view === "start") {
+    showStartView();
+    return;
+  }
+  if (view === "home") {
     showGenreView();
     loadGenres();
     return;
@@ -1213,19 +1589,6 @@ async function bootFromPath() {
 }
 
 bootFromPath();
-
-backLink.addEventListener("click", (event) => {
-  event.preventDefault();
-  if (currentView === "settings") {
-    navigateHome();
-  } else if (currentFilter) {
-    navigateToGenreHub();
-  } else if (currentGenre) {
-    navigateHome();
-  } else {
-    navigateHome();
-  }
-});
 
 settingsLink.addEventListener("click", (event) => {
   event.preventDefault();
@@ -1292,7 +1655,18 @@ window.addEventListener("popstate", async (event) => {
     return;
   }
 
-  if (view === "home" || !urlSlug) {
+  if (view === "statistics") {
+    showStatisticsView();
+    loadStatistics();
+    return;
+  }
+
+  if (view === "start") {
+    showStartView();
+    return;
+  }
+
+  if (view === "home") {
     showGenreView();
     loadGenres();
     return;

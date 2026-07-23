@@ -74,27 +74,17 @@ final class Router
 
     private static function servePage(): void
     {
-        $template = project_root() . '/spotify_playlist/templates/new_tracks_todo.html';
-        if (!is_readable($template)) {
+        try {
+            $renderer = new TemplateRenderer(
+                project_root() . '/spotify_playlist/templates',
+                ['ui_skin' => AppConfig::loadUiSkin()]
+            );
+            $html = $renderer->render('new_tracks_todo.html');
+        } catch (Throwable $e) {
             http_response_code(500);
-            echo 'Template not found.';
+            echo 'Template error: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
             return;
         }
-
-        $skin = AppConfig::loadUiSkin();
-
-        $html = file_get_contents($template);
-        if ($html === false) {
-            http_response_code(500);
-            echo 'Template not found.';
-            return;
-        }
-
-        $html = str_replace(
-            '<html lang="en" data-skin="{{ ui_skin }}">',
-            '<html lang="en" data-skin="' . htmlspecialchars($skin, ENT_QUOTES, 'UTF-8') . '">',
-            $html
-        );
 
         header('Content-Type: text/html; charset=UTF-8');
         echo $html;
