@@ -4,7 +4,7 @@ import os
 import re
 import shutil
 import subprocess
-from typing import Optional
+from typing import Callable, Optional
 
 from db_store import delete_new_track, load_new_tracks
 from spotify_playlist.action_sound import play_action_done
@@ -260,10 +260,20 @@ def download_youtube_tracks(
     *,
     overwrite: bool = False,
     tag_metadata: bool = True,
+    on_progress: Callable[[dict], None] | None = None,
 ) -> tuple[int, int]:
     """Download tracks from the app. Successfully downloaded rows are removed from the database."""
     success_count = 0
     error_count = 0
+
+    if on_progress:
+        on_progress(
+            {
+                "phase": "starting",
+                "track_total": len(tracks),
+                "message": f"Downloading {len(tracks)} track(s)…",
+            }
+        )
 
     for index, track in enumerate(tracks, start=1):
         track_name = track.get('track', 'unknown')
@@ -273,6 +283,18 @@ def download_youtube_tracks(
             f"{Colors.BRIGHT_CYAN}{track_name}{Colors.RESET}"
         )
         print(f"    {Colors.DIM}{url}{Colors.RESET}")
+        if on_progress:
+            on_progress(
+                {
+                    "phase": "downloading",
+                    "track_index": index,
+                    "track_total": len(tracks),
+                    "track_name": track_name,
+                    "success_count": success_count,
+                    "error_count": error_count,
+                    "message": f"Downloading {track_name} ({index}/{len(tracks)})",
+                }
+            )
         try:
             audio_path = download_youtube_to_aiff(
                 url,
@@ -309,6 +331,19 @@ def download_youtube_tracks(
         except Exception as exc:
             print(f"    {Colors.BRIGHT_RED}❌ Error: {exc}{Colors.RESET}")
             error_count += 1
+
+        if on_progress:
+            on_progress(
+                {
+                    "phase": "downloading",
+                    "track_index": index,
+                    "track_total": len(tracks),
+                    "track_name": track_name,
+                    "success_count": success_count,
+                    "error_count": error_count,
+                    "message": f"Downloaded {success_count}, failed {error_count}",
+                }
+            )
 
     if success_count:
         play_action_done()

@@ -36,6 +36,16 @@ final class Router
             return;
         }
 
+        if ($path === '/api/download/tracks' && $method === 'POST') {
+            self::startTrackDownload();
+            return;
+        }
+
+        if (preg_match('#^/api/download/tracks/([a-f0-9-]+)$#', $path, $matches) === 1 && $method === 'GET') {
+            self::trackDownloadStatus($matches[1]);
+            return;
+        }
+
         if ($path === '/api/tracks' && $method === 'GET') {
             self::listTracks();
             return;
@@ -206,6 +216,45 @@ final class Router
 
         if ($job === null) {
             self::json(['error' => 'Import job not found'], 404);
+            return;
+        }
+
+        self::json($job);
+    }
+
+    private static function startTrackDownload(): void
+    {
+        try {
+            self::json(DownloadStore::start(), 202);
+        } catch (InvalidArgumentException $e) {
+            self::json(['error' => $e->getMessage()], 400);
+        } catch (Throwable $e) {
+            $message = $e->getMessage();
+            $status = 500;
+            if (
+                stripos($message, 'yt-dlp') !== false
+                || stripos($message, 'ffmpeg') !== false
+            ) {
+                $status = 503;
+            }
+            self::json(['error' => $message], $status);
+        }
+    }
+
+    private static function trackDownloadStatus(string $jobId): void
+    {
+        try {
+            $job = DownloadStore::status($jobId);
+        } catch (InvalidArgumentException $e) {
+            self::json(['error' => $e->getMessage()], 400);
+            return;
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+            return;
+        }
+
+        if ($job === null) {
+            self::json(['error' => 'Download job not found'], 404);
             return;
         }
 

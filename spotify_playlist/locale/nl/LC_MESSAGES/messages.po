@@ -486,3 +486,21 @@ msgstr "Instellingen — {app_name}"
 
 msgid "{genre} — Track to-do — {app_name}"
 msgstr "{genre} — Track to-do — {app_name}"
+
+msgid "YouTube download"
+msgstr "YouTube-download"
+
+msgid "Downloading tracks"
+msgstr "Tracks downloaden"
+
+msgid "Preparing download…"
+msgstr "Download voorbereiden…"
+
+msgid "Current track"
+msgstr "Huidige track"
+
+msgid "Download tracks"
+msgstr "Tracks downloaden"
+
+msgid "Download again"
+msgstr "Opnieuw downloaden"

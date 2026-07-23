@@ -24,6 +24,24 @@ const fetchErrorMessage = document.getElementById("fetch-error-message");
 const fetchParticles = document.getElementById("fetch-particles");
 const fetchRunAgainBtn = document.getElementById("fetch-run-again");
 const fetchRetryBtn = document.getElementById("fetch-retry");
+const downloadView = document.getElementById("download-view");
+const downloadTitle = document.getElementById("download-title");
+const downloadMessage = document.getElementById("download-message");
+const downloadProgressBar = document.getElementById("download-progress-bar");
+const downloadProgressGlow = document.getElementById("download-progress-glow");
+const downloadProgressWrap = downloadView?.querySelector(".fetch-progress-wrap");
+const downloadProgressLabel = document.getElementById("download-progress-label");
+const downloadProgressPercent = document.getElementById("download-progress-percent");
+const downloadTrackCard = document.getElementById("download-track-card");
+const downloadTrackName = document.getElementById("download-track-name");
+const downloadSteps = document.getElementById("download-steps");
+const downloadResult = document.getElementById("download-result");
+const downloadResultStats = document.getElementById("download-result-stats");
+const downloadError = document.getElementById("download-error");
+const downloadErrorMessage = document.getElementById("download-error-message");
+const downloadParticles = document.getElementById("download-particles");
+const downloadRunAgainBtn = document.getElementById("download-run-again");
+const downloadRetryBtn = document.getElementById("download-retry");
 const appGrid = document.getElementById("app-grid");
 const statsSummary = document.getElementById("stats-summary");
 const statsGenreBody = document.getElementById("stats-genre-body");
@@ -57,6 +75,7 @@ const FILTER_WITHOUT_URL = "without-url";
 const START_PATH = "/";
 const TODO_PATH = "/todo";
 const FETCH_PATH = "/fetch";
+const DOWNLOAD_PATH = "/download";
 const STATISTICS_PATH = "/statistics";
 const SETTINGS_PATH = "/settings";
 const APP_NAME = () => t("Release Finder");
@@ -79,6 +98,13 @@ function getAppModules() {
       icon: "↓",
       path: FETCH_PATH,
       className: "app-card--fetch",
+    },
+    {
+      label: t("Download to AIFF"),
+      description: t("Download tracks with YouTube URLs as AIFF files. Completed tracks are removed from your to-do list."),
+      icon: "♫",
+      path: DOWNLOAD_PATH,
+      className: "app-card--download",
     },
     {
       label: t("Statistics"),
@@ -112,11 +138,18 @@ let fetchDisplayPercent = 0;
 let fetchTargetPercent = 0;
 let pendingSuccessJob = null;
 let lastFetchJobSnapshot = null;
+let downloadPollTimer = null;
+let downloadProgressRaf = null;
+let activeDownloadJobId = null;
+let downloadStartedAt = 0;
+let downloadDisplayPercent = 0;
+let downloadTargetPercent = 0;
 
 const FETCH_MIN_DURATION_MS = window.matchMedia("(prefers-reduced-motion: reduce)").matches
   ? 0
   : 6500;
 const FETCH_POLL_MS = 500;
+const DOWNLOAD_POLL_MS = 500;
 const FETCH_PHASE_PROGRESS = {
   queued: 4,
   starting: 8,
@@ -350,6 +383,9 @@ function parsePath(pathname) {
   if (path === FETCH_PATH) {
     return { view: "fetch", genre: null, filter: null };
   }
+  if (path === DOWNLOAD_PATH) {
+    return { view: "download", genre: null, filter: null };
+  }
   if (path === START_PATH) {
     return { view: "start", genre: null, filter: null };
   }
@@ -425,6 +461,7 @@ function hideAllViews() {
   settingsView.hidden = true;
   statisticsView.hidden = true;
   fetchView.hidden = true;
+  if (downloadView) downloadView.hidden = true;
 }
 
 function handleAppModuleClick(event, path) {
@@ -435,6 +472,10 @@ function handleAppModuleClick(event, path) {
   }
   if (path === FETCH_PATH) {
     navigateToFetch();
+    return;
+  }
+  if (path === DOWNLOAD_PATH) {
+    navigateToDownload();
     return;
   }
   if (path === STATISTICS_PATH) {
@@ -609,6 +650,10 @@ function handleBreadcrumbClick(event, href) {
     navigateToFetch();
     return;
   }
+  if (href === DOWNLOAD_PATH) {
+    navigateToDownload();
+    return;
+  }
   if (href === SETTINGS_PATH) {
     navigateToSettings();
     return;
@@ -667,6 +712,8 @@ function updateBreadcrumbs() {
     crumbs.push({ label: t("Statistics"), href: STATISTICS_PATH, current: true });
   } else if (currentView === "fetch") {
     crumbs.push({ label: t("Fetch tracks"), href: FETCH_PATH, current: true });
+  } else if (currentView === "download") {
+    crumbs.push({ label: t("Download to AIFF"), href: DOWNLOAD_PATH, current: true });
   } else if (currentView === "home") {
     crumbs.push({ label: t("Track to-do"), href: TODO_PATH, current: true });
   } else if (currentView === "genre" && currentGenre) {
@@ -1213,6 +1260,303 @@ function navigateToFetch({ replace = false } = {}) {
     history.pushState(state, "", FETCH_PATH);
   }
   showFetchView();
+}
+
+function renderDownloadParticles() {
+  if (!downloadParticles || downloadParticles.childElementCount) return;
+  for (let i = 0; i < 10; i += 1) {
+    const particle = document.createElement("li");
+    particle.className = "fetch-particle";
+    particle.style.left = `${12 + Math.random() * 76}%`;
+    particle.style.top = `${12 + Math.random() * 76}%`;
+    particle.style.animationDelay = `${Math.random() * 1.8}s`;
+    downloadParticles.appendChild(particle);
+  }
+}
+
+function resetDownloadScreen() {
+  stopDownloadPolling();
+  stopDownloadProgressAnimation();
+  activeDownloadJobId = null;
+  downloadStartedAt = 0;
+  downloadDisplayPercent = 0;
+  downloadTargetPercent = 0;
+  downloadView.classList.remove("is-success", "is-error");
+  downloadTitle.textContent = t("Downloading tracks");
+  downloadMessage.textContent = t("Preparing download…");
+  downloadProgressBar.style.width = "0%";
+  downloadProgressGlow.style.left = "0%";
+  downloadProgressWrap?.classList.add("is-active");
+  downloadProgressLabel.textContent = t("Starting…");
+  downloadProgressPercent.textContent = "0%";
+  downloadTrackCard.hidden = true;
+  downloadResult.hidden = true;
+  downloadError.hidden = true;
+  downloadResultStats.innerHTML = "";
+  for (const step of downloadSteps.querySelectorAll(".fetch-step")) {
+    step.classList.remove("is-active", "is-done");
+  }
+  downloadSteps.querySelector('[data-step="starting"]')?.classList.add("is-active");
+}
+
+function setDownloadStepState(phase) {
+  const stepGroups = {
+    starting: ["starting"],
+    downloading: ["starting", "downloading"],
+    done: ["starting", "downloading", "done"],
+    error: ["starting", "downloading", "done"],
+  };
+  const activeKeys = new Set(stepGroups[phase] || ["starting"]);
+  const order = ["starting", "downloading", "done"];
+  let reachedActive = false;
+
+  for (const key of order) {
+    const step = downloadSteps.querySelector(`[data-step="${key}"]`);
+    if (!step) continue;
+    step.classList.remove("is-active", "is-done");
+    if (activeKeys.has(key)) {
+      if (!reachedActive) {
+        step.classList.add("is-active");
+        reachedActive = true;
+      } else {
+        step.classList.add("is-done");
+      }
+    } else if (phase === "done") {
+      step.classList.add("is-done");
+    }
+  }
+}
+
+function computeDownloadPercent(job) {
+  const phase = job.phase || "starting";
+  if (phase === "starting" || phase === "queued") {
+    return 8;
+  }
+  if (phase === "done") {
+    return 100;
+  }
+
+  const index = Number(job.track_index || 0);
+  const total = Number(job.track_total || 1);
+  const sliceStart = 12;
+  const sliceEnd = 96;
+  const progress = total ? Math.min(1, Math.max(0, index / total)) : 0;
+  return Math.round(sliceStart + (sliceEnd - sliceStart) * progress);
+}
+
+function stopDownloadProgressAnimation() {
+  if (downloadProgressRaf) {
+    cancelAnimationFrame(downloadProgressRaf);
+    downloadProgressRaf = null;
+  }
+}
+
+function startDownloadProgressAnimation() {
+  stopDownloadProgressAnimation();
+
+  const tick = () => {
+    if (downloadDisplayPercent < downloadTargetPercent) {
+      const delta = Math.max(0.35, (downloadTargetPercent - downloadDisplayPercent) * 0.08);
+      downloadDisplayPercent = Math.min(downloadTargetPercent, downloadDisplayPercent + delta);
+    }
+
+    downloadProgressBar.style.width = `${downloadDisplayPercent}%`;
+    downloadProgressGlow.style.left = `${downloadDisplayPercent}%`;
+    downloadProgressPercent.textContent = `${Math.round(downloadDisplayPercent)}%`;
+    downloadProgressRaf = requestAnimationFrame(tick);
+  };
+
+  downloadProgressRaf = requestAnimationFrame(tick);
+}
+
+function updateDownloadProgress(job) {
+  const percent = computeDownloadPercent(job);
+  downloadTargetPercent = Math.max(downloadTargetPercent, percent);
+  downloadProgressLabel.textContent = job.message || t("Working…");
+  downloadMessage.textContent = job.message || t("Working…");
+  setDownloadStepState(job.phase || "starting");
+
+  if (job.track_name) {
+    downloadTrackCard.hidden = false;
+    downloadTrackName.textContent = job.track_name;
+  }
+}
+
+function renderDownloadSuccess(job) {
+  downloadView.classList.add("is-success");
+  downloadView.classList.remove("is-error");
+  downloadTitle.textContent = t("Download complete");
+
+  const successCount = Number(job.success_count ?? job.result?.success_count ?? 0);
+  const errorCount = Number(job.error_count ?? job.result?.error_count ?? 0);
+  const total = Number(job.track_total ?? successCount + errorCount);
+
+  if (successCount > 0) {
+    downloadMessage.textContent = tn(
+      "1 track downloaded as AIFF.",
+      "{count} tracks downloaded as AIFF.",
+      successCount
+    );
+  } else {
+    downloadMessage.textContent = t("No tracks were downloaded.");
+  }
+
+  downloadProgressBar.style.width = "100%";
+  downloadProgressGlow.style.left = "100%";
+  downloadProgressPercent.textContent = "100%";
+  downloadProgressLabel.textContent = t("Done");
+  downloadProgressWrap?.classList.remove("is-active");
+  downloadTrackCard.hidden = true;
+  downloadResult.hidden = false;
+  downloadError.hidden = true;
+  setDownloadStepState("done");
+
+  downloadResultStats.innerHTML = `
+    <article class="fetch-stat">
+      <span class="fetch-stat__label">${t("Downloaded")}</span>
+      <strong class="fetch-stat__value">${successCount}</strong>
+    </article>
+    <article class="fetch-stat">
+      <span class="fetch-stat__label">${t("Failed")}</span>
+      <strong class="fetch-stat__value">${errorCount}</strong>
+    </article>
+    <article class="fetch-stat">
+      <span class="fetch-stat__label">${t("Total tracks")}</span>
+      <strong class="fetch-stat__value">${total || "—"}</strong>
+    </article>
+  `;
+
+  if (successCount > 0) {
+    launchConfetti(window.innerWidth / 2, window.innerHeight / 3);
+  }
+}
+
+function renderDownloadError(message) {
+  stopDownloadProgressAnimation();
+  downloadView.classList.add("is-error");
+  downloadView.classList.remove("is-success");
+  downloadTitle.textContent = t("Download failed");
+  downloadMessage.textContent = message || t("Something went wrong while downloading tracks.");
+  downloadProgressWrap?.classList.remove("is-active");
+  downloadTrackCard.hidden = true;
+  downloadResult.hidden = true;
+  downloadError.hidden = false;
+  downloadErrorMessage.textContent = message || t("Something went wrong while downloading tracks.");
+}
+
+function stopDownloadPolling() {
+  if (downloadPollTimer) {
+    clearTimeout(downloadPollTimer);
+    downloadPollTimer = null;
+  }
+}
+
+async function pollDownloadJob(jobId) {
+  try {
+    const response = await fetch(`/api/download/tracks/${encodeURIComponent(jobId)}`);
+    const job = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(job.error || "Could not read download progress");
+    }
+
+    if (activeDownloadJobId !== jobId) {
+      return;
+    }
+
+    updateDownloadProgress(job);
+
+    if (job.status === "done") {
+      stopDownloadPolling();
+      stopDownloadProgressAnimation();
+      downloadDisplayPercent = 100;
+      renderDownloadSuccess(job);
+      return;
+    }
+
+    if (job.status === "error") {
+      stopDownloadPolling();
+      stopDownloadProgressAnimation();
+      renderDownloadError(job.error || job.message || "Download failed");
+      return;
+    }
+
+    downloadPollTimer = setTimeout(() => {
+      pollDownloadJob(jobId);
+    }, DOWNLOAD_POLL_MS);
+  } catch (error) {
+    stopDownloadPolling();
+    renderDownloadError(error.message || "Could not read download progress");
+  }
+}
+
+async function startTrackDownload() {
+  if (!downloadView) {
+    showStatus(t("Download screen is unavailable. Restart the web server."), "error");
+    return;
+  }
+
+  resetDownloadScreen();
+  renderDownloadParticles();
+  downloadStartedAt = Date.now();
+  startDownloadProgressAnimation();
+  downloadMessage.textContent = t("Preparing download…");
+
+  try {
+    const response = await fetch("/api/download/tracks", { method: "POST" });
+    const raw = await response.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new Error(
+        response.ok
+          ? "Unexpected response from server"
+          : `Server error (${response.status}). Restart the web server and use .venv/bin/python3 run_new_tracks_todo.py`
+      );
+    }
+    if (!response.ok) {
+      const fallback = response.status === 404
+        ? t("Download API not found. Restart the web server.")
+        : `Could not start download (${response.status})`;
+      throw new Error(data.error || fallback);
+    }
+
+    activeDownloadJobId = data.job_id;
+    downloadMessage.textContent = t("Download started…");
+    downloadTargetPercent = Math.max(downloadTargetPercent, 12);
+    pollDownloadJob(data.job_id);
+  } catch (error) {
+    stopDownloadProgressAnimation();
+    renderDownloadError(error.message || "Could not start download");
+  }
+}
+
+function showDownloadView() {
+  restoreSettingsSkinIfNeeded();
+  currentView = "download";
+  currentGenre = null;
+  currentFilter = null;
+  document.title = t("Download to AIFF — {app_name}", { app_name: APP_NAME() });
+  pageTitle.textContent = t("Download to AIFF");
+  pageSubtitle.textContent = t("Download tracks with YouTube URLs as AIFF files.");
+  setPageCover(null);
+  setSettingsLinkActive(false);
+  hideAllViews();
+  downloadView.hidden = false;
+  setBanner("");
+  updateBreadcrumbs();
+  renderDownloadParticles();
+  startTrackDownload();
+}
+
+function navigateToDownload({ replace = false } = {}) {
+  const state = { view: "download", genre: null, filter: null };
+  if (replace) {
+    history.replaceState(state, "", DOWNLOAD_PATH);
+  } else {
+    history.pushState(state, "", DOWNLOAD_PATH);
+  }
+  showDownloadView();
 }
 
 function showSettingsView() {
@@ -2123,6 +2467,10 @@ async function bootFromPath() {
     showFetchView();
     return;
   }
+  if (view === "download") {
+    showDownloadView();
+    return;
+  }
   if (view === "start") {
     showStartView();
     return;
@@ -2177,6 +2525,29 @@ document.getElementById("fetch-go-home")?.addEventListener("click", (event) => {
 });
 
 document.getElementById("fetch-go-settings")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  navigateToSettings();
+});
+
+downloadRunAgainBtn?.addEventListener("click", () => {
+  startTrackDownload();
+});
+
+downloadRetryBtn?.addEventListener("click", () => {
+  startTrackDownload();
+});
+
+document.getElementById("download-go-todo")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  navigateToTodo();
+});
+
+document.getElementById("download-go-home")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  navigateToStart();
+});
+
+document.getElementById("download-go-settings")?.addEventListener("click", (event) => {
   event.preventDefault();
   navigateToSettings();
 });
@@ -2257,6 +2628,11 @@ window.addEventListener("popstate", async (event) => {
 
   if (view === "fetch") {
     showFetchView();
+    return;
+  }
+
+  if (view === "download") {
+    showDownloadView();
     return;
   }
 

@@ -2937,6 +2937,16 @@ body:has(#settings-view:not([hidden])) .status {
   box-shadow: 0 0 22px rgba(255, 159, 67, 0.18);
 }
 
+.app-card--download .app-card__icon {
+  background: rgba(236, 72, 153, 0.14);
+  border: 1px solid rgba(236, 72, 153, 0.35);
+}
+
+.app-card--download:hover {
+  border-color: rgba(236, 72, 153, 0.45);
+  box-shadow: 0 0 22px rgba(236, 72, 153, 0.18);
+}
+
 @media (max-width: 640px) {
   .fetch-result__stats {
     grid-template-columns: 1fr;

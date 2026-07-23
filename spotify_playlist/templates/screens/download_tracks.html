@@ -1,0 +1,62 @@
+<section class="fetch-screen view" id="download-view" hidden>
+  <div class="fetch-stage">
+    <div class="fetch-visual" aria-hidden="true">
+      <div class="fetch-orbit fetch-orbit--outer"></div>
+      <div class="fetch-orbit fetch-orbit--inner"></div>
+      <div class="fetch-disc">
+        <span class="fetch-disc__groove"></span>
+        <span class="fetch-disc__groove fetch-disc__groove--2"></span>
+        <span class="fetch-disc__label">♫</span>
+      </div>
+      <ul class="fetch-particles" id="download-particles"></ul>
+    </div>
+
+    <div class="fetch-content">
+      <p class="fetch-eyebrow" id="download-eyebrow">{{ _("YouTube download") }}</p>
+      <h2 class="fetch-title" id="download-title">{{ _("Downloading tracks") }}</h2>
+      <p class="fetch-message" id="download-message">{{ _("Preparing download…") }}</p>
+
+      <div class="fetch-progress-wrap">
+        <div class="fetch-progress-track">
+          <div class="fetch-progress-bar" id="download-progress-bar"></div>
+          <div class="fetch-progress-glow" id="download-progress-glow"></div>
+        </div>
+        <div class="fetch-progress-meta">
+          <span id="download-progress-label">{{ _("Starting…") }}</span>
+          <span id="download-progress-percent">0%</span>
+        </div>
+      </div>
+
+      <div class="fetch-playlist-card" id="download-track-card" hidden>
+        <span class="fetch-playlist-card__placeholder" aria-hidden="true">♫</span>
+        <div class="fetch-playlist-card__body">
+          <span class="fetch-playlist-card__label">{{ _("Current track") }}</span>
+          <strong class="fetch-playlist-card__name" id="download-track-name"></strong>
+        </div>
+      </div>
+
+      <ul class="fetch-steps" id="download-steps">
+        <li class="fetch-step" data-step="starting">{{ _("Prepare") }}</li>
+        <li class="fetch-step" data-step="downloading">{{ _("Download tracks") }}</li>
+        <li class="fetch-step" data-step="done">{{ _("Complete") }}</li>
+      </ul>
+
+      <div class="fetch-result" id="download-result" hidden>
+        <div class="fetch-result__stats" id="download-result-stats"></div>
+        <div class="fetch-result__actions">
+          <a class="fetch-action fetch-action--primary" id="download-go-todo" href="/todo">{{ _("View to-do list") }}</a>
+          <button type="button" class="fetch-action fetch-action--ghost" id="download-run-again">{{ _("Download again") }}</button>
+          <a class="fetch-action fetch-action--ghost" id="download-go-home" href="/">{{ _("Back to home") }}</a>
+        </div>
+      </div>
+
+      <div class="fetch-error" id="download-error" hidden>
+        <p id="download-error-message"></p>
+        <div class="fetch-result__actions">
+          <a class="fetch-action fetch-action--primary" id="download-go-settings" href="/settings">{{ _("Open settings") }}</a>
+          <button type="button" class="fetch-action fetch-action--ghost" id="download-retry">{{ _("Try again") }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -31,6 +31,7 @@ from db_store import (
 )
 from spotify_playlist.i18n import gettext as translate, locale_html_lang, load_catalog
 from spotify_playlist.fetch_playlist_info import resolve_playlist_details
+from spotify_playlist.download_job_manager import create_download_job, get_download_job
 from spotify_playlist.import_job_manager import create_import_job, get_import_job
 from spotify_playlist.parse_spotify_playlist_id import parse_spotify_playlist_id
 from spotify_playlist.spotify_api_client import get_quiet_spotify_client
@@ -335,6 +336,23 @@ def create_app() -> Flask:
         job = get_import_job(job_id)
         if not job:
             return jsonify({"error": "Import job not found"}), 404
+        return jsonify(job)
+
+    @app.post("/api/download/tracks")
+    def start_track_download():
+        job_id, error = create_download_job()
+        if error:
+            status = 400
+            if "yt-dlp" in error.lower() or "ffmpeg" in error.lower():
+                status = 503
+            return jsonify({"error": error}), status
+        return jsonify({"job_id": job_id}), 202
+
+    @app.get("/api/download/tracks/<job_id>")
+    def track_download_status(job_id: str):
+        job = get_download_job(job_id)
+        if not job:
+            return jsonify({"error": "Download job not found"}), 404
         return jsonify(job)
 
     @app.get("/api/settings")

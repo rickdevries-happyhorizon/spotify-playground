@@ -486,3 +486,21 @@ msgstr "Settings — {app_name}"
 
 msgid "{genre} — Track to-do — {app_name}"
 msgstr "{genre} — Track to-do — {app_name}"
+
+msgid "YouTube download"
+msgstr "YouTube download"
+
+msgid "Downloading tracks"
+msgstr "Downloading tracks"
+
+msgid "Preparing download…"
+msgstr "Preparing download…"
+
+msgid "Current track"
+msgstr "Current track"
+
+msgid "Download tracks"
+msgstr "Download tracks"
+
+msgid "Download again"
+msgstr "Download again"
