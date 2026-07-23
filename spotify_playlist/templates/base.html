@@ -2,7 +2,7 @@
 <html lang="{{ locale }}" data-skin="{{ ui_skin }}" data-locale="{{ locale_code }}">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <link rel="icon" href="/static/favicon.ico" sizes="any">
   <title>{% block title %}{{ _("Release Finder") }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/new_tracks_todo.css">
@@ -11,7 +11,9 @@
 <body>
   {% include "partials/header.html" %}
   {% include "partials/breadcrumbs.html" %}
-  {% block content %}{% endblock %}
+  <div class="page-content container">
+    {% block content %}{% endblock %}
+  </div>
   {% include "partials/app_chrome.html" %}
   {% include "partials/i18n_bootstrap.html" %}
   <script src="/static/js/i18n.js"></script>

@@ -1,35 +1,33 @@
-<div class="view" id="tracks-view" hidden>
-  <div class="container">
-    <nav class="filter-tabs" id="filter-tabs" aria-label="{{ _("Track lists") }}">
-      <a class="filter-tab filter-tab--done" id="tab-with-url" href="#">{{ _("Has reference URL") }} <span class="count" id="tab-count-done">0</span></a>
-      <a class="filter-tab filter-tab--todo" id="tab-without-url" href="#">{{ _("Needs reference URL") }} <span class="count" id="tab-count-todo">0</span></a>
-    </nav>
+<div class="view tracks-screen" id="tracks-view" hidden>
+  <nav class="filter-tabs" id="filter-tabs" aria-label="{{ _("Track lists") }}">
+    <a class="filter-tab filter-tab--done" id="tab-with-url" href="#">{{ _("Has reference URL") }} <span class="count" id="tab-count-done">0</span></a>
+    <a class="filter-tab filter-tab--todo" id="tab-without-url" href="#">{{ _("Needs reference URL") }} <span class="count" id="tab-count-todo">0</span></a>
+  </nav>
 
-    <section class="add-panel">
-      <h2>{{ _("Add track") }}</h2>
-      <form class="add-form" id="add-form">
-        <input type="text" name="track" placeholder="{{ _("Artist - Track name") }}" required />
-        <input type="url" name="reference_url" placeholder="{{ _("Reference URL (optional)") }}" />
-        <button type="submit">{{ _("Add") }}</button>
-      </form>
+  <section class="add-panel">
+    <h2>{{ _("Add track") }}</h2>
+    <form class="add-form" id="add-form">
+      <input type="text" name="track" placeholder="{{ _("Artist - Track name") }}" required />
+      <input type="url" name="reference_url" placeholder="{{ _("Reference URL (optional)") }}" />
+      <button type="submit">{{ _("Add") }}</button>
+    </form>
+  </section>
+
+  <main>
+    <section class="column column--done" id="column-done">
+      <div class="column-header">
+        <span>{{ _("Has reference URL") }}</span>
+        <span class="count" id="count-done">0</span>
+      </div>
+      <ul class="track-list" id="list-done"></ul>
     </section>
 
-    <main>
-      <section class="column column--done" id="column-done">
-        <div class="column-header">
-          <span>{{ _("Has reference URL") }}</span>
-          <span class="count" id="count-done">0</span>
-        </div>
-        <ul class="track-list" id="list-done"></ul>
-      </section>
-
-      <section class="column column--todo" id="column-todo" hidden>
-        <div class="column-header">
-          <span>{{ _("Needs reference URL") }}</span>
-          <span class="count" id="count-todo">0</span>
-        </div>
-        <ul class="track-list" id="list-todo"></ul>
-      </section>
-    </main>
-  </div>
+    <section class="column column--todo" id="column-todo" hidden>
+      <div class="column-header">
+        <span>{{ _("Needs reference URL") }}</span>
+        <span class="count" id="count-todo">0</span>
+      </div>
+      <ul class="track-list" id="list-todo"></ul>
+    </section>
+  </main>
 </div>
