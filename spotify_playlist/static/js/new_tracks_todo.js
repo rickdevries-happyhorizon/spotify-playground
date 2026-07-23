@@ -1469,6 +1469,14 @@ async function pollDownloadJob(jobId) {
       stopDownloadPolling();
       stopDownloadProgressAnimation();
       downloadDisplayPercent = 100;
+      const successCount = Number(job.success_count ?? job.result?.success_count ?? 0);
+      const errorCount = Number(job.error_count ?? job.result?.error_count ?? 0);
+      if (successCount === 0 && errorCount > 0) {
+        renderDownloadError(
+          job.last_error || job.error || job.message || t("No tracks were downloaded.")
+        );
+        return;
+      }
       renderDownloadSuccess(job);
       return;
     }

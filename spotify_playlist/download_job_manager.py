@@ -54,6 +54,7 @@ def _snapshot_job(job: dict[str, Any]) -> dict[str, Any]:
         "track_name": job.get("track_name"),
         "success_count": job.get("success_count"),
         "error_count": job.get("error_count"),
+        "last_error": job.get("last_error"),
         "output_dir": job.get("output_dir"),
         "result": job.get("result"),
         "error": job.get("error"),
@@ -89,6 +90,7 @@ def _on_progress(job_id: str, event: dict[str, Any]) -> None:
         "track_name",
         "success_count",
         "error_count",
+        "last_error",
     ):
         if key in event:
             updates[key] = event[key]
@@ -128,6 +130,26 @@ def run_download_job(job_id: str, tracks: list[dict], output_dir: str) -> None:
             tag_metadata=True,
             on_progress=progress,
         )
+        final_job = _read_job_file(job_id) or {}
+        last_error = final_job.get("last_error")
+        if success_count == 0 and error_count > 0:
+            message = last_error or "No tracks were downloaded."
+            _update_job(
+                job_id,
+                status="error",
+                phase="error",
+                message=message,
+                error=message,
+                success_count=success_count,
+                error_count=error_count,
+                result={
+                    "success_count": success_count,
+                    "error_count": error_count,
+                    "output_dir": output_dir,
+                },
+            )
+            return
+
         _update_job(
             job_id,
             status="done",

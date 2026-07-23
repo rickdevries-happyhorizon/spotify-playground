@@ -265,6 +265,7 @@ def download_youtube_tracks(
     """Download tracks from the app. Successfully downloaded rows are removed from the database."""
     success_count = 0
     error_count = 0
+    last_error: str | None = None
 
     if on_progress:
         on_progress(
@@ -327,9 +328,11 @@ def download_youtube_tracks(
                         )
                 success_count += 1
             else:
+                last_error = f"Could not download {track_name}"
                 error_count += 1
         except Exception as exc:
             print(f"    {Colors.BRIGHT_RED}❌ Error: {exc}{Colors.RESET}")
+            last_error = str(exc)
             error_count += 1
 
         if on_progress:
@@ -341,7 +344,8 @@ def download_youtube_tracks(
                     "track_name": track_name,
                     "success_count": success_count,
                     "error_count": error_count,
-                    "message": f"Downloaded {success_count}, failed {error_count}",
+                    "last_error": last_error,
+                    "message": last_error or f"Downloaded {success_count}, failed {error_count}",
                 }
             )
 

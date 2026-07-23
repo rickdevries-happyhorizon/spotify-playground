@@ -136,7 +136,7 @@ PY;
             . escapeshellarg($jobId)
             . ' > /dev/null 2>&1 &';
 
-        exec($command);
+        BackgroundProcess::spawnShell($command);
 
         return ['job_id' => $jobId];
     }
