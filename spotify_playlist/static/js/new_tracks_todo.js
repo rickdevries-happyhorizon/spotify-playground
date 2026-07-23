@@ -12,8 +12,11 @@ const settingsLink = document.getElementById("settings-link");
 const settingsForm = document.getElementById("settings-form");
 const settingsDock = document.getElementById("settings-dock");
 const settingsDockText = document.getElementById("settings-dock-text");
-const sourcePlaylistCount = document.getElementById("source-playlist-count");
-const trackingPlaylistCount = document.getElementById("tracking-playlist-count");
+const sourcePlaylistsList = document.getElementById("source-playlists-list");
+const trackingPlaylistsList = document.getElementById("tracking-playlists-list");
+const addSourcePlaylistBtn = document.getElementById("add-source-playlist");
+const addTrackingPlaylistBtn = document.getElementById("add-tracking-playlist");
+const destinationPlaylistMeta = document.getElementById("destination-playlist-meta");
 const columnDone = document.getElementById("column-done");
 const columnTodo = document.getElementById("column-todo");
 const listDone = document.getElementById("list-done");
@@ -35,7 +38,180 @@ let cachedTracks = { with_url: [], without_url: [] };
 let knownGenres = [];
 let genreImageBySlug = {};
 let currentView = "home";
+const sourcePlaylistCount = document.getElementById("source-playlist-count");
+const trackingPlaylistCount = document.getElementById("tracking-playlist-count");
+const playlistLookupTimers = new WeakMap();
 let savedSettingsSkin = "neon";
+
+function setPlaylistMeta(metaEl, name, state = "resolved") {
+  if (!metaEl) return;
+  if (!name) {
+    metaEl.hidden = true;
+    metaEl.textContent = "";
+    metaEl.className = "playlist-meta";
+    return;
+  }
+
+  metaEl.hidden = false;
+  metaEl.textContent = name;
+  metaEl.className = `playlist-meta playlist-meta--${state}`;
+}
+
+function createPlaylistRow(entry = {}, { removable = true } = {}) {
+  const row = document.createElement("div");
+  row.className = "playlist-input-row";
+
+  const field = document.createElement("label");
+  field.className = "settings-field playlist-input-row__field";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "playlist-id-input";
+  input.placeholder = "https://open.spotify.com/playlist/…";
+  input.value = entry?.spotify_id || entry || "";
+
+  const meta = document.createElement("span");
+  meta.className = "playlist-meta";
+  meta.hidden = true;
+
+  field.append(meta, input);
+
+  const actions = document.createElement("div");
+  actions.className = "playlist-input-row__actions";
+
+  if (removable) {
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "playlist-remove-btn";
+    removeBtn.title = "Remove playlist";
+    removeBtn.setAttribute("aria-label", "Remove playlist");
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => {
+      row.remove();
+      updateSettingsCounts();
+      markSettingsDirty();
+    });
+    actions.appendChild(removeBtn);
+  }
+
+  row.append(field, actions);
+
+  if (entry?.name) {
+    setPlaylistMeta(meta, entry.name);
+  }
+
+  input.addEventListener("input", () => {
+    setPlaylistMeta(meta, "");
+    updateSettingsCounts();
+    markSettingsDirty();
+    schedulePlaylistLookup(input, meta);
+  });
+
+  input.addEventListener("blur", () => {
+    lookupPlaylistForInput(input, meta);
+  });
+
+  return row;
+}
+
+function renderPlaylistList(container, entries) {
+  container.innerHTML = "";
+  const items = entries?.length ? entries : [{}];
+  for (const entry of items) {
+    container.appendChild(createPlaylistRow(entry));
+  }
+}
+
+function collectPlaylistValues(container) {
+  return [...container.querySelectorAll(".playlist-id-input")]
+    .map((input) => input.value.trim())
+    .filter(Boolean);
+}
+
+function schedulePlaylistLookup(input, metaEl) {
+  const existing = playlistLookupTimers.get(input);
+  if (existing) clearTimeout(existing);
+
+  const timer = setTimeout(() => {
+    lookupPlaylistForInput(input, metaEl);
+  }, 450);
+  playlistLookupTimers.set(input, timer);
+}
+
+async function lookupPlaylistForInput(input, metaEl) {
+  const value = input.value.trim();
+  if (!value) {
+    setPlaylistMeta(metaEl, "");
+    return;
+  }
+
+  setPlaylistMeta(metaEl, "Looking up playlist…", "loading");
+
+  try {
+    const response = await fetch(`/api/playlists/lookup?id=${encodeURIComponent(value)}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Could not look up playlist");
+    }
+
+    if (input.value.trim() !== value) {
+      return;
+    }
+
+    if (data.name && data.name !== data.spotify_id) {
+      setPlaylistMeta(metaEl, data.name);
+    } else {
+      setPlaylistMeta(metaEl, "Playlist not found", "error");
+    }
+  } catch (error) {
+    if (input.value.trim() === value) {
+      setPlaylistMeta(metaEl, error.message || "Could not look up playlist", "error");
+    }
+  }
+}
+
+async function lookupDestinationPlaylist() {
+  const value = settingsForm.destination_playlist.value.trim();
+  if (!value) {
+    setPlaylistMeta(destinationPlaylistMeta, "");
+    return;
+  }
+
+  setPlaylistMeta(destinationPlaylistMeta, "Looking up playlist…", "loading");
+
+  try {
+    const response = await fetch(`/api/playlists/lookup?id=${encodeURIComponent(value)}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Could not look up playlist");
+    }
+
+    if (settingsForm.destination_playlist.value.trim() !== value) {
+      return;
+    }
+
+    if (data.name && data.name !== data.spotify_id) {
+      setPlaylistMeta(destinationPlaylistMeta, data.name);
+    } else {
+      setPlaylistMeta(destinationPlaylistMeta, "Playlist not found", "error");
+    }
+  } catch (error) {
+    if (settingsForm.destination_playlist.value.trim() === value) {
+      setPlaylistMeta(destinationPlaylistMeta, error.message || "Could not look up playlist", "error");
+    }
+  }
+}
+
+function scheduleDestinationLookup() {
+  const input = settingsForm.destination_playlist;
+  const existing = playlistLookupTimers.get(input);
+  if (existing) clearTimeout(existing);
+
+  const timer = setTimeout(() => {
+    lookupDestinationPlaylist();
+  }, 450);
+  playlistLookupTimers.set(input, timer);
+}
 
 function setPageCover(imageUrl) {
   if (imageUrl) {
@@ -157,8 +333,8 @@ function formatPlaylistCount(count) {
 }
 
 function updateSettingsCounts() {
-  const sourceCount = parsePlaylistTextarea(settingsForm.source_playlists.value).length;
-  const trackingCount = parsePlaylistTextarea(settingsForm.tracking_playlists.value).length;
+  const sourceCount = collectPlaylistValues(sourcePlaylistsList).length;
+  const trackingCount = collectPlaylistValues(trackingPlaylistsList).length;
   sourcePlaylistCount.textContent = formatPlaylistCount(sourceCount);
   trackingPlaylistCount.textContent = formatPlaylistCount(trackingCount);
 }
@@ -302,13 +478,6 @@ function navigateToSettings({ replace = false } = {}) {
   loadSettings();
 }
 
-function playlistLines(entries) {
-  return (entries || [])
-    .map((entry) => entry?.spotify_id || entry || "")
-    .filter(Boolean)
-    .join("\n");
-}
-
 function restoreSettingsSkinIfNeeded() {
   if (settingsDock.classList.contains("is-dirty")) {
     document.documentElement.dataset.skin = savedSettingsSkin;
@@ -323,8 +492,14 @@ function populateSettingsForm(settings) {
   }
 
   settingsForm.destination_playlist.value = settings.destination_playlist?.spotify_id || "";
-  settingsForm.source_playlists.value = playlistLines(settings.source_playlists);
-  settingsForm.tracking_playlists.value = playlistLines(settings.tracking_playlists);
+  if (settings.destination_playlist?.name) {
+    setPlaylistMeta(destinationPlaylistMeta, settings.destination_playlist.name);
+  } else {
+    setPlaylistMeta(destinationPlaylistMeta, "");
+  }
+
+  renderPlaylistList(sourcePlaylistsList, settings.source_playlists);
+  renderPlaylistList(trackingPlaylistsList, settings.tracking_playlists);
   settingsForm.sync_start_date.value = settings.sync_start_date || "";
   settingsForm.tracking_start_date.value = settings.tracking_start_date || "";
   updateSettingsCounts();
@@ -349,13 +524,6 @@ async function loadSettings() {
   }
 }
 
-function parsePlaylistTextarea(value) {
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
 async function saveSettings(event) {
   event.preventDefault();
   const button = settingsForm.querySelector('button[type="submit"]');
@@ -366,8 +534,8 @@ async function saveSettings(event) {
   const payload = {
     ui_skin: selectedSkin,
     destination_playlist: settingsForm.destination_playlist.value.trim(),
-    source_playlists: parsePlaylistTextarea(settingsForm.source_playlists.value),
-    tracking_playlists: parsePlaylistTextarea(settingsForm.tracking_playlists.value),
+    source_playlists: collectPlaylistValues(sourcePlaylistsList),
+    tracking_playlists: collectPlaylistValues(trackingPlaylistsList),
     sync_start_date: settingsForm.sync_start_date.value.trim() || null,
     tracking_start_date: settingsForm.tracking_start_date.value.trim() || null,
   };
@@ -1065,8 +1233,9 @@ settingsLink.addEventListener("click", (event) => {
 settingsForm.addEventListener("submit", saveSettings);
 
 settingsForm.addEventListener("input", (event) => {
-  if (event.target.name === "source_playlists" || event.target.name === "tracking_playlists") {
-    updateSettingsCounts();
+  if (event.target.name === "destination_playlist") {
+    setPlaylistMeta(destinationPlaylistMeta, "");
+    scheduleDestinationLookup();
   }
   markSettingsDirty();
 });
@@ -1075,6 +1244,25 @@ settingsForm.addEventListener("change", (event) => {
   if (event.target.name === "ui_skin") {
     previewSelectedTheme();
   }
+  if (event.target.name === "destination_playlist") {
+    lookupDestinationPlaylist();
+  }
+  markSettingsDirty();
+});
+
+addSourcePlaylistBtn.addEventListener("click", () => {
+  const row = createPlaylistRow();
+  sourcePlaylistsList.appendChild(row);
+  row.querySelector(".playlist-id-input")?.focus();
+  updateSettingsCounts();
+  markSettingsDirty();
+});
+
+addTrackingPlaylistBtn.addEventListener("click", () => {
+  const row = createPlaylistRow();
+  trackingPlaylistsList.appendChild(row);
+  row.querySelector(".playlist-id-input")?.focus();
+  updateSettingsCounts();
   markSettingsDirty();
 });
 

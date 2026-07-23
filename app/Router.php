@@ -21,6 +21,11 @@ final class Router
             return;
         }
 
+        if ($path === '/api/playlists/lookup' && $method === 'GET') {
+            self::lookupPlaylist();
+            return;
+        }
+
         if ($path === '/api/tracks' && $method === 'GET') {
             self::listTracks();
             return;
@@ -142,6 +147,23 @@ final class Router
     {
         try {
             self::json(SettingsStore::load());
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    private static function lookupPlaylist(): void
+    {
+        $rawId = $_GET['id'] ?? '';
+        if (!is_string($rawId) || trim($rawId) === '') {
+            self::json(['error' => 'id is required'], 400);
+            return;
+        }
+
+        try {
+            self::json(SettingsStore::lookupPlaylist($rawId));
+        } catch (InvalidArgumentException $e) {
+            self::json(['error' => $e->getMessage()], 400);
         } catch (Throwable $e) {
             self::json(['error' => $e->getMessage()], 500);
         }

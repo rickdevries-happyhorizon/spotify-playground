@@ -275,6 +275,30 @@ def create_app() -> Flask:
             return jsonify({"error": "Track not found"}), 404
         return jsonify({"id": track_id, "deleted": True})
 
+    @app.get("/api/playlists/lookup")
+    def lookup_playlist():
+        raw_id = request.args.get("id", "")
+        if not isinstance(raw_id, str) or not raw_id.strip():
+            return jsonify({"error": "id is required"}), 400
+
+        spotify_id = parse_spotify_playlist_id(raw_id)
+        if not spotify_id:
+            return jsonify({"error": "Invalid playlist ID"}), 400
+
+        names = _playlist_names_by_spotify_id([spotify_id])
+        if spotify_id in names and names[spotify_id] != spotify_id:
+            return jsonify({"spotify_id": spotify_id, "name": names[spotify_id]})
+
+        try:
+            sp = get_quiet_spotify_client()
+            info = resolve_playlist_details(sp, [spotify_id]).get(spotify_id)
+            if info:
+                return jsonify({"spotify_id": spotify_id, "name": info.get("name")})
+        except (RuntimeError, ValueError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+        return jsonify({"spotify_id": spotify_id, "name": names.get(spotify_id)})
+
     @app.get("/api/settings")
     def get_settings():
         try:

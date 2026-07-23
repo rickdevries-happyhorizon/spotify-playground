@@ -96,7 +96,8 @@ final class SettingsStore
         }
 
         if ($configChanged) {
-            self::savePlaylistsConfig($config);
+            $playlistDetails = self::resolvePlaylistDetailsForConfig($config);
+            self::savePlaylistsConfig($config, $playlistDetails);
         }
 
         if (array_key_exists('sync_start_date', $data)) {
@@ -122,6 +123,37 @@ final class SettingsStore
         }
 
         return self::load();
+    }
+
+    public static function lookupPlaylist(string $rawId): array
+    {
+        self::ensureSchema();
+
+        $spotifyId = self::parseSpotifyPlaylistId($rawId);
+        if ($spotifyId === '') {
+            throw new InvalidArgumentException('Invalid playlist ID');
+        }
+
+        $names = self::playlistNamesBySpotifyId([$spotifyId]);
+        if (isset($names[$spotifyId]) && $names[$spotifyId] !== $spotifyId) {
+            return [
+                'spotify_id' => $spotifyId,
+                'name' => $names[$spotifyId],
+            ];
+        }
+
+        $details = self::fetchPlaylistFromSpotify($rawId);
+        if ($details !== null) {
+            return [
+                'spotify_id' => $details['spotify_id'] ?? $spotifyId,
+                'name' => $details['name'] ?? null,
+            ];
+        }
+
+        return [
+            'spotify_id' => $spotifyId,
+            'name' => $names[$spotifyId] ?? null,
+        ];
     }
 
     public static function parseSpotifyPlaylistId(string $text): string
@@ -170,6 +202,124 @@ final class SettingsStore
         }
 
         return $parsed;
+    }
+
+    private static function resolvePlaylistDetailsForConfig(array $config): array
+    {
+        $spotifyIds = [];
+        $destination = trim((string) ($config['destination_playlist'] ?? ''));
+        if ($destination !== '') {
+            $spotifyIds[] = $destination;
+        }
+
+        foreach (['source_playlists', 'tracking_playlists'] as $field) {
+            foreach ($config[$field] ?? [] as $spotifyId) {
+                $spotifyId = trim((string) $spotifyId);
+                if ($spotifyId !== '' && !in_array($spotifyId, $spotifyIds, true)) {
+                    $spotifyIds[] = $spotifyId;
+                }
+            }
+        }
+
+        if ($spotifyIds === []) {
+            return [];
+        }
+
+        $details = self::resolvePlaylistsFromSpotify($spotifyIds);
+        if ($details === null) {
+            return [];
+        }
+
+        return $details;
+    }
+
+    private static function findPythonExecutable(): ?string
+    {
+        $root = project_root();
+        $candidates = [
+            $root . '/.venv/bin/python3',
+            $root . '/venv/bin/python3',
+            'python3',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate === 'python3') {
+                $which = trim((string) shell_exec('command -v python3 2>/dev/null'));
+                if ($which !== '' && is_executable($which)) {
+                    return $which;
+                }
+                continue;
+            }
+
+            if (is_executable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static function fetchPlaylistFromSpotify(string $rawId): ?array
+    {
+        $python = self::findPythonExecutable();
+        if ($python === null) {
+            return null;
+        }
+
+        $script = project_root() . '/spotify_playlist/lookup_playlist_cli.py';
+        if (!is_readable($script)) {
+            return null;
+        }
+
+        $command = escapeshellarg($python)
+            . ' ' . escapeshellarg($script)
+            . ' ' . escapeshellarg($rawId)
+            . ' 2>/dev/null';
+        $output = shell_exec($command);
+        if (!is_string($output) || trim($output) === '') {
+            return null;
+        }
+
+        $decoded = json_decode(trim($output), true);
+        if (!is_array($decoded) || !empty($decoded['error'])) {
+            return null;
+        }
+
+        return $decoded;
+    }
+
+    private static function resolvePlaylistsFromSpotify(array $spotifyIds): ?array
+    {
+        $python = self::findPythonExecutable();
+        if ($python === null) {
+            return null;
+        }
+
+        $script = project_root() . '/spotify_playlist/resolve_playlists_cli.py';
+        if (!is_readable($script)) {
+            return null;
+        }
+
+        $payload = json_encode(array_values($spotifyIds), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($payload === false) {
+            return null;
+        }
+
+        $command = 'printf %s ' . escapeshellarg($payload)
+            . ' | ' . escapeshellarg($python)
+            . ' ' . escapeshellarg($script)
+            . ' 2>/dev/null';
+        $output = shell_exec($command);
+        if (!is_string($output) || trim($output) === '') {
+            return null;
+        }
+
+        $decoded = json_decode(trim($output), true);
+        if (!is_array($decoded) || !empty($decoded['error'])) {
+            return null;
+        }
+
+        return $decoded;
     }
 
     private static function playlistNamesBySpotifyId(array $spotifyIds): array
