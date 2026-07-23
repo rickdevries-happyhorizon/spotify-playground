@@ -1,5 +1,6 @@
 import spotify_playlist.config as config
 from db_store import (
+    backfill_playlist_names,
     load_historical_data,
     load_playlists_config,
     load_sync_start_date,
@@ -33,6 +34,8 @@ def sync_playlists(sp):
         print(f"{Colors.BRIGHT_YELLOW}⚠️  No destination playlist configured in the database.{Colors.RESET}")
         print(f"{Colors.DIM}   Set a destination playlist via the settings page or populate app_config.{Colors.RESET}")
         return
+
+    backfill_playlist_names(sp)
 
     historische_nummers = load_historical_data(config.BRON_PLAYLISTS)
     nieuwe_nummers_uris = []

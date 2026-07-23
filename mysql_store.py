@@ -102,6 +102,24 @@ def save_playlists_config(
         sources = config.get("source_playlists") or []
         tracking = config.get("tracking_playlists") or []
         details = playlist_details or {}
+        if not details:
+            try:
+                from spotify_playlist.fetch_playlist_info import resolve_playlist_details
+                from spotify_playlist.spotify_api_client import get_quiet_spotify_client
+
+                spotify_ids: List[str] = []
+                if dest:
+                    spotify_ids.append(dest)
+                for spotify_id in sources + tracking:
+                    spotify_id = (spotify_id or "").strip()
+                    if spotify_id and spotify_id not in spotify_ids:
+                        spotify_ids.append(spotify_id)
+                if spotify_ids:
+                    details = resolve_playlist_details(
+                        get_quiet_spotify_client(), spotify_ids
+                    )
+            except RuntimeError:
+                pass
 
         _ensure_playlist_config_schema(conn)
         kept_ref_ids: Set[int] = set()
@@ -162,6 +180,7 @@ def save_playlists_config(
 
             _prune_unused_config_playlists(cur, kept_ref_ids)
         conn.commit()
+        _try_backfill_playlist_names()
     except Exception as e:
         conn.rollback()
         print(f"❌ Error saving playlist configuration: {e}")
@@ -966,7 +985,7 @@ def _upsert_playlist_cur(
             if (
                 playlist_name
                 and playlist_name != row["name"]
-                and not (sid and playlist_name == sid)
+                and playlist_name != sid
             ):
                 cur.execute(
                     "SELECT id FROM playlist WHERE name = %s AND id != %s LIMIT 1",
@@ -1081,8 +1100,8 @@ def upsert_playlist(
 
 
 def backfill_playlist_names(sp) -> int:
-    """Set playlist.name from Spotify where name was stored as the Spotify ID."""
-    from spotify_playlist.get_playlist_name import get_playlist_name
+    """Set playlist name and artwork from Spotify where name was stored as the Spotify ID."""
+    from spotify_playlist.fetch_playlist_info import fetch_playlist_info
 
     conn = get_connection()
     updated = 0
@@ -1090,7 +1109,7 @@ def backfill_playlist_names(sp) -> int:
         _ensure_playlist_table(conn)
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, spotify_id FROM playlist "
+                "SELECT id, spotify_id, artwork_url FROM playlist "
                 "WHERE spotify_id IS NOT NULL AND TRIM(spotify_id) != '' "
                 "AND name = spotify_id"
             )
@@ -1099,9 +1118,14 @@ def backfill_playlist_names(sp) -> int:
                 sid = (row.get("spotify_id") or "").strip()
                 if not sid:
                     continue
-                playlist_name = get_playlist_name(sp, sid)
+                try:
+                    info = fetch_playlist_info(sp, sid)
+                except ValueError:
+                    continue
+                playlist_name = (info.get("name") or "").strip()
                 if not playlist_name or playlist_name == sid:
                     continue
+                artwork_url = (info.get("artwork_url") or "").strip() or None
                 row_id = int(row["id"])
                 cur.execute(
                     "SELECT id FROM playlist WHERE name = %s AND id != %s LIMIT 1",
@@ -1113,9 +1137,15 @@ def backfill_playlist_names(sp) -> int:
                         cur, from_id=row_id, to_id=int(existing["id"])
                     )
                 else:
+                    updates = ["name = %s"]
+                    params: List[Any] = [playlist_name]
+                    if artwork_url and not (row.get("artwork_url") or "").strip():
+                        updates.append("artwork_url = %s")
+                        params.append(artwork_url)
+                    params.append(row_id)
                     cur.execute(
-                        "UPDATE playlist SET name = %s WHERE id = %s",
-                        (playlist_name, row_id),
+                        f"UPDATE playlist SET {', '.join(updates)} WHERE id = %s",
+                        params,
                     )
                 updated += 1
         conn.commit()
@@ -1126,6 +1156,18 @@ def backfill_playlist_names(sp) -> int:
         raise
     finally:
         conn.close()
+
+
+def _try_backfill_playlist_names(sp=None) -> int:
+    """Backfill playlist names when Spotify auth is available."""
+    if sp is None:
+        try:
+            from spotify_playlist.spotify_api_client import get_quiet_spotify_client
+
+            sp = get_quiet_spotify_client()
+        except RuntimeError:
+            return 0
+    return backfill_playlist_names(sp)
 
 
 def load_playlists() -> List[Dict[str, Any]]:

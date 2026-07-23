@@ -311,7 +311,7 @@ final class SettingsStore
     private static function upsertPlaylist(string $spotifyId, ?array $details = null): int
     {
         $pdo = Db::connection();
-        $name = trim((string) ($details['name'] ?? '')) ?: $spotifyId;
+        $resolvedName = trim((string) ($details['name'] ?? ''));
         $artworkUrl = trim((string) ($details['artwork_url'] ?? '')) ?: null;
 
         $stmt = $pdo->prepare('SELECT id, name, artwork_url FROM playlist WHERE spotify_id = :spotify_id LIMIT 1');
@@ -321,9 +321,13 @@ final class SettingsStore
             $playlistId = (int) $row['id'];
             $updates = [];
             $params = [];
-            if ($name !== '' && $name !== ($row['name'] ?? '')) {
+            if (
+                $resolvedName !== ''
+                && $resolvedName !== $spotifyId
+                && $resolvedName !== ($row['name'] ?? '')
+            ) {
                 $updates[] = 'name = :name';
-                $params['name'] = $name;
+                $params['name'] = $resolvedName;
             }
             if ($artworkUrl !== null && $artworkUrl !== ($row['artwork_url'] ?? '')) {
                 $updates[] = 'artwork_url = :artwork_url';
@@ -340,12 +344,16 @@ final class SettingsStore
             return $playlistId;
         }
 
+        $insertName = ($resolvedName !== '' && $resolvedName !== $spotifyId)
+            ? $resolvedName
+            : $spotifyId;
+
         $stmt = $pdo->prepare(
             'INSERT INTO playlist (spotify_id, name, artwork_url) VALUES (:spotify_id, :name, :artwork_url)'
         );
         $stmt->execute([
             'spotify_id' => $spotifyId,
-            'name' => $name,
+            'name' => $insertName,
             'artwork_url' => $artworkUrl,
         ]);
 
