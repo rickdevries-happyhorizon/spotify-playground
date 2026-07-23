@@ -225,8 +225,17 @@ final class Router
             return;
         }
 
+        $genre = $data['genre'] ?? null;
+        if ($genre !== null && !is_string($genre)) {
+            self::json(['error' => 'genre must be a string or null'], 400);
+            return;
+        }
+        if ($genre === 'Uncategorized') {
+            $genre = null;
+        }
+
         try {
-            $created = TrackStore::create($track, $referenceUrl);
+            $created = TrackStore::create($track, $referenceUrl, $genre);
         } catch (InvalidArgumentException $e) {
             $status = stripos($e->getMessage(), 'already exists') !== false ? 409 : 400;
             self::json(['error' => $e->getMessage()], $status);

@@ -227,8 +227,14 @@ def create_app() -> Flask:
         if reference_url is not None and not isinstance(reference_url, str):
             return jsonify({"error": "reference_url must be a string or null"}), 400
 
+        genre = data.get("genre")
+        if genre is not None and not isinstance(genre, str):
+            return jsonify({"error": "genre must be a string or null"}), 400
+        if genre == "Uncategorized":
+            genre = None
+
         try:
-            created = create_new_track(track, reference_url)
+            created = create_new_track(track, reference_url, genre=genre)
         except ValueError as e:
             status = 409 if "already exists" in str(e).lower() else 400
             return jsonify({"error": str(e)}), status

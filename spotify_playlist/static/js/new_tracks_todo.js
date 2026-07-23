@@ -1327,13 +1327,18 @@ document.getElementById("add-form").addEventListener("submit", async (event) => 
   button.disabled = true;
 
   try {
+    const payload = {
+      track: trackInput.value.trim(),
+      reference_url: urlInput.value.trim(),
+    };
+    if (currentGenre && currentGenre !== "Uncategorized") {
+      payload.genre = currentGenre;
+    }
+
     const response = await fetch("/api/tracks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        track: trackInput.value.trim(),
-        reference_url: urlInput.value.trim(),
-      }),
+      body: JSON.stringify(payload),
     });
 
     const data = await response.json().catch(() => ({}));

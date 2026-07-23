@@ -125,7 +125,7 @@ final class TrackStore
         return null;
     }
 
-    public static function create(string $track, ?string $referenceUrl = null): array
+    public static function create(string $track, ?string $referenceUrl = null, ?string $genre = null): array
     {
         self::ensureSchema();
 
@@ -135,16 +135,20 @@ final class TrackStore
         }
 
         $url = UrlNormalizer::normalize($referenceUrl);
+        $genreValue = trim((string) ($genre ?? ''));
+        $genreValue = $genreValue !== '' ? $genreValue : null;
+        $playlistId = $genreValue !== null ? self::upsertPlaylist($genreValue) : null;
         $pdo = Db::connection();
 
         try {
             $stmt = $pdo->prepare(
                 'INSERT INTO new_tracks (track, reference_url, playlist_id) '
-                . 'VALUES (:track, :reference_url, NULL)'
+                . 'VALUES (:track, :reference_url, :playlist_id)'
             );
             $stmt->execute([
                 'track' => $trackName,
                 'reference_url' => $url,
+                'playlist_id' => $playlistId,
             ]);
         } catch (PDOException $e) {
             if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
@@ -158,8 +162,8 @@ final class TrackStore
             'id' => (int) $pdo->lastInsertId(),
             'track' => $trackName,
             'reference_url' => $url,
-            'playlist_id' => null,
-            'genre' => null,
+            'playlist_id' => $playlistId,
+            'genre' => $genreValue,
             'release_year' => null,
             'copy_title_count' => 0,
             'image_url' => null,
