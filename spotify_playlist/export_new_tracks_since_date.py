@@ -9,6 +9,7 @@ from spotify_playlist.colors import Colors
 from spotify_playlist.deps import SpotifyException
 from spotify_playlist.get_playlist_tracks_since_date import get_playlist_tracks_since_date
 from spotify_playlist.loading_progress import loading_bar
+from spotify_playlist.spotify_track_energy import fetch_track_energies
 
 
 def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
@@ -44,7 +45,7 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
         print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}🔍  New Tracks From {since_date.strftime('%Y-%m-%d')} To {today.strftime('%Y-%m-%d')}  🔍{Colors.RESET}")
         print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}\n")
 
-        all_new_tracks = []
+        track_entries: list[tuple[dict, str]] = []
         playlist_info_map = {}
 
         # Loop through each playlist
@@ -151,14 +152,17 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
                         print(f"{Colors.DIM}      ... and {len(filtered_tracks) - 5} more{Colors.RESET}")
 
                     for uri, track_info in filtered_tracks.items():
-                        all_new_tracks.append({
-                            'track': normalize_track_name(
-                                f"{track_info['artists']} - {track_info['name']}"
-                            ),
-                            'reference_url': None,
-                            'genre': playlist_name,
-                            'release_year': track_info.get('release_year'),
-                        })
+                        track_entries.append((
+                            {
+                                'track': normalize_track_name(
+                                    f"{track_info['artists']} - {track_info['name']}"
+                                ),
+                                'reference_url': None,
+                                'genre': playlist_name,
+                                'release_year': track_info.get('release_year'),
+                            },
+                            uri,
+                        ))
                 else:
                     print(f"{Colors.DIM}   🤷 No new tracks in this period{Colors.RESET}")
                     if len(new_tracks) > 0:
@@ -176,8 +180,23 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
                 continue
 
         # Save to database
-        if all_new_tracks:
-            all_new_tracks = sorted(all_new_tracks, key=lambda x: x['track'].lower())
+        if track_entries:
+            track_entries.sort(key=lambda pair: pair[0]['track'].lower())
+            all_new_tracks = [entry for entry, _uri in track_entries]
+            track_uris = [uri for _entry, uri in track_entries]
+
+            with loading_bar("Fetching track energy from Spotify..."):
+                energies = fetch_track_energies(sp, track_uris)
+
+            found = 0
+            for entry, uri in zip(all_new_tracks, track_uris):
+                entry['energy'] = energies.get(uri)
+                if entry['energy'] is not None:
+                    found += 1
+
+            print(
+                f"{Colors.DIM}   Energy fetched for {found}/{len(all_new_tracks)} tracks{Colors.RESET}"
+            )
 
             inserted, skipped = save_new_tracks(all_new_tracks)
             if inserted:
@@ -204,7 +223,7 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
         print(f"{Colors.DIM}   Next time, tracks will be checked from this date onward.{Colors.RESET}")
 
         # Important information about Spotify API limitations
-        if len(all_new_tracks) == 0:
+        if not track_entries:
             print(f"\n{Colors.BOLD}{Colors.BRIGHT_YELLOW}{'═'*70}{Colors.RESET}")
             print(f"{Colors.BOLD}{Colors.BRIGHT_YELLOW}ℹ️  IMPORTANT INFORMATION ABOUT THE SPOTIFY API{Colors.RESET}")
             print(f"{Colors.BOLD}{Colors.BRIGHT_YELLOW}{'═'*70}{Colors.RESET}")

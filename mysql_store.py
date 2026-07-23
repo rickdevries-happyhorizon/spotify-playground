@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from normalize_track_name import normalize_track_name
 from spotify_playlist.release_year import normalize_release_year
+from spotify_playlist.spotify_track_energy import normalize_energy
 from store_common import dt_to_iso_str, normalize_reference_url, parse_datetime
 
 try:
@@ -232,9 +233,25 @@ def _ensure_new_tracks_release_year_column(conn) -> None:
     conn.commit()
 
 
+def _ensure_new_tracks_energy_column(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'new_tracks' "
+            "AND COLUMN_NAME = 'energy'"
+        )
+        if cur.fetchone()["cnt"] == 0:
+            cur.execute(
+                "ALTER TABLE new_tracks ADD COLUMN energy DECIMAL(4,3) NULL "
+                "AFTER release_year"
+            )
+    conn.commit()
+
+
 def _ensure_new_tracks_columns(conn) -> None:
     _ensure_new_tracks_genre_column(conn)
     _ensure_new_tracks_release_year_column(conn)
+    _ensure_new_tracks_energy_column(conn)
 
 
 def load_new_tracks() -> List[Dict[str, Any]]:
@@ -244,7 +261,7 @@ def load_new_tracks() -> List[Dict[str, Any]]:
         _ensure_new_tracks_columns(conn)
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, track, reference_url, genre, release_year "
+                "SELECT id, track, reference_url, genre, release_year, energy "
                 "FROM new_tracks ORDER BY track ASC"
             )
             return [
@@ -254,6 +271,7 @@ def load_new_tracks() -> List[Dict[str, Any]]:
                     "reference_url": row["reference_url"] or None,
                     "genre": row.get("genre") or None,
                     "release_year": row.get("release_year") or None,
+                    "energy": float(row["energy"]) if row.get("energy") is not None else None,
                 }
                 for row in cur.fetchall()
             ]
@@ -349,6 +367,7 @@ def create_new_track(
     track: str,
     reference_url: Optional[str] = None,
     genre: Optional[str] = None,
+    energy: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Insert a single new_tracks row. Raises ValueError if track is empty or already exists."""
     track_name = normalize_track_name((track or "").strip())
@@ -357,14 +376,15 @@ def create_new_track(
 
     url = normalize_reference_url(reference_url)
     genre_value = (genre or "").strip() or None
+    energy_value = normalize_energy(energy)
     conn = get_connection()
     try:
         _ensure_new_tracks_columns(conn)
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO new_tracks (track, reference_url, genre, release_year) "
-                "VALUES (%s, %s, %s, NULL)",
-                (track_name, url, genre_value),
+                "INSERT INTO new_tracks (track, reference_url, genre, release_year, energy) "
+                "VALUES (%s, %s, %s, NULL, %s)",
+                (track_name, url, genre_value, energy_value),
             )
             track_id = cur.lastrowid
         conn.commit()
@@ -373,6 +393,7 @@ def create_new_track(
             "track": track_name,
             "reference_url": url,
             "genre": genre_value,
+            "energy": energy_value,
         }
     except IntegrityError as e:
         conn.rollback()
@@ -408,12 +429,14 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
             seen_in_batch.add(track_display)
             genre_value = (entry.get("genre") or "").strip() or None
             release_year = normalize_release_year(entry.get("release_year"))
+            energy = normalize_energy(entry.get("energy"))
             rows.append(
                 (
                     track_display,
                     normalize_reference_url(entry.get("reference_url")),
                     genre_value,
                     release_year,
+                    energy,
                 )
             )
 
@@ -424,8 +447,8 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
             if replace:
                 cur.execute("DELETE FROM new_tracks")
                 cur.executemany(
-                    "INSERT INTO new_tracks (track, reference_url, genre, release_year) "
-                    "VALUES (%s, %s, %s, %s)",
+                    "INSERT INTO new_tracks (track, reference_url, genre, release_year, energy) "
+                    "VALUES (%s, %s, %s, %s, %s)",
                     rows,
                 )
                 inserted = len(rows)
@@ -435,8 +458,8 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
                 new_rows = [row for row in rows if row[0] not in existing]
                 if new_rows:
                     cur.executemany(
-                        "INSERT INTO new_tracks (track, reference_url, genre, release_year) "
-                        "VALUES (%s, %s, %s, %s)",
+                        "INSERT INTO new_tracks (track, reference_url, genre, release_year, energy) "
+                        "VALUES (%s, %s, %s, %s, %s)",
                         new_rows,
                     )
                 inserted = len(new_rows)

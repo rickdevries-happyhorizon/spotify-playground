@@ -47,12 +47,14 @@ CREATE TABLE IF NOT EXISTS new_tracks (
   reference_url TEXT NULL,
   genre VARCHAR(512) NULL,
   release_year SMALLINT UNSIGNED NULL,
+  energy DECIMAL(4,3) NULL,
   UNIQUE KEY uq_new_tracks_track (track(191))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Existing database? Run once:
 -- ALTER TABLE new_tracks ADD COLUMN genre VARCHAR(512) NULL AFTER reference_url;
 -- ALTER TABLE new_tracks ADD COLUMN release_year SMALLINT UNSIGNED NULL AFTER genre;
+-- ALTER TABLE new_tracks ADD COLUMN energy DECIMAL(4,3) NULL AFTER release_year;
 -- DROP TABLE IF EXISTS play_counts;
 
 INSERT IGNORE INTO destination_config (singleton, playlist_id) VALUES (1, '');
