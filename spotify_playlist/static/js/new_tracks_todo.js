@@ -475,7 +475,10 @@ function launchConfetti(x, y) {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
-  const colors = ["#39ff14", "#00f5ff", "#ff2bd6", "#ffe600", "#a855ff", "#ffffff"];
+  const skin = document.documentElement.dataset.skin || "neon";
+  const colors = skin === "simple"
+    ? ["#000000", "#333333", "#666666", "#999999", "#cccccc", "#ffffff"]
+    : ["#39ff14", "#00f5ff", "#ff2bd6", "#ffe600", "#a855ff", "#ffffff"];
   const particles = Array.from({ length: 90 }, () => ({
     x,
     y,

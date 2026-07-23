@@ -7,6 +7,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
+from spotify_playlist.config import UI_SKIN
 from db_store import (
     create_new_track,
     delete_new_track,
@@ -30,9 +31,12 @@ def create_app() -> Flask:
         static_folder=str(STATIC_DIR),
     )
 
+    def _render_page():
+        return render_template("new_tracks_todo.html", ui_skin=UI_SKIN)
+
     @app.get("/")
     def index():
-        return render_template("new_tracks_todo.html")
+        return _render_page()
 
     @app.get("/api/genres")
     def list_genres():
@@ -162,7 +166,7 @@ def create_app() -> Flask:
             from flask import abort
 
             abort(404)
-        return render_template("new_tracks_todo.html")
+        return _render_page()
 
     return app
 

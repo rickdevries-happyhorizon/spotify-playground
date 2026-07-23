@@ -66,8 +66,27 @@ final class Router
             return;
         }
 
+        $skin = env('UI_SKIN', 'neon') ?? 'neon';
+        $skin = strtolower(trim($skin));
+        if (!in_array($skin, ['neon', 'simple'], true)) {
+            $skin = 'neon';
+        }
+
+        $html = file_get_contents($template);
+        if ($html === false) {
+            http_response_code(500);
+            echo 'Template not found.';
+            return;
+        }
+
+        $html = str_replace(
+            '<html lang="en" data-skin="{{ ui_skin }}">',
+            '<html lang="en" data-skin="' . htmlspecialchars($skin, ENT_QUOTES, 'UTF-8') . '">',
+            $html
+        );
+
         header('Content-Type: text/html; charset=UTF-8');
-        readfile($template);
+        echo $html;
     }
 
     private static function serveStatic(string $path): void

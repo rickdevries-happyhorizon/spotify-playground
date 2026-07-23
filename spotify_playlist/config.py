@@ -1,8 +1,14 @@
 """Spotify app settings and cached playlist config from the database."""
 
+import os
+
 APP_NAME = "Short Jack's Release Finder"
 
 from db_store import load_playlists_config
+
+_VALID_UI_SKINS = frozenset({"neon", "simple"})
+_ui_skin = os.environ.get("UI_SKIN", "neon").strip().lower()
+UI_SKIN = _ui_skin if _ui_skin in _VALID_UI_SKINS else "neon"
 
 # FILL IN YOUR OWN CREDENTIALS!
 # Get these from your Spotify Developer Dashboard.
