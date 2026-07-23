@@ -1,7 +1,12 @@
 import traceback
 from datetime import datetime, timedelta
 
-from db_store import load_tracking_start_date, save_tracking_start_date, save_new_tracks
+from db_store import (
+    load_tracking_start_date,
+    save_genre_image,
+    save_new_tracks,
+    save_tracking_start_date,
+)
 from normalize_track_name import normalize_track_name
 
 from spotify_playlist.action_sound import play_action_done
@@ -51,10 +56,14 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
         # Loop through each playlist
         for playlist_id in playlist_ids:
             try:
-                # Fetch playlist name
-                playlist_info = sp.playlist(playlist_id, fields='name')
+                # Fetch playlist name and cover art
+                playlist_info = sp.playlist(playlist_id, fields='name,images')
                 playlist_name = playlist_info['name']
                 playlist_info_map[playlist_id] = playlist_name
+                playlist_images = playlist_info.get('images') or []
+                playlist_image_url = playlist_images[0].get('url') if playlist_images else None
+                if playlist_image_url:
+                    save_genre_image(playlist_name, playlist_image_url)
 
                 print(f"{Colors.BRIGHT_CYAN}📋 Checking playlist: {Colors.BRIGHT_WHITE}{playlist_name}{Colors.RESET}")
                 print(f"{Colors.DIM}   Period: {since_date.strftime('%Y-%m-%d %H:%M:%S')} to {today.strftime('%Y-%m-%d %H:%M:%S')}{Colors.RESET}")
@@ -137,6 +146,7 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
                                 'reference_url': None,
                                 'genre': playlist_name,
                                 'release_year': track_info.get('release_year'),
+                                'image_url': track_info.get('image_url'),
                             },
                             uri,
                         ))

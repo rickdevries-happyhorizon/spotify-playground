@@ -11,17 +11,24 @@ from db_store import (
     create_new_track,
     delete_new_track,
     increment_new_track_copy_title_count,
+    load_genre_images,
     load_new_tracks,
     normalize_reference_url,
+    resolve_genre_image,
     update_new_track_reference_url,
 )
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 DEFAULT_PORT = int(os.environ.get("NEW_TRACKS_TODO_PORT", "5050"))
 
 
 def create_app() -> Flask:
-    app = Flask(__name__, template_folder=str(TEMPLATE_DIR))
+    app = Flask(
+        __name__,
+        template_folder=str(TEMPLATE_DIR),
+        static_folder=str(STATIC_DIR),
+    )
 
     @app.get("/")
     def index():
@@ -31,6 +38,7 @@ def create_app() -> Flask:
     def list_genres():
         try:
             tracks = load_new_tracks()
+            genre_images = load_genre_images()
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
@@ -42,11 +50,19 @@ def create_app() -> Flask:
 
         genres = []
         for key in sorted(counts, key=lambda k: (k == "__uncategorized__", k.lower())):
+            slug = "Uncategorized" if key == "__uncategorized__" else key
+            label = "Uncategorized" if key == "__uncategorized__" else key
+            image_url = None if key == "__uncategorized__" else resolve_genre_image(
+                slug,
+                genre_images=genre_images,
+                tracks=tracks,
+            )
             genres.append(
                 {
-                    "slug": "Uncategorized" if key == "__uncategorized__" else key,
-                    "label": "Uncategorized" if key == "__uncategorized__" else key,
+                    "slug": slug,
+                    "label": label,
                     "track_count": counts[key],
+                    "image_url": image_url,
                 }
             )
 
@@ -70,12 +86,14 @@ def create_app() -> Flask:
 
         with_url = [t for t in tracks if t.get("reference_url")]
         without_url = [t for t in tracks if not t.get("reference_url")]
+        genre_image_url = resolve_genre_image(genre, tracks=tracks) if genre else None
         return jsonify(
             {
                 "with_url": with_url,
                 "without_url": without_url,
                 "total": len(tracks),
                 "genre": genre,
+                "genre_image_url": genre_image_url,
             }
         )
 
@@ -140,7 +158,7 @@ def create_app() -> Flask:
 
     @app.get("/<path:genre>")
     def genre_page(genre: str):
-        if genre.startswith("api/"):
+        if genre.startswith("api/") or genre.startswith("static/"):
             from flask import abort
 
             abort(404)

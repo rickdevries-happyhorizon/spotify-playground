@@ -5,6 +5,13 @@ from spotify_playlist.release_year import normalize_release_year
 from spotify_playlist.deps import SpotifyException
 
 
+def album_art_url(album: dict) -> str | None:
+    images = album.get('images') or []
+    if not images:
+        return None
+    return images[0].get('url')
+
+
 def _track_info_from_item(track: dict) -> dict:
     artists = ', '.join([artist['name'] for artist in track.get('artists', [])])
     album = track.get('album') or {}
@@ -15,6 +22,9 @@ def _track_info_from_item(track: dict) -> dict:
     }
     if release_year is not None:
         info['release_year'] = release_year
+    image_url = album_art_url(album)
+    if image_url:
+        info['image_url'] = image_url
     return info
 
 
@@ -40,7 +50,7 @@ def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_inf
             playlist_id,
             fields=(
                 'items.added_at,items.track.uri,items.track.name,items.track.artists,'
-                'items.track.id,items.track.album.release_date,next'
+                'items.track.id,items.track.album.release_date,items.track.album.images,next'
             ),
             limit=100,
         )

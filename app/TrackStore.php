@@ -9,7 +9,8 @@ final class TrackStore
         self::ensureOptionalColumns();
 
         $stmt = Db::connection()->query(
-            'SELECT id, track, reference_url, genre, release_year, copy_title_count FROM new_tracks ORDER BY track ASC'
+            'SELECT id, track, reference_url, genre, release_year, copy_title_count, image_url '
+            . 'FROM new_tracks ORDER BY track ASC'
         );
 
         $tracks = [];
@@ -32,6 +33,7 @@ final class TrackStore
                 'genre' => $trackGenre,
                 'release_year' => isset($row['release_year']) ? (int) $row['release_year'] : null,
                 'copy_title_count' => (int) ($row['copy_title_count'] ?? 0),
+                'image_url' => !empty($row['image_url']) ? $row['image_url'] : null,
             ];
         }
 
@@ -41,6 +43,7 @@ final class TrackStore
     public static function loadGenres(): array
     {
         $tracks = self::loadAll();
+        $genreImages = self::loadGenreImages();
         $counts = [];
 
         foreach ($tracks as $track) {
@@ -63,10 +66,17 @@ final class TrackStore
 
         $genres = [];
         foreach ($counts as $key => $count) {
+            $slug = $key === '__uncategorized__' ? 'Uncategorized' : $key;
+            $label = $key === '__uncategorized__' ? 'Uncategorized' : $key;
+            $imageUrl = $key === '__uncategorized__'
+                ? null
+                : self::resolveGenreImage($slug, $genreImages, $tracks);
+
             $genres[] = [
-                'slug' => $key === '__uncategorized__' ? 'Uncategorized' : $key,
-                'label' => $key === '__uncategorized__' ? 'Uncategorized' : $key,
+                'slug' => $slug,
+                'label' => $label,
                 'track_count' => $count,
+                'image_url' => $imageUrl,
             ];
         }
 
@@ -74,6 +84,35 @@ final class TrackStore
             'genres' => $genres,
             'total' => count($tracks),
         ];
+    }
+
+    public static function resolveGenreImage(
+        string $genre,
+        ?array $genreImages = null,
+        ?array $tracks = null
+    ): ?string {
+        $genreName = trim($genre);
+        if ($genreName === '') {
+            return null;
+        }
+
+        $images = $genreImages ?? self::loadGenreImages();
+        if (isset($images[$genreName])) {
+            return $images[$genreName];
+        }
+
+        $trackRows = $tracks ?? self::loadAll();
+        foreach ($trackRows as $track) {
+            if (trim((string) ($track['genre'] ?? '')) !== $genreName) {
+                continue;
+            }
+
+            if (!empty($track['image_url'])) {
+                return $track['image_url'];
+            }
+        }
+
+        return null;
     }
 
     public static function create(string $track, ?string $referenceUrl = null): array
@@ -111,6 +150,7 @@ final class TrackStore
             'genre' => null,
             'release_year' => null,
             'copy_title_count' => 0,
+            'image_url' => null,
         ];
     }
 
@@ -161,6 +201,21 @@ final class TrackStore
         return $stmt->rowCount() > 0;
     }
 
+    private static function loadGenreImages(): array
+    {
+        self::ensureGenreImagesTable();
+
+        $stmt = Db::connection()->query('SELECT genre, image_url FROM genre_images');
+        $images = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (!empty($row['genre']) && !empty($row['image_url'])) {
+                $images[$row['genre']] = $row['image_url'];
+            }
+        }
+
+        return $images;
+    }
+
     private static function ensureOptionalColumns(): void
     {
         self::ensureColumn('genre', 'ALTER TABLE new_tracks ADD COLUMN genre VARCHAR(512) NULL AFTER reference_url');
@@ -171,6 +226,21 @@ final class TrackStore
         self::ensureColumn(
             'copy_title_count',
             'ALTER TABLE new_tracks ADD COLUMN copy_title_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER energy'
+        );
+        self::ensureColumn(
+            'image_url',
+            'ALTER TABLE new_tracks ADD COLUMN image_url TEXT NULL AFTER copy_title_count'
+        );
+        self::ensureGenreImagesTable();
+    }
+
+    private static function ensureGenreImagesTable(): void
+    {
+        Db::connection()->exec(
+            'CREATE TABLE IF NOT EXISTS genre_images ('
+            . 'genre VARCHAR(512) NOT NULL PRIMARY KEY, '
+            . 'image_url TEXT NOT NULL'
+            . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
     }
 

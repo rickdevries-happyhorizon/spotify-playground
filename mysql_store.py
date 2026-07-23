@@ -263,11 +263,39 @@ def _ensure_new_tracks_copy_title_count_column(conn) -> None:
     conn.commit()
 
 
+def _ensure_new_tracks_image_url_column(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'new_tracks' "
+            "AND COLUMN_NAME = 'image_url'"
+        )
+        if cur.fetchone()["cnt"] == 0:
+            cur.execute(
+                "ALTER TABLE new_tracks ADD COLUMN image_url TEXT NULL "
+                "AFTER copy_title_count"
+            )
+    conn.commit()
+
+
+def _ensure_genre_images_table(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS genre_images ("
+            "genre VARCHAR(512) NOT NULL PRIMARY KEY, "
+            "image_url TEXT NOT NULL"
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        )
+    conn.commit()
+
+
 def _ensure_new_tracks_columns(conn) -> None:
     _ensure_new_tracks_genre_column(conn)
     _ensure_new_tracks_release_year_column(conn)
     _ensure_new_tracks_energy_column(conn)
     _ensure_new_tracks_copy_title_count_column(conn)
+    _ensure_new_tracks_image_url_column(conn)
+    _ensure_genre_images_table(conn)
 
 
 def load_new_tracks() -> List[Dict[str, Any]]:
@@ -277,7 +305,8 @@ def load_new_tracks() -> List[Dict[str, Any]]:
         _ensure_new_tracks_columns(conn)
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, track, reference_url, genre, release_year, energy, copy_title_count "
+                "SELECT id, track, reference_url, genre, release_year, energy, "
+                "copy_title_count, image_url "
                 "FROM new_tracks ORDER BY track ASC"
             )
             return [
@@ -289,6 +318,7 @@ def load_new_tracks() -> List[Dict[str, Any]]:
                     "release_year": row.get("release_year") or None,
                     "energy": float(row["energy"]) if row.get("energy") is not None else None,
                     "copy_title_count": int(row.get("copy_title_count") or 0),
+                    "image_url": row.get("image_url") or None,
                 }
                 for row in cur.fetchall()
             ]
@@ -440,6 +470,7 @@ def create_new_track(
             "genre": genre_value,
             "energy": energy_value,
             "copy_title_count": 0,
+            "image_url": None,
         }
     except IntegrityError as e:
         conn.rollback()
@@ -476,6 +507,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
             genre_value = (entry.get("genre") or "").strip() or None
             release_year = normalize_release_year(entry.get("release_year"))
             energy = normalize_energy(entry.get("energy"))
+            image_url = (entry.get("image_url") or "").strip() or None
             rows.append(
                 (
                     track_display,
@@ -483,6 +515,7 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
                     genre_value,
                     release_year,
                     energy,
+                    image_url,
                 )
             )
 
@@ -493,8 +526,8 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
             if replace:
                 cur.execute("DELETE FROM new_tracks")
                 cur.executemany(
-                    "INSERT INTO new_tracks (track, reference_url, genre, release_year, energy) "
-                    "VALUES (%s, %s, %s, %s, %s)",
+                    "INSERT INTO new_tracks (track, reference_url, genre, release_year, energy, image_url) "
+                    "VALUES (%s, %s, %s, %s, %s, %s)",
                     rows,
                 )
                 inserted = len(rows)
@@ -504,8 +537,8 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
                 new_rows = [row for row in rows if row[0] not in existing]
                 if new_rows:
                     cur.executemany(
-                        "INSERT INTO new_tracks (track, reference_url, genre, release_year, energy) "
-                        "VALUES (%s, %s, %s, %s, %s)",
+                        "INSERT INTO new_tracks (track, reference_url, genre, release_year, energy, image_url) "
+                        "VALUES (%s, %s, %s, %s, %s, %s)",
                         new_rows,
                     )
                 inserted = len(new_rows)
@@ -518,3 +551,70 @@ def save_new_tracks(tracks: List[Dict[str, Any]], replace: bool = False) -> tupl
         raise
     finally:
         conn.close()
+
+
+def load_genre_images() -> Dict[str, str]:
+    """Load playlist/genre cover art URLs keyed by genre name."""
+    conn = get_connection()
+    try:
+        _ensure_genre_images_table(conn)
+        with conn.cursor() as cur:
+            cur.execute("SELECT genre, image_url FROM genre_images")
+            return {
+                row["genre"]: row["image_url"]
+                for row in cur.fetchall()
+                if row.get("genre") and row.get("image_url")
+            }
+    finally:
+        conn.close()
+
+
+def save_genre_image(genre: str, image_url: Optional[str]) -> None:
+    """Persist cover art for a genre/playlist name."""
+    genre_name = (genre or "").strip()
+    url = (image_url or "").strip()
+    if not genre_name or not url:
+        return
+
+    conn = get_connection()
+    try:
+        _ensure_genre_images_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO genre_images (genre, image_url) VALUES (%s, %s) "
+                "ON DUPLICATE KEY UPDATE image_url = VALUES(image_url)",
+                (genre_name, url),
+            )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error saving genre image: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def resolve_genre_image(
+    genre: str,
+    *,
+    genre_images: Optional[Dict[str, str]] = None,
+    tracks: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[str]:
+    """Return cover art for a genre, falling back to the first track image in that genre."""
+    genre_name = (genre or "").strip()
+    if not genre_name:
+        return None
+
+    images = genre_images if genre_images is not None else load_genre_images()
+    if genre_name in images:
+        return images[genre_name]
+
+    if tracks is None:
+        tracks = load_new_tracks()
+    for track in tracks:
+        if (track.get("genre") or "").strip() != genre_name:
+            continue
+        image_url = track.get("image_url")
+        if image_url:
+            return image_url
+    return None

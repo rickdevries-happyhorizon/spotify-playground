@@ -16,6 +16,11 @@ final class Router
             return;
         }
 
+        if ($method === 'GET' && str_starts_with($path, '/static/')) {
+            self::serveStatic($path);
+            return;
+        }
+
         if ($method === 'GET' && !str_starts_with($path, '/api/')) {
             self::servePage();
             return;
@@ -65,6 +70,37 @@ final class Router
         readfile($template);
     }
 
+    private static function serveStatic(string $path): void
+    {
+        $relative = ltrim(substr($path, strlen('/static/')), '/');
+        if ($relative === '' || str_contains($relative, '..')) {
+            self::json(['error' => 'Not found'], 404);
+            return;
+        }
+
+        $file = project_root() . '/spotify_playlist/static/' . $relative;
+        if (!is_file($file) || !is_readable($file)) {
+            self::json(['error' => 'Not found'], 404);
+            return;
+        }
+
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        $types = [
+            'css' => 'text/css; charset=UTF-8',
+            'js' => 'application/javascript; charset=UTF-8',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'svg' => 'image/svg+xml',
+            'webp' => 'image/webp',
+            'ico' => 'image/x-icon',
+        ];
+
+        header('Content-Type: ' . ($types[$ext] ?? 'application/octet-stream'));
+        readfile($file);
+    }
+
     private static function listGenres(): void
     {
         try {
@@ -100,6 +136,9 @@ final class Router
             'without_url' => $withoutUrl,
             'total' => count($tracks),
             'genre' => $genre !== '' ? $genre : null,
+            'genre_image_url' => $genre !== '' && $genre !== null
+                ? TrackStore::resolveGenreImage($genre, null, $tracks)
+                : null,
         ]);
     }
 

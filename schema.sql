@@ -49,7 +49,13 @@ CREATE TABLE IF NOT EXISTS new_tracks (
   release_year SMALLINT UNSIGNED NULL,
   energy DECIMAL(4,3) NULL,
   copy_title_count INT UNSIGNED NOT NULL DEFAULT 0,
+  image_url TEXT NULL,
   UNIQUE KEY uq_new_tracks_track (track(191))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS genre_images (
+  genre VARCHAR(512) NOT NULL PRIMARY KEY,
+  image_url TEXT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Existing database? Run once:
@@ -57,6 +63,7 @@ CREATE TABLE IF NOT EXISTS new_tracks (
 -- ALTER TABLE new_tracks ADD COLUMN release_year SMALLINT UNSIGNED NULL AFTER genre;
 -- ALTER TABLE new_tracks ADD COLUMN energy DECIMAL(4,3) NULL AFTER release_year;
 -- ALTER TABLE new_tracks ADD COLUMN copy_title_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER energy;
+-- ALTER TABLE new_tracks ADD COLUMN image_url TEXT NULL AFTER copy_title_count;
 -- DROP TABLE IF EXISTS play_counts;
 
 INSERT IGNORE INTO destination_config (singleton, playlist_id) VALUES (1, '');
