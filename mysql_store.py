@@ -370,12 +370,16 @@ def save_tracking_start_date(start_date: Any) -> None:
         conn.close()
 
 
-_VALID_UI_SKINS = frozenset({"neon", "simple"})
+_VALID_UI_SKINS = frozenset({"light", "dark", "colorful"})
 
 
 def _normalize_ui_skin(skin: Optional[str]) -> str:
-    value = (skin or "neon").strip().lower()
-    return value if value in _VALID_UI_SKINS else "neon"
+    value = (skin or "colorful").strip().lower()
+    if value == "neon":
+        value = "colorful"
+    elif value == "simple":
+        value = "light"
+    return value if value in _VALID_UI_SKINS else "colorful"
 
 
 def _ensure_app_config_schema(conn) -> None:
@@ -386,7 +390,7 @@ def _ensure_app_config_schema(conn) -> None:
             cur.execute(
                 "CREATE TABLE app_config ("
                 "singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY, "
-                "ui_skin VARCHAR(32) NOT NULL DEFAULT 'neon', "
+                "ui_skin VARCHAR(32) NOT NULL DEFAULT 'colorful', "
                 "destination_playlist_ref_id INT UNSIGNED NULL, "
                 "tracking_start_date DATETIME NULL, "
                 "tracking_start_updated DATETIME NULL, "
@@ -397,7 +401,7 @@ def _ensure_app_config_schema(conn) -> None:
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
             )
             cur.execute(
-                "INSERT INTO app_config (singleton, ui_skin) VALUES (1, 'neon')"
+                "INSERT INTO app_config (singleton, ui_skin) VALUES (1, 'colorful')"
             )
         conn.commit()
     else:
@@ -447,7 +451,7 @@ def _ensure_app_config_schema(conn) -> None:
 
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'neon')"
+                "INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'colorful')"
             )
         conn.commit()
 
@@ -524,7 +528,7 @@ def load_ui_skin() -> str:
             return _normalize_ui_skin((row or {}).get("ui_skin"))
     except Exception as e:
         print(f"Error loading UI skin: {e}")
-        return "neon"
+        return "colorful"
     finally:
         conn.close()
 

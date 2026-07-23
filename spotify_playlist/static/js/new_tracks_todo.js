@@ -41,7 +41,7 @@ let currentView = "home";
 const sourcePlaylistCount = document.getElementById("source-playlist-count");
 const trackingPlaylistCount = document.getElementById("tracking-playlist-count");
 const playlistLookupTimers = new WeakMap();
-let savedSettingsSkin = "neon";
+let savedSettingsSkin = "colorful";
 
 function setPlaylistMeta(metaEl, name, state = "resolved") {
   if (!metaEl) return;
@@ -350,7 +350,7 @@ function markSettingsClean(message = "Ready to save") {
 }
 
 function previewSelectedTheme() {
-  const selectedSkin = settingsForm.querySelector('input[name="ui_skin"]:checked')?.value || "neon";
+  const selectedSkin = settingsForm.querySelector('input[name="ui_skin"]:checked')?.value || "colorful";
   document.documentElement.dataset.skin = selectedSkin;
 }
 
@@ -485,7 +485,7 @@ function restoreSettingsSkinIfNeeded() {
 }
 
 function populateSettingsForm(settings) {
-  const skin = settings.ui_skin || "neon";
+  const skin = settings.ui_skin || "colorful";
   savedSettingsSkin = skin;
   for (const input of settingsForm.querySelectorAll('input[name="ui_skin"]')) {
     input.checked = input.value === skin;
@@ -516,7 +516,7 @@ async function loadSettings() {
     }
 
     populateSettingsForm(data);
-    document.documentElement.dataset.skin = data.ui_skin || "neon";
+    document.documentElement.dataset.skin = data.ui_skin || "colorful";
     setBanner("");
   } catch (error) {
     setBanner(`Failed to load settings: ${error.message}`, "error");
@@ -530,7 +530,7 @@ async function saveSettings(event) {
   button.disabled = true;
   settingsDockText.textContent = "Saving…";
 
-  const selectedSkin = settingsForm.querySelector('input[name="ui_skin"]:checked')?.value || "neon";
+  const selectedSkin = settingsForm.querySelector('input[name="ui_skin"]:checked')?.value || "colorful";
   const payload = {
     ui_skin: selectedSkin,
     destination_playlist: settingsForm.destination_playlist.value.trim(),
@@ -816,10 +816,12 @@ function launchConfetti(x, y) {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
-  const skin = document.documentElement.dataset.skin || "neon";
-  const colors = skin === "simple"
+  const skin = document.documentElement.dataset.skin || "colorful";
+  const colors = skin === "light"
     ? ["#000000", "#333333", "#666666", "#999999", "#cccccc", "#ffffff"]
-    : ["#39ff14", "#a855ff", "#ff2bd6", "#c8ffb8", "#ff9de8", "#f4f0ff"];
+    : skin === "dark"
+      ? ["#444444", "#666666", "#888888", "#aaaaaa", "#cccccc", "#f0f0f0"]
+      : ["#39ff14", "#a855ff", "#ff2bd6", "#c8ffb8", "#ff9de8", "#f4f0ff"];
   const particles = Array.from({ length: 90 }, () => ({
     x,
     y,

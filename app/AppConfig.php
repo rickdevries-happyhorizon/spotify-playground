@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 final class AppConfig
 {
-    private const VALID_SKINS = ['neon', 'simple'];
+    private const VALID_SKINS = ['light', 'dark', 'colorful'];
 
     public static function loadUiSkin(): string
     {
@@ -37,8 +37,14 @@ final class AppConfig
 
     private static function normalizeUiSkin(?string $skin): string
     {
-        $value = strtolower(trim((string) ($skin ?? 'neon')));
+        $value = strtolower(trim((string) ($skin ?? 'colorful')));
 
-        return in_array($value, self::VALID_SKINS, true) ? $value : 'neon';
+        if ($value === 'neon') {
+            $value = 'colorful';
+        } elseif ($value === 'simple') {
+            $value = 'light';
+        }
+
+        return in_array($value, self::VALID_SKINS, true) ? $value : 'colorful';
     }
 }

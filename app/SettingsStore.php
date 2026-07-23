@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 final class SettingsStore
 {
-    private const VALID_SKINS = ['neon', 'simple'];
+    private const VALID_SKINS = ['light', 'dark', 'colorful'];
 
     public static function load(): array
     {
@@ -53,8 +53,13 @@ final class SettingsStore
             }
 
             $normalized = strtolower(trim($skin));
+            if ($normalized === 'neon') {
+                $normalized = 'colorful';
+            } elseif ($normalized === 'simple') {
+                $normalized = 'light';
+            }
             if (!in_array($normalized, self::VALID_SKINS, true)) {
-                throw new InvalidArgumentException("ui_skin must be 'neon' or 'simple'");
+                throw new InvalidArgumentException("ui_skin must be 'light', 'dark', or 'colorful'");
             }
 
             AppConfig::saveUiSkin($normalized);
@@ -648,10 +653,10 @@ final class SettingsStore
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS app_config ('
             . 'singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY, '
-            . 'ui_skin VARCHAR(32) NOT NULL DEFAULT \'neon\''
+            . 'ui_skin VARCHAR(32) NOT NULL DEFAULT \'colorful\''
             . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
-        $pdo->exec("INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'neon')");
+        $pdo->exec("INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'colorful')");
 
         self::ensureAppConfigColumn($pdo, 'destination_playlist_ref_id', 'INT UNSIGNED NULL');
         self::ensureAppConfigColumn($pdo, 'tracking_start_date', 'DATETIME NULL');

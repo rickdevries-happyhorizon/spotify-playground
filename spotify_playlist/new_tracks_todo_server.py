@@ -33,7 +33,7 @@ from spotify_playlist.spotify_api_client import get_quiet_spotify_client
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 DEFAULT_PORT = int(os.environ.get("NEW_TRACKS_TODO_PORT", "5050"))
-_VALID_UI_SKINS = frozenset({"neon", "simple"})
+_VALID_UI_SKINS = frozenset({"light", "dark", "colorful"})
 
 
 def _playlist_names_by_spotify_id(spotify_ids: list[str]) -> dict[str, str]:
@@ -315,8 +315,12 @@ def create_app() -> Flask:
             if not isinstance(skin, str):
                 return jsonify({"error": "ui_skin must be a string"}), 400
             normalized = skin.strip().lower()
+            if normalized == "neon":
+                normalized = "colorful"
+            elif normalized == "simple":
+                normalized = "light"
             if normalized not in _VALID_UI_SKINS:
-                return jsonify({"error": "ui_skin must be 'neon' or 'simple'"}), 400
+                return jsonify({"error": "ui_skin must be 'light', 'dark', or 'colorful'"}), 400
             try:
                 save_ui_skin(normalized)
             except Exception as e:
