@@ -1,5 +1,10 @@
 import spotify_playlist.config as config
-from db_store import load_historical_data, load_playlists_config, save_historical_data
+from db_store import (
+    load_historical_data,
+    load_playlists_config,
+    resolve_sync_days_back,
+    save_historical_data,
+)
 
 from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.add_tracks_to_playlist import add_tracks_to_playlist
@@ -18,7 +23,7 @@ def sync_artist_releases(sp):
     # Validate configuration
     if not config.MIJN_DOEL_PLAYLIST_ID:
         print(f"{Colors.BRIGHT_YELLOW}⚠️  No destination playlist configured in the database.{Colors.RESET}")
-        print(f"{Colors.DIM}   Set a destination playlist via the menu or populate destination_config.{Colors.RESET}")
+        print(f"{Colors.DIM}   Set a destination playlist via the settings page or populate app_config.{Colors.RESET}")
         return
 
     historische_nummers = load_historical_data(config.BRON_PLAYLISTS)
@@ -30,7 +35,8 @@ def sync_artist_releases(sp):
 
     try:
         # Fetch new releases (progress shown in get_all_artist_releases)
-        artist_releases = get_all_artist_releases(sp, config.ARTIST_RELEASES_DAYS_BACK)
+        days_back = resolve_sync_days_back()
+        artist_releases = get_all_artist_releases(sp, days_back)
 
         if artist_releases:
             # Check which releases are new (not already in historical data)

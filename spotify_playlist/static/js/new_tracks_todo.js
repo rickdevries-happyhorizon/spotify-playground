@@ -1,12 +1,19 @@
 const genreView = document.getElementById("genre-view");
 const genreHubView = document.getElementById("genre-hub-view");
 const tracksView = document.getElementById("tracks-view");
+const settingsView = document.getElementById("settings-view");
 const genreGrid = document.getElementById("genre-grid");
 const filterGrid = document.getElementById("filter-grid");
 const pageTitle = document.getElementById("page-title");
 const pageSubtitle = document.getElementById("page-subtitle");
 const pageCover = document.getElementById("page-cover");
 const backLink = document.getElementById("back-link");
+const settingsLink = document.getElementById("settings-link");
+const settingsForm = document.getElementById("settings-form");
+const settingsDock = document.getElementById("settings-dock");
+const settingsDockText = document.getElementById("settings-dock-text");
+const sourcePlaylistCount = document.getElementById("source-playlist-count");
+const trackingPlaylistCount = document.getElementById("tracking-playlist-count");
 const columnDone = document.getElementById("column-done");
 const columnTodo = document.getElementById("column-todo");
 const listDone = document.getElementById("list-done");
@@ -18,6 +25,7 @@ const copyToastEl = document.getElementById("copy-toast");
 const bannerEl = document.getElementById("banner");
 const FILTER_WITH_URL = "with-url";
 const FILTER_WITHOUT_URL = "without-url";
+const SETTINGS_PATH = "/settings";
 let statusTimer = null;
 let copyToastTimer = null;
 let lastHighlightedName = null;
@@ -26,6 +34,8 @@ let currentFilter = null;
 let cachedTracks = { with_url: [], without_url: [] };
 let knownGenres = [];
 let genreImageBySlug = {};
+let currentView = "home";
+let savedSettingsSkin = "neon";
 
 function setPageCover(imageUrl) {
   if (imageUrl) {
@@ -67,8 +77,11 @@ function genrePath(slug, filter = null) {
 
 function parsePath(pathname) {
   const path = pathname.replace(/\/+$/, "") || "/";
+  if (path === SETTINGS_PATH) {
+    return { view: "settings", genre: null, filter: null };
+  }
   if (path === "/") {
-    return { genre: null, filter: null };
+    return { view: "home", genre: null, filter: null };
   }
 
   const segments = path.slice(1).split("/").map((segment) => decodeURIComponent(segment.replace(/\+/g, " ")));
@@ -76,10 +89,10 @@ function parsePath(pathname) {
 
   if (last === FILTER_WITH_URL || last === FILTER_WITHOUT_URL) {
     const genre = segments.slice(0, -1).join("/");
-    return { genre: genre || null, filter: last };
+    return { view: "tracks", genre: genre || null, filter: last };
   }
 
-  return { genre: segments.join("/"), filter: null };
+  return { view: "genre", genre: segments.join("/"), filter: null };
 }
 
 async function ensureKnownGenres() {
@@ -99,7 +112,16 @@ function normalizeRoutePath(genre, filter = null) {
   }
 }
 
+function hideAllViews() {
+  genreView.hidden = true;
+  genreHubView.hidden = true;
+  tracksView.hidden = true;
+  settingsView.hidden = true;
+}
+
 function showGenreView() {
+  restoreSettingsSkinIfNeeded();
+  currentView = "home";
   currentGenre = null;
   currentFilter = null;
   document.title = "New Tracks To-Do";
@@ -109,12 +131,56 @@ function showGenreView() {
   backLink.hidden = true;
   backLink.textContent = "← All genres";
   backLink.href = "/";
+  settingsLink.hidden = false;
+  hideAllViews();
   genreView.hidden = false;
-  genreHubView.hidden = true;
-  tracksView.hidden = true;
+}
+
+function showSettingsView() {
+  currentView = "settings";
+  currentGenre = null;
+  currentFilter = null;
+  document.title = "Settings — New Tracks To-Do";
+  pageTitle.textContent = "Settings";
+  pageSubtitle.textContent = "Customize your sync workflow and visual style.";
+  setPageCover(null);
+  backLink.hidden = false;
+  backLink.textContent = "← Back to genres";
+  backLink.href = "/";
+  settingsLink.hidden = true;
+  hideAllViews();
+  settingsView.hidden = false;
+}
+
+function formatPlaylistCount(count) {
+  return `${count} playlist${count === 1 ? "" : "s"}`;
+}
+
+function updateSettingsCounts() {
+  const sourceCount = parsePlaylistTextarea(settingsForm.source_playlists.value).length;
+  const trackingCount = parsePlaylistTextarea(settingsForm.tracking_playlists.value).length;
+  sourcePlaylistCount.textContent = formatPlaylistCount(sourceCount);
+  trackingPlaylistCount.textContent = formatPlaylistCount(trackingCount);
+}
+
+function markSettingsDirty() {
+  settingsDock.classList.add("is-dirty");
+  settingsDockText.textContent = "Unsaved changes";
+}
+
+function markSettingsClean(message = "Ready to save") {
+  settingsDock.classList.remove("is-dirty");
+  settingsDockText.textContent = message;
+}
+
+function previewSelectedTheme() {
+  const selectedSkin = settingsForm.querySelector('input[name="ui_skin"]:checked')?.value || "neon";
+  document.documentElement.dataset.skin = selectedSkin;
 }
 
 function showGenreHub(genre) {
+  restoreSettingsSkinIfNeeded();
+  currentView = "genre";
   currentGenre = genre;
   currentFilter = null;
   document.title = `${genre} — New Tracks To-Do`;
@@ -124,12 +190,14 @@ function showGenreHub(genre) {
   backLink.hidden = false;
   backLink.textContent = "← All genres";
   backLink.href = "/";
-  genreView.hidden = true;
+  settingsLink.hidden = false;
+  hideAllViews();
   genreHubView.hidden = false;
-  tracksView.hidden = true;
 }
 
 function showTracksView(genre, filter) {
+  restoreSettingsSkinIfNeeded();
+  currentView = "tracks";
   currentGenre = genre;
   currentFilter = filter;
   const filterLabel = filter === FILTER_WITH_URL
@@ -142,8 +210,8 @@ function showTracksView(genre, filter) {
   backLink.hidden = false;
   backLink.textContent = "← Back to lists";
   backLink.href = genrePath(genre);
-  genreView.hidden = true;
-  genreHubView.hidden = true;
+  settingsLink.hidden = false;
+  hideAllViews();
   tracksView.hidden = false;
   applyFilterView();
 }
@@ -213,7 +281,7 @@ function navigateToFilter(genre, filter, { replace = false } = {}) {
 }
 
 function navigateHome({ replace = false } = {}) {
-  const state = { genre: null, filter: null };
+  const state = { view: "home", genre: null, filter: null };
   if (replace) {
     history.replaceState(state, "", "/");
   } else {
@@ -221,6 +289,111 @@ function navigateHome({ replace = false } = {}) {
   }
   showGenreView();
   loadGenres();
+}
+
+function navigateToSettings({ replace = false } = {}) {
+  const state = { view: "settings", genre: null, filter: null };
+  if (replace) {
+    history.replaceState(state, "", SETTINGS_PATH);
+  } else {
+    history.pushState(state, "", SETTINGS_PATH);
+  }
+  showSettingsView();
+  loadSettings();
+}
+
+function playlistLines(entries) {
+  return (entries || [])
+    .map((entry) => entry?.spotify_id || entry || "")
+    .filter(Boolean)
+    .join("\n");
+}
+
+function restoreSettingsSkinIfNeeded() {
+  if (settingsDock.classList.contains("is-dirty")) {
+    document.documentElement.dataset.skin = savedSettingsSkin;
+  }
+}
+
+function populateSettingsForm(settings) {
+  const skin = settings.ui_skin || "neon";
+  savedSettingsSkin = skin;
+  for (const input of settingsForm.querySelectorAll('input[name="ui_skin"]')) {
+    input.checked = input.value === skin;
+  }
+
+  settingsForm.destination_playlist.value = settings.destination_playlist?.spotify_id || "";
+  settingsForm.source_playlists.value = playlistLines(settings.source_playlists);
+  settingsForm.tracking_playlists.value = playlistLines(settings.tracking_playlists);
+  settingsForm.sync_start_date.value = settings.sync_start_date || "";
+  settingsForm.tracking_start_date.value = settings.tracking_start_date || "";
+  updateSettingsCounts();
+  markSettingsClean();
+}
+
+async function loadSettings() {
+  setBanner("Loading settings…", "loading");
+  try {
+    const response = await fetch("/api/settings");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Could not load settings");
+    }
+
+    populateSettingsForm(data);
+    document.documentElement.dataset.skin = data.ui_skin || "neon";
+    setBanner("");
+  } catch (error) {
+    setBanner(`Failed to load settings: ${error.message}`, "error");
+    showStatus(error.message, "error");
+  }
+}
+
+function parsePlaylistTextarea(value) {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+async function saveSettings(event) {
+  event.preventDefault();
+  const button = settingsForm.querySelector('button[type="submit"]');
+  button.disabled = true;
+  settingsDockText.textContent = "Saving…";
+
+  const selectedSkin = settingsForm.querySelector('input[name="ui_skin"]:checked')?.value || "neon";
+  const payload = {
+    ui_skin: selectedSkin,
+    destination_playlist: settingsForm.destination_playlist.value.trim(),
+    source_playlists: parsePlaylistTextarea(settingsForm.source_playlists.value),
+    tracking_playlists: parsePlaylistTextarea(settingsForm.tracking_playlists.value),
+    sync_start_date: settingsForm.sync_start_date.value.trim() || null,
+    tracking_start_date: settingsForm.tracking_start_date.value.trim() || null,
+  };
+
+  try {
+    const response = await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Could not save settings");
+    }
+
+    populateSettingsForm(data);
+    document.documentElement.dataset.skin = data.ui_skin || selectedSkin;
+    savedSettingsSkin = data.ui_skin || selectedSkin;
+    markSettingsClean("All changes saved");
+    showStatus("Settings saved");
+  } catch (error) {
+    markSettingsDirty();
+    showStatus(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function navigateToGenreHub({ replace = false } = {}) {
@@ -478,7 +651,7 @@ function launchConfetti(x, y) {
   const skin = document.documentElement.dataset.skin || "neon";
   const colors = skin === "simple"
     ? ["#000000", "#333333", "#666666", "#999999", "#cccccc", "#ffffff"]
-    : ["#39ff14", "#00f5ff", "#ff2bd6", "#ffe600", "#a855ff", "#ffffff"];
+    : ["#39ff14", "#a855ff", "#ff2bd6", "#c8ffb8", "#ff9de8", "#f4f0ff"];
   const particles = Array.from({ length: 90 }, () => ({
     x,
     y,
@@ -834,8 +1007,13 @@ async function loadTracks(genre = currentGenre) {
 }
 
 async function bootFromPath() {
-  const { genre: urlSlug, filter } = parsePath(window.location.pathname);
-  if (!urlSlug) {
+  const { view, genre: urlSlug, filter } = parsePath(window.location.pathname);
+  if (view === "settings") {
+    showSettingsView();
+    loadSettings();
+    return;
+  }
+  if (view === "home" || !urlSlug) {
     showGenreView();
     loadGenres();
     return;
@@ -868,13 +1046,36 @@ bootFromPath();
 
 backLink.addEventListener("click", (event) => {
   event.preventDefault();
-  if (currentFilter) {
+  if (currentView === "settings") {
+    navigateHome();
+  } else if (currentFilter) {
     navigateToGenreHub();
   } else if (currentGenre) {
     navigateHome();
   } else {
     navigateHome();
   }
+});
+
+settingsLink.addEventListener("click", (event) => {
+  event.preventDefault();
+  navigateToSettings();
+});
+
+settingsForm.addEventListener("submit", saveSettings);
+
+settingsForm.addEventListener("input", (event) => {
+  if (event.target.name === "source_playlists" || event.target.name === "tracking_playlists") {
+    updateSettingsCounts();
+  }
+  markSettingsDirty();
+});
+
+settingsForm.addEventListener("change", (event) => {
+  if (event.target.name === "ui_skin") {
+    previewSelectedTheme();
+  }
+  markSettingsDirty();
 });
 
 tabWithUrl.addEventListener("click", (event) => {
@@ -893,9 +1094,15 @@ tabWithoutUrl.addEventListener("click", (event) => {
 
 window.addEventListener("popstate", async (event) => {
   const parsed = event.state ?? parsePath(window.location.pathname);
-  const { genre: urlSlug, filter } = parsed;
+  const { view, genre: urlSlug, filter } = parsed;
 
-  if (!urlSlug) {
+  if (view === "settings") {
+    showSettingsView();
+    loadSettings();
+    return;
+  }
+
+  if (view === "home" || !urlSlug) {
     showGenreView();
     loadGenres();
     return;

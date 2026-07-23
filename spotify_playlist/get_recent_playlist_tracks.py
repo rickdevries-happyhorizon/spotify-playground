@@ -3,13 +3,20 @@ from datetime import datetime, timedelta
 from spotify_playlist.deps import SpotifyException
 
 
-def get_recent_playlist_tracks(sp, playlist_id, days_back=7, return_track_info=False):
-    """Fetches only tracks added to the playlist in the last X days.
+def get_recent_playlist_tracks(
+    sp,
+    playlist_id,
+    days_back=7,
+    since_date=None,
+    return_track_info=False,
+):
+    """Fetches tracks added to the playlist since a cutoff date.
 
     Args:
         sp: Spotify client
         playlist_id: Playlist ID
-        days_back: Number of days to look back (default 7)
+        days_back: Number of days to look back when since_date is not set (default 7)
+        since_date: Only include tracks added on or after this datetime (overrides days_back)
         return_track_info: If True, also returns track information (name, artists)
 
     Returns:
@@ -17,7 +24,14 @@ def get_recent_playlist_tracks(sp, playlist_id, days_back=7, return_track_info=F
         If return_track_info=True: dict with URI as key and {'name': ..., 'artists': ...} as value
     """
     track_data = {} if return_track_info else set()
-    cutoff_date = datetime.now() - timedelta(days=days_back)
+    if since_date is not None:
+        cutoff_date = since_date
+        if isinstance(cutoff_date, datetime) and cutoff_date.tzinfo is not None:
+            cutoff_date = cutoff_date.astimezone().replace(tzinfo=None)
+        if isinstance(cutoff_date, datetime):
+            cutoff_date = cutoff_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        cutoff_date = datetime.now() - timedelta(days=days_back)
 
     try:
         # Fetch playlist items with added_at date

@@ -30,24 +30,15 @@ final class AppConfig
         $stmt->execute(['ui_skin' => $normalized]);
     }
 
+    public static function ensureSchema(): void
+    {
+        SettingsStore::ensureSchema();
+    }
+
     private static function normalizeUiSkin(?string $skin): string
     {
         $value = strtolower(trim((string) ($skin ?? 'neon')));
 
         return in_array($value, self::VALID_SKINS, true) ? $value : 'neon';
-    }
-
-    private static function ensureSchema(): void
-    {
-        Db::connection()->exec(
-            'CREATE TABLE IF NOT EXISTS app_config ('
-            . 'singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY, '
-            . 'ui_skin VARCHAR(32) NOT NULL DEFAULT \'neon\''
-            . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
-        );
-
-        Db::connection()->exec(
-            "INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'neon')"
-        );
     }
 }

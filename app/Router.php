@@ -11,6 +11,16 @@ final class Router
             return;
         }
 
+        if ($path === '/api/settings' && $method === 'GET') {
+            self::getSettings();
+            return;
+        }
+
+        if ($path === '/api/settings' && $method === 'PATCH') {
+            self::patchSettings();
+            return;
+        }
+
         if ($path === '/api/tracks' && $method === 'GET') {
             self::listTracks();
             return;
@@ -126,6 +136,26 @@ final class Router
         }
 
         self::json($payload);
+    }
+
+    private static function getSettings(): void
+    {
+        try {
+            self::json(SettingsStore::load());
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    private static function patchSettings(): void
+    {
+        try {
+            self::json(SettingsStore::patch(self::jsonBody()));
+        } catch (InvalidArgumentException $e) {
+            self::json(['error' => $e->getMessage()], 400);
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+        }
     }
 
     private static function listTracks(): void

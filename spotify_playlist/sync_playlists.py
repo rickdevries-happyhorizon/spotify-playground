@@ -1,5 +1,11 @@
 import spotify_playlist.config as config
-from db_store import load_historical_data, load_playlists_config, save_historical_data
+from db_store import (
+    load_historical_data,
+    load_playlists_config,
+    load_sync_start_date,
+    resolve_sync_since_date,
+    save_historical_data,
+)
 
 from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.add_tracks_to_playlist import add_tracks_to_playlist
@@ -25,11 +31,18 @@ def sync_playlists(sp):
 
     if not config.MIJN_DOEL_PLAYLIST_ID:
         print(f"{Colors.BRIGHT_YELLOW}⚠️  No destination playlist configured in the database.{Colors.RESET}")
-        print(f"{Colors.DIM}   Set a destination playlist via the menu or populate destination_config.{Colors.RESET}")
+        print(f"{Colors.DIM}   Set a destination playlist via the settings page or populate app_config.{Colors.RESET}")
         return
 
     historische_nummers = load_historical_data(config.BRON_PLAYLISTS)
     nieuwe_nummers_uris = []
+    sync_since_date = resolve_sync_since_date()
+    sync_start_saved = load_sync_start_date()
+    sync_window_label = (
+        f"since {sync_since_date.strftime('%Y-%m-%d')}"
+        if sync_start_saved
+        else "in the last 7 days"
+    )
 
     print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}🎵  Start Playlist Sync  🎵{Colors.RESET}")
@@ -53,12 +66,17 @@ def sync_playlists(sp):
 
             print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}")
 
-            # Fetch only recently added tracks (last 7 days) for speed
-            print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BRIGHT_YELLOW}⏳{Colors.RESET} {Colors.DIM}Checking tracks added in the last 7 days...{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-50)}║{Colors.RESET}")
+            # Fetch tracks added since the configured sync start date
+            print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BRIGHT_YELLOW}⏳{Colors.RESET} {Colors.DIM}Checking tracks added {sync_window_label}...{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-50)}║{Colors.RESET}")
             with loading_bar("Fetching recent tracks..."):
-                recent_tracks = get_recent_playlist_tracks(sp, pl_id, days_back=7, return_track_info=True)
+                recent_tracks = get_recent_playlist_tracks(
+                    sp,
+                    pl_id,
+                    since_date=sync_since_date,
+                    return_track_info=True,
+                )
             recent_uris = set(recent_tracks.keys())
-            print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BRIGHT_GREEN}✅{Colors.RESET} {Colors.BRIGHT_WHITE}Found {Colors.BOLD}{len(recent_uris)}{Colors.RESET}{Colors.BRIGHT_WHITE} tracks added in the last 7 days{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-60)}║{Colors.RESET}")
+            print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BRIGHT_GREEN}✅{Colors.RESET} {Colors.BRIGHT_WHITE}Found {Colors.BOLD}{len(recent_uris)}{Colors.RESET}{Colors.BRIGHT_WHITE} tracks added {sync_window_label}{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-60)}║{Colors.RESET}")
 
             # Show recently added tracks
             if recent_tracks:

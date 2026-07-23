@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Set
 
 from normalize_track_name import normalize_track_name
@@ -51,9 +51,9 @@ def load_playlists_config() -> Dict[str, Any]:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT p.spotify_id "
-                "FROM destination_config dc "
-                "LEFT JOIN playlist p ON p.id = dc.playlist_ref_id "
-                "WHERE dc.singleton = 1 LIMIT 1"
+                "FROM app_config ac "
+                "LEFT JOIN playlist p ON p.id = ac.destination_playlist_ref_id "
+                "WHERE ac.singleton = 1 LIMIT 1"
             )
             row = cur.fetchone()
             destination = (row or {}).get("spotify_id") or ""
@@ -90,22 +90,37 @@ def load_playlists_config() -> Dict[str, Any]:
         conn.close()
 
 
-def save_playlists_config(config: Dict[str, Any]) -> None:
+def save_playlists_config(
+    config: Dict[str, Any],
+    *,
+    playlist_details: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> None:
     """Replace playlist configuration in the database."""
     conn = get_connection()
     try:
         dest = (config.get("destination_playlist") or "").strip()
         sources = config.get("source_playlists") or []
         tracking = config.get("tracking_playlists") or []
+        details = playlist_details or {}
 
         _ensure_playlist_config_schema(conn)
+        kept_ref_ids: Set[int] = set()
         with conn.cursor() as cur:
             dest_ref_id = None
             if dest:
-                dest_ref_id = _upsert_playlist_cur(cur, spotify_id=dest)
+                entry = details.get(dest, {})
+                dest_ref_id = _upsert_playlist_cur(
+                    cur,
+                    spotify_id=dest,
+                    name=entry.get("name"),
+                    artwork_url=entry.get("artwork_url"),
+                )
+                kept_ref_ids.add(dest_ref_id)
             cur.execute(
-                "INSERT INTO destination_config (singleton, playlist_ref_id) VALUES (1, %s) "
-                "ON DUPLICATE KEY UPDATE playlist_ref_id = VALUES(playlist_ref_id)",
+                "INSERT INTO app_config (singleton, destination_playlist_ref_id) "
+                "VALUES (1, %s) "
+                "ON DUPLICATE KEY UPDATE destination_playlist_ref_id = "
+                "VALUES(destination_playlist_ref_id)",
                 (dest_ref_id,),
             )
 
@@ -114,7 +129,14 @@ def save_playlists_config(config: Dict[str, Any]) -> None:
                 spotify_id = (spotify_id or "").strip()
                 if not spotify_id:
                     continue
-                ref_id = _upsert_playlist_cur(cur, spotify_id=spotify_id)
+                entry = details.get(spotify_id, {})
+                ref_id = _upsert_playlist_cur(
+                    cur,
+                    spotify_id=spotify_id,
+                    name=entry.get("name"),
+                    artwork_url=entry.get("artwork_url"),
+                )
+                kept_ref_ids.add(ref_id)
                 cur.execute(
                     "INSERT INTO playlist_source (sort_order, playlist_ref_id) VALUES (%s, %s)",
                     (i, ref_id),
@@ -125,11 +147,20 @@ def save_playlists_config(config: Dict[str, Any]) -> None:
                 spotify_id = (spotify_id or "").strip()
                 if not spotify_id:
                     continue
-                ref_id = _upsert_playlist_cur(cur, spotify_id=spotify_id)
+                entry = details.get(spotify_id, {})
+                ref_id = _upsert_playlist_cur(
+                    cur,
+                    spotify_id=spotify_id,
+                    name=entry.get("name"),
+                    artwork_url=entry.get("artwork_url"),
+                )
+                kept_ref_ids.add(ref_id)
                 cur.execute(
                     "INSERT INTO playlist_tracking (sort_order, playlist_ref_id) VALUES (%s, %s)",
                     (i, ref_id),
                 )
+
+            _prune_unused_config_playlists(cur, kept_ref_ids)
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -192,14 +223,15 @@ def save_historical_data(data: Dict[str, Set[str]]) -> None:
 def load_tracking_start_date() -> Optional[datetime]:
     conn = get_connection()
     try:
+        _ensure_app_config_schema(conn)
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT start_date FROM tracking_start WHERE singleton = 1 LIMIT 1"
+                "SELECT tracking_start_date FROM app_config WHERE singleton = 1 LIMIT 1"
             )
             row = cur.fetchone()
-            if not row or row.get("start_date") is None:
+            if not row or row.get("tracking_start_date") is None:
                 return None
-            return parse_datetime(row["start_date"])
+            return parse_datetime(row["tracking_start_date"])
     except Exception as e:
         print(f"Error loading tracking start date: {e}")
         return None
@@ -207,20 +239,108 @@ def load_tracking_start_date() -> Optional[datetime]:
         conn.close()
 
 
-def save_tracking_start_date(start_date: Any) -> None:
+DEFAULT_SYNC_DAYS_BACK = 7
+
+
+def load_sync_start_date() -> Optional[datetime]:
     conn = get_connection()
     try:
+        _ensure_app_config_schema(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT sync_start_date FROM app_config WHERE singleton = 1 LIMIT 1"
+            )
+            row = cur.fetchone()
+            if not row or row.get("sync_start_date") is None:
+                return None
+            return parse_datetime(row["sync_start_date"])
+    except Exception as e:
+        print(f"Error loading sync start date: {e}")
+        return None
+    finally:
+        conn.close()
+
+
+def save_sync_start_date(start_date: Any) -> None:
+    conn = get_connection()
+    try:
+        _ensure_app_config_schema(conn)
+        now = datetime.now()
+        if start_date is None or start_date == "":
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO app_config (singleton, sync_start_date, sync_start_updated) "
+                    "VALUES (1, NULL, %s) "
+                    "ON DUPLICATE KEY UPDATE sync_start_date = NULL, "
+                    "sync_start_updated = VALUES(sync_start_updated)",
+                    (now,),
+                )
+            conn.commit()
+            return
+
         dt = start_date
         if not isinstance(dt, datetime):
             dt = parse_datetime(start_date)
         if isinstance(dt, datetime) and dt.tzinfo is not None:
             dt = dt.astimezone().replace(tzinfo=None)
-        now = datetime.now()
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO tracking_start (singleton, start_date, last_updated) VALUES (1, %s, %s) "
-                "ON DUPLICATE KEY UPDATE start_date = VALUES(start_date), "
-                "last_updated = VALUES(last_updated)",
+                "INSERT INTO app_config (singleton, sync_start_date, sync_start_updated) "
+                "VALUES (1, %s, %s) "
+                "ON DUPLICATE KEY UPDATE sync_start_date = VALUES(sync_start_date), "
+                "sync_start_updated = VALUES(sync_start_updated)",
+                (dt, now),
+            )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error saving sync start date: {e}")
+    finally:
+        conn.close()
+
+
+def resolve_sync_since_date() -> datetime:
+    saved = load_sync_start_date()
+    if saved is None:
+        return datetime.now() - timedelta(days=DEFAULT_SYNC_DAYS_BACK)
+    return saved.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def resolve_sync_days_back() -> int:
+    saved = load_sync_start_date()
+    if saved is None:
+        return DEFAULT_SYNC_DAYS_BACK
+    return max(1, (datetime.now().date() - saved.date()).days + 1)
+
+
+def save_tracking_start_date(start_date: Any) -> None:
+    conn = get_connection()
+    try:
+        _ensure_app_config_schema(conn)
+        now = datetime.now()
+        if start_date is None or start_date == "":
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO app_config (singleton, tracking_start_date, tracking_start_updated) "
+                    "VALUES (1, NULL, %s) "
+                    "ON DUPLICATE KEY UPDATE tracking_start_date = NULL, "
+                    "tracking_start_updated = VALUES(tracking_start_updated)",
+                    (now,),
+                )
+            conn.commit()
+            return
+
+        dt = start_date
+        if not isinstance(dt, datetime):
+            dt = parse_datetime(start_date)
+        if isinstance(dt, datetime) and dt.tzinfo is not None:
+            dt = dt.astimezone().replace(tzinfo=None)
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO app_config (singleton, tracking_start_date, tracking_start_updated) "
+                "VALUES (1, %s, %s) "
+                "ON DUPLICATE KEY UPDATE tracking_start_date = VALUES(tracking_start_date), "
+                "tracking_start_updated = VALUES(tracking_start_updated)",
                 (dt, now),
             )
         conn.commit()
@@ -239,21 +359,138 @@ def _normalize_ui_skin(skin: Optional[str]) -> str:
     return value if value in _VALID_UI_SKINS else "neon"
 
 
-def _ensure_app_config_table(conn) -> None:
-    if _table_exists(conn, "app_config"):
-        return
+def _ensure_app_config_schema(conn) -> None:
+    _ensure_playlist_table(conn)
 
-    with conn.cursor() as cur:
-        cur.execute(
-            "CREATE TABLE app_config ("
-            "singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY, "
-            "ui_skin VARCHAR(32) NOT NULL DEFAULT 'neon'"
-            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-        )
-        cur.execute(
-            "INSERT INTO app_config (singleton, ui_skin) VALUES (1, 'neon')"
-        )
-    conn.commit()
+    if not _table_exists(conn, "app_config"):
+        with conn.cursor() as cur:
+            cur.execute(
+                "CREATE TABLE app_config ("
+                "singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY, "
+                "ui_skin VARCHAR(32) NOT NULL DEFAULT 'neon', "
+                "destination_playlist_ref_id INT UNSIGNED NULL, "
+                "tracking_start_date DATETIME NULL, "
+                "tracking_start_updated DATETIME NULL, "
+                "sync_start_date DATETIME NULL, "
+                "sync_start_updated DATETIME NULL, "
+                "CONSTRAINT fk_app_config_destination FOREIGN KEY (destination_playlist_ref_id) "
+                "REFERENCES playlist(id) ON DELETE SET NULL"
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            )
+            cur.execute(
+                "INSERT INTO app_config (singleton, ui_skin) VALUES (1, 'neon')"
+            )
+        conn.commit()
+    else:
+        with conn.cursor() as cur:
+            if not _column_exists(conn, "app_config", "destination_playlist_ref_id"):
+                cur.execute(
+                    "ALTER TABLE app_config ADD COLUMN destination_playlist_ref_id "
+                    "INT UNSIGNED NULL AFTER ui_skin"
+                )
+            if not _column_exists(conn, "app_config", "tracking_start_date"):
+                cur.execute(
+                    "ALTER TABLE app_config ADD COLUMN tracking_start_date DATETIME NULL "
+                    "AFTER destination_playlist_ref_id"
+                )
+            if not _column_exists(conn, "app_config", "tracking_start_updated"):
+                cur.execute(
+                    "ALTER TABLE app_config ADD COLUMN tracking_start_updated DATETIME NULL "
+                    "AFTER tracking_start_date"
+                )
+            if not _column_exists(conn, "app_config", "sync_start_date"):
+                cur.execute(
+                    "ALTER TABLE app_config ADD COLUMN sync_start_date DATETIME NULL "
+                    "AFTER tracking_start_updated"
+                )
+            if not _column_exists(conn, "app_config", "sync_start_updated"):
+                cur.execute(
+                    "ALTER TABLE app_config ADD COLUMN sync_start_updated DATETIME NULL "
+                    "AFTER sync_start_date"
+                )
+        conn.commit()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT COUNT(*) AS cnt FROM information_schema.TABLE_CONSTRAINTS "
+                    "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_config' "
+                    "AND CONSTRAINT_NAME = 'fk_app_config_destination'"
+                )
+                if int(cur.fetchone()["cnt"]) == 0:
+                    cur.execute(
+                        "ALTER TABLE app_config ADD CONSTRAINT fk_app_config_destination "
+                        "FOREIGN KEY (destination_playlist_ref_id) REFERENCES playlist(id) "
+                        "ON DELETE SET NULL"
+                    )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'neon')"
+            )
+        conn.commit()
+
+    _migrate_legacy_app_config_tables(conn)
+
+
+def _migrate_legacy_app_config_tables(conn) -> None:
+    if _table_exists(conn, "destination_config"):
+        if _column_exists(conn, "destination_config", "playlist_id"):
+            _ensure_destination_config_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT playlist_ref_id FROM destination_config WHERE singleton = 1 LIMIT 1"
+            )
+            row = cur.fetchone()
+            ref_id = (row or {}).get("playlist_ref_id")
+            if ref_id is not None:
+                cur.execute(
+                    "UPDATE app_config SET destination_playlist_ref_id = %s "
+                    "WHERE singleton = 1 AND destination_playlist_ref_id IS NULL",
+                    (ref_id,),
+                )
+            cur.execute("DROP TABLE destination_config")
+        conn.commit()
+
+    if _table_exists(conn, "tracking_start"):
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT start_date, last_updated FROM tracking_start WHERE singleton = 1 LIMIT 1"
+            )
+            row = cur.fetchone()
+            if row:
+                cur.execute(
+                    "UPDATE app_config SET tracking_start_date = %s, tracking_start_updated = %s "
+                    "WHERE singleton = 1",
+                    (row.get("start_date"), row.get("last_updated")),
+                )
+            cur.execute("DROP TABLE tracking_start")
+        conn.commit()
+
+
+def _prune_unused_config_playlists(cur, kept_ref_ids: Set[int]) -> None:
+    cur.execute(
+        "SELECT DISTINCT playlist_id FROM new_tracks "
+        "WHERE playlist_id IS NOT NULL"
+    )
+    protected = kept_ref_ids | {
+        int(row["playlist_id"]) for row in cur.fetchall() if row.get("playlist_id")
+    }
+
+    cur.execute(
+        "SELECT id FROM playlist "
+        "WHERE spotify_id IS NOT NULL AND TRIM(spotify_id) != ''"
+    )
+    for row in cur.fetchall():
+        playlist_id = int(row["id"])
+        if playlist_id not in protected:
+            cur.execute("DELETE FROM playlist WHERE id = %s", (playlist_id,))
+
+
+def _ensure_app_config_table(conn) -> None:
+    _ensure_app_config_schema(conn)
 
 
 def load_ui_skin() -> str:
@@ -525,7 +762,7 @@ def _migrate_legacy_source_tracking_table(conn, *, legacy_table: str, target_tab
 
 def _ensure_playlist_config_schema(conn) -> None:
     _ensure_playlist_table(conn)
-    _ensure_destination_config_table(conn)
+    _ensure_app_config_schema(conn)
     _migrate_legacy_source_tracking_table(
         conn, legacy_table="source_playlists", target_table="playlist_source"
     )
@@ -677,8 +914,8 @@ def _merge_playlist_rows(cur, *, from_id: int, to_id: int) -> None:
         )
 
     cur.execute(
-        "UPDATE destination_config SET playlist_ref_id = %s "
-        "WHERE playlist_ref_id = %s",
+        "UPDATE app_config SET destination_playlist_ref_id = %s "
+        "WHERE destination_playlist_ref_id = %s",
         (to_id, from_id),
     )
 

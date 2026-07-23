@@ -17,11 +17,18 @@ CREATE TABLE IF NOT EXISTS playlist (
   UNIQUE KEY uq_playlist_name (name(191))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS destination_config (
+CREATE TABLE IF NOT EXISTS app_config (
   singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY,
-  playlist_ref_id INT UNSIGNED NULL,
-  CONSTRAINT fk_destination_playlist FOREIGN KEY (playlist_ref_id) REFERENCES playlist(id) ON DELETE SET NULL
+  ui_skin VARCHAR(32) NOT NULL DEFAULT 'neon',
+  destination_playlist_ref_id INT UNSIGNED NULL,
+  tracking_start_date DATETIME NULL,
+  tracking_start_updated DATETIME NULL,
+  sync_start_date DATETIME NULL,
+  sync_start_updated DATETIME NULL,
+  CONSTRAINT fk_app_config_destination FOREIGN KEY (destination_playlist_ref_id) REFERENCES playlist(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'neon');
 
 CREATE TABLE IF NOT EXISTS playlist_source (
   sort_order INT UNSIGNED NOT NULL,
@@ -46,12 +53,6 @@ CREATE TABLE IF NOT EXISTS historical_tracks (
   KEY idx_hist_playlist (playlist_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS tracking_start (
-  singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY,
-  start_date DATETIME NULL,
-  last_updated DATETIME NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE TABLE IF NOT EXISTS new_tracks (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   track VARCHAR(512) NOT NULL,
@@ -72,16 +73,7 @@ CREATE TABLE IF NOT EXISTS genre_images (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Existing database? Run migrations via the app, or manually:
--- 1. Add spotify_id to playlist; create playlist_source / playlist_tracking / new destination_config
--- 2. Migrate rows from source_playlists, tracking_playlists, and destination_config (Spotify IDs)
--- 3. Drop legacy source_playlists and tracking_playlists tables after migration
-
-INSERT IGNORE INTO destination_config (singleton, playlist_ref_id) VALUES (1, NULL);
-INSERT IGNORE INTO tracking_start (singleton, start_date, last_updated) VALUES (1, NULL, NULL);
-
-CREATE TABLE IF NOT EXISTS app_config (
-  singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY,
-  ui_skin VARCHAR(32) NOT NULL DEFAULT 'neon'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'neon');
+-- 1. Add spotify_id to playlist; create playlist_source / playlist_tracking
+-- 2. Migrate rows from source_playlists and tracking_playlists
+-- 3. Migrate destination_config and tracking_start into app_config
+-- 4. Drop legacy source_playlists, tracking_playlists, destination_config, tracking_start

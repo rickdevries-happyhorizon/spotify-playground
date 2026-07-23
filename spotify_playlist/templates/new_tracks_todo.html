@@ -9,7 +9,10 @@
 <body>
   <header>
     <div class="container">
-      <a class="back-link" id="back-link" href="/" hidden>← All genres</a>
+      <div class="header-top">
+        <a class="back-link" id="back-link" href="/" hidden>← All genres</a>
+        <a class="settings-link" id="settings-link" href="/settings" title="Settings">⚙ Settings</a>
+      </div>
       <div class="page-heading">
         <img class="page-cover" id="page-cover" alt="" hidden />
         <div class="page-heading__text">
@@ -32,6 +35,161 @@
   <section class="genre-hub view container" id="genre-hub-view" hidden>
     <h2>Choose a list</h2>
     <ul class="filter-grid" id="filter-grid"></ul>
+  </section>
+
+  <section class="settings-screen view container" id="settings-view" hidden>
+    <div class="settings-hero">
+      <div class="settings-hero__glow" aria-hidden="true"></div>
+      <div class="settings-hero__content">
+        <span class="settings-hero__icon" aria-hidden="true">⚙</span>
+        <div>
+          <h2 class="settings-hero__title">Control panel</h2>
+          <p class="settings-hero__subtitle">Tune the look, sync playlists, and set how new tracks are imported.</p>
+        </div>
+      </div>
+    </div>
+
+    <form class="settings-form" id="settings-form">
+      <div class="settings-grid">
+        <section class="settings-card settings-card--theme">
+          <div class="settings-card__accent" aria-hidden="true"></div>
+          <div class="settings-card__header">
+            <span class="settings-card__icon" aria-hidden="true">🎨</span>
+            <div>
+              <h3>Theme</h3>
+              <p>Pick the vibe for the whole app.</p>
+            </div>
+          </div>
+          <div class="theme-cards">
+            <label class="theme-card theme-card--neon">
+              <input type="radio" name="ui_skin" value="neon" />
+              <span class="theme-card__frame">
+                <span class="theme-card__preview theme-card__preview--neon" aria-hidden="true">
+                  <span class="theme-card__orb theme-card__orb--pink"></span>
+                  <span class="theme-card__orb theme-card__orb--purple"></span>
+                  <span class="theme-card__orb theme-card__orb--green"></span>
+                  <span class="theme-card__bars">
+                    <span></span><span></span><span></span>
+                  </span>
+                </span>
+                <span class="theme-card__label">
+                  <strong>Neon</strong>
+                  <small>Gradients, glow, motion</small>
+                </span>
+                <span class="theme-card__check" aria-hidden="true">✓</span>
+              </span>
+            </label>
+            <label class="theme-card theme-card--simple">
+              <input type="radio" name="ui_skin" value="simple" />
+              <span class="theme-card__frame">
+                <span class="theme-card__preview theme-card__preview--simple" aria-hidden="true">
+                  <span class="theme-card__bars theme-card__bars--mono">
+                    <span></span><span></span><span></span>
+                  </span>
+                </span>
+                <span class="theme-card__label">
+                  <strong>Simple</strong>
+                  <small>Clean black &amp; white</small>
+                </span>
+                <span class="theme-card__check" aria-hidden="true">✓</span>
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <div class="settings-playlists-row">
+        <section class="settings-card settings-card--destination">
+          <div class="settings-card__accent" aria-hidden="true"></div>
+          <div class="settings-card__header">
+            <span class="settings-card__icon" aria-hidden="true">🎯</span>
+            <div>
+              <h3>Destination playlist</h3>
+              <p>Where synced tracks land.</p>
+            </div>
+          </div>
+          <label class="settings-field">
+            <span class="settings-field__label">Spotify ID or URL</span>
+            <input type="text" name="destination_playlist" placeholder="https://open.spotify.com/playlist/…" />
+          </label>
+        </section>
+
+        <section class="settings-card settings-card--source">
+          <div class="settings-card__accent" aria-hidden="true"></div>
+          <div class="settings-card__header">
+            <span class="settings-card__icon" aria-hidden="true">📥</span>
+            <div>
+              <h3>Source playlists</h3>
+              <p>Playlists to pull tracks from during sync.</p>
+            </div>
+            <span class="settings-count" id="source-playlist-count">0 playlists</span>
+          </div>
+          <label class="settings-field">
+            <span class="settings-field__label">One playlist per line</span>
+            <textarea name="source_playlists" rows="5" placeholder="https://open.spotify.com/playlist/…"></textarea>
+          </label>
+        </section>
+
+        <section class="settings-card settings-card--tracking">
+          <div class="settings-card__accent" aria-hidden="true"></div>
+          <div class="settings-card__header">
+            <span class="settings-card__icon" aria-hidden="true">📡</span>
+            <div>
+              <h3>Tracking playlists</h3>
+              <p>Playlists scanned when importing new tracks.</p>
+            </div>
+            <span class="settings-count" id="tracking-playlist-count">0 playlists</span>
+          </div>
+          <label class="settings-field">
+            <span class="settings-field__label">One playlist per line</span>
+            <textarea name="tracking_playlists" rows="5" placeholder="https://open.spotify.com/playlist/…"></textarea>
+          </label>
+        </section>
+        </div>
+
+        <div class="settings-dates-row">
+        <section class="settings-card settings-card--date settings-card--sync-date">
+          <div class="settings-card__accent" aria-hidden="true"></div>
+          <div class="settings-card__header">
+            <span class="settings-card__icon" aria-hidden="true">🔄</span>
+            <div>
+              <h3>Sync start date</h3>
+              <p>Artist releases and source playlist sync look back from this date.</p>
+            </div>
+          </div>
+          <label class="settings-field">
+            <span class="settings-field__label">Start date <span class="settings-field__hint">(empty = last 7 days)</span></span>
+            <input type="date" name="sync_start_date" />
+          </label>
+        </section>
+
+        <section class="settings-card settings-card--date settings-card--new-tracks-date">
+          <div class="settings-card__accent" aria-hidden="true"></div>
+          <div class="settings-card__header">
+            <span class="settings-card__icon" aria-hidden="true">📅</span>
+            <div>
+              <h3>New tracks start date</h3>
+              <p>Only import tracks into new_tracks after this date.</p>
+            </div>
+          </div>
+          <label class="settings-field">
+            <span class="settings-field__label">Start date <span class="settings-field__hint">(empty = last 7 days)</span></span>
+            <input type="date" name="tracking_start_date" />
+          </label>
+        </section>
+        </div>
+      </div>
+
+      <div class="settings-dock" id="settings-dock">
+        <div class="settings-dock__status">
+          <span class="settings-dock__pulse" aria-hidden="true"></span>
+          <span id="settings-dock-text">Ready to save</span>
+        </div>
+        <button type="submit" class="settings-save">
+          <span class="settings-save__shine" aria-hidden="true"></span>
+          Save settings
+        </button>
+      </div>
+    </form>
   </section>
 
   <div class="view" id="tracks-view" hidden>
