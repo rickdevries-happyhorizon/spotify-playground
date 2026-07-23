@@ -18,7 +18,7 @@ def _track_info_from_item(track: dict) -> dict:
     return info
 
 
-def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_info=False, debug=False):
+def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_info=False):
     """Fetches tracks added to the playlist since a specific date.
 
     Args:
@@ -26,15 +26,12 @@ def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_inf
         playlist_id: Playlist ID
         since_date: datetime object - only tracks added after this date
         return_track_info: If True, also returns track information (name, artists, added_at)
-        debug: If True, show debug information
 
     Returns:
         If return_track_info=False: set of track URIs
         If return_track_info=True: dict with URI as key and {'name': ..., 'artists': ..., 'added_at': ...} as value
     """
     track_data = {} if return_track_info else set()
-    items_without_added_at = 0
-    items_processed = 0
 
     try:
         # Fetch playlist items with added_at date
@@ -48,35 +45,17 @@ def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_inf
             limit=100,
         )
 
-        if debug:
-            print(f"{Colors.DIM}   Debug: API response keys: {list(results.keys()) if results else 'None'}{Colors.RESET}")
-            if results and 'items' in results:
-                print(f"{Colors.DIM}   Debug: Number of items in first batch: {len(results['items'])}{Colors.RESET}")
-                if len(results['items']) > 0:
-                    first_item = results['items'][0]
-                    print(f"{Colors.DIM}   Debug: First item keys: {list(first_item.keys())}{Colors.RESET}")
-                    print(f"{Colors.DIM}   Debug: First item added_at: {first_item.get('added_at', 'NOT PRESENT')}{Colors.RESET}")
-
         while results:
             for item in results['items']:
-                items_processed += 1
-
                 # Check that track exists
                 track = item.get('track')
                 if not track or not track.get('uri'):
-                    if debug:
-                        print(f"{Colors.DIM}   Debug: Item {items_processed} has no track or URI{Colors.RESET}")
                     continue
 
                 # Check when the track was added
                 added_at_str = item.get('added_at')
 
                 if not added_at_str:
-                    items_without_added_at += 1
-                    if debug and items_without_added_at <= 3:
-                        track_name = track.get('name', 'Unknown')
-                        print(f"{Colors.BRIGHT_YELLOW}   ⚠️  Track '{track_name}' has no added_at field{Colors.RESET}")
-                        print(f"{Colors.DIM}      This may mean you do not have permission to view this information{Colors.RESET}")
                     # If no added_at, include the track (for safety)
                     uri = track['uri']
                     if return_track_info:
@@ -95,14 +74,6 @@ def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_inf
                     if added_at.tzinfo:
                         added_at = added_at.astimezone().replace(tzinfo=None)
 
-                    if debug and len(track_data) < 5:
-                        track_name = track.get('name', 'Unknown')
-                        print(
-                            f"{Colors.DIM}   Debug: Track '{track_name}' - added_at: "
-                            f"{added_at.strftime('%Y-%m-%d %H:%M:%S')}, since_date: "
-                            f"{since_date.strftime('%Y-%m-%d %H:%M:%S')}{Colors.RESET}"
-                        )
-
                     # Only tracks added on or after since_date
                     # Note: we do NOT stop early because order is not always perfect
                     if added_at >= since_date:
@@ -115,17 +86,12 @@ def get_playlist_tracks_since_date(sp, playlist_id, since_date, return_track_inf
                         else:
                             track_data.add(uri)
 
-                except (ValueError, AttributeError) as e:
-                    if debug:
-                        print(f"{Colors.BRIGHT_YELLOW}   ⚠️  Could not parse date: {added_at_str} - {e}{Colors.RESET}")
+                except (ValueError, AttributeError):
                     # If parsing fails, skip this track
                     continue
 
             if results:
                 results = sp.next(results) if results.get('next') else None
-
-        if debug:
-            print(f"{Colors.DIM}   Debug: Total items processed: {items_processed}, without added_at: {items_without_added_at}{Colors.RESET}")
 
         return track_data
     except SpotifyException as e:

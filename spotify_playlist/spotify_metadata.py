@@ -18,7 +18,7 @@ from spotify_playlist.audio_batch import (
     spotify_call_with_retry,
     utc_timestamp,
 )
-from spotify_playlist.audio_energy import analyze_track_energy, format_energy_label
+from spotify_playlist.spotify_track_energy import fetch_track_energies, format_energy_label
 from spotify_playlist.colors import Colors
 from spotify_playlist.deps import require_spotipy
 from spotify_playlist.get_spotify_client import get_spotify_client
@@ -215,9 +215,17 @@ def process_metadata_file(sp, path: str) -> dict[str, Any]:
                 skipped_fields.append('album')
 
     energy_label: str | None = None
-    try:
-        energy_label = format_energy_label(analyze_track_energy(path))
-    except Exception:
+    if spotify_track and spotify_track.get('uri'):
+        try:
+            energies = fetch_track_energies(sp, [spotify_track['uri']])
+            energy = energies.get(spotify_track['uri'])
+            if energy is not None:
+                energy_label = format_energy_label(energy)
+            else:
+                skipped_fields.append('energy')
+        except Exception:
+            skipped_fields.append('energy')
+    else:
         skipped_fields.append('energy')
 
     apply_kwargs: dict[str, Any] = {}
@@ -392,11 +400,9 @@ def run_spotify_metadata(default_directory: str = '') -> None:
     """Interactive flow to apply Spotify metadata from the menu."""
     try:
         require_spotipy()
-        from spotify_playlist.audio_energy import _require_librosa
         from spotify_playlist.tag_wav_metadata import _require_mutagen
 
         _require_mutagen()
-        _require_librosa()
     except ModuleNotFoundError as exc:
         print(f"{Colors.BRIGHT_RED}❌ {exc}{Colors.RESET}")
         return
@@ -405,8 +411,7 @@ def run_spotify_metadata(default_directory: str = '') -> None:
     print(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🏷️  Add Spotify Metadata  🏷️{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═' * 70}{Colors.RESET}\n")
     print(
-        f"{Colors.DIM}Looks up on Spotify: year, release date, and album. "
-        f"Calculates energy and stores it in Rekordbox Label. "
+        f"{Colors.DIM}Looks up on Spotify: year, release date, album, and energy. "
         f"Missing fields are skipped and logged.{Colors.RESET}\n"
     )
 

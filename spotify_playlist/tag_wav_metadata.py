@@ -3,7 +3,6 @@ import struct
 
 from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.colors import Colors
-from spotify_playlist.audio_energy import analyze_track_energy, format_energy_label
 from spotify_playlist.parse_wav_filename import parse_wav_filename
 from spotify_playlist.release_year import normalize_release_year
 from spotify_playlist.write_riff_info import apply_riff_info
@@ -268,18 +267,10 @@ def tag_wavs_in_directory(directory: str, *, dry_run: bool = False) -> tuple[int
             print(f"    Title:    {Colors.BRIGHT_WHITE}{title}{Colors.RESET}")
             print(f"    Album:    {Colors.DIM}(empty){Colors.RESET}")
             print(f"    Year:     {Colors.DIM}(empty){Colors.RESET}")
-            print(f"    Label:     {Colors.DIM}(energy){Colors.RESET}")
+            print(f"    Label:     {Colors.DIM}(empty){Colors.RESET}")
 
             if not dry_run:
-                energy_label = None
-                try:
-                    energy_label = format_energy_label(analyze_track_energy(path))
-                except Exception as exc:
-                    print(
-                        f"    {Colors.BRIGHT_YELLOW}⚠️  Energy not analyzed: {exc}{Colors.RESET}"
-                    )
-
-                apply_audio_metadata(path, artists, title, label=energy_label)
+                apply_audio_metadata(path, artists, title)
                 print(f"    {Colors.BRIGHT_GREEN}✅ Metadata updated{Colors.RESET}\n")
             else:
                 print(f"    {Colors.DIM}(preview only){Colors.RESET}\n")

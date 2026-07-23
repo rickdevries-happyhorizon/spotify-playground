@@ -86,19 +86,15 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
 
                 # Fetch new tracks since the start date (use start of day for query)
                 since_date_for_query = since_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                # Use debug mode to see what happens
                 with loading_bar("Fetching tracks in period..."):
                     new_tracks = get_playlist_tracks_since_date(
-                        sp, playlist_id, since_date_for_query, return_track_info=True, debug=True
+                        sp, playlist_id, since_date_for_query, return_track_info=True
                     )
 
                 print(f"{Colors.DIM}   Total tracks found after {since_date_only}: {len(new_tracks)}{Colors.RESET}")
 
                 # Filter tracks added between start_date and today
                 filtered_tracks = {}
-                tracks_before_start = 0
-                tracks_after_today = 0
-                tracks_in_range = 0
 
                 for uri, track_info in new_tracks.items():
                     added_at_str = track_info.get('added_at', '')
@@ -111,21 +107,9 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
                             # Use date only for comparison
                             added_at_date_only = added_at.date()
 
-                            # Debug output for first few tracks
-                            if tracks_in_range < 3:
-                                print(
-                                    f"{Colors.DIM}      Track: {track_info['name']} - Added: "
-                                    f"{added_at.strftime('%Y-%m-%d %H:%M:%S')} (date: {added_at_date_only}){Colors.RESET}"
-                                )
-
                             # Only tracks between start_date and today (both dates inclusive)
                             if since_date_only <= added_at_date_only <= today_date_only:
                                 filtered_tracks[uri] = track_info
-                                tracks_in_range += 1
-                            elif added_at_date_only < since_date_only:
-                                tracks_before_start += 1
-                            else:
-                                tracks_after_today += 1
                         except (ValueError, AttributeError) as e:
                             # If parsing fails, include the track (for safety)
                             print(f"{Colors.BRIGHT_YELLOW}      ⚠️  Could not parse date for track {track_info.get('name', 'Unknown')}: {e}{Colors.RESET}")
@@ -133,13 +117,6 @@ def export_new_tracks_since_date(sp, playlist_ids, since_date=None):
                     else:
                         # If no added_at, include the track
                         filtered_tracks[uri] = track_info
-
-                # Debug output
-                if tracks_before_start > 0 or tracks_after_today > 0:
-                    print(
-                        f"{Colors.DIM}   Debug: {tracks_before_start} before start date, "
-                        f"{tracks_after_today} after today, {tracks_in_range} in range{Colors.RESET}"
-                    )
 
                 if filtered_tracks:
                     print(f"{Colors.BRIGHT_GREEN}   ✅ {len(filtered_tracks)} new tracks found in range{Colors.RESET}")

@@ -9,7 +9,7 @@ from typing import Optional
 from db_store import delete_new_track, load_new_tracks
 from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.colors import Colors
-from spotify_playlist.audio_energy import analyze_track_energy, format_energy_label
+from spotify_playlist.spotify_track_energy import format_energy_label
 from spotify_playlist.parse_wav_filename import parse_wav_filename
 from spotify_playlist.release_year import normalize_release_year, release_year_from_youtube_info
 from spotify_playlist.tag_wav_metadata import apply_aiff_metadata, apply_cover_art
@@ -109,6 +109,7 @@ def download_youtube_to_aiff(
     tag_metadata: bool = True,
     genre: str | None = None,
     year: int | str | None = None,
+    energy: float | None = None,
 ) -> Optional[str]:
     """
     Download a single YouTube URL as an AIFF file.
@@ -167,14 +168,7 @@ def download_youtube_to_aiff(
 
     if tag_metadata:
         release_year = normalize_release_year(year) or release_year_from_youtube_info(info)
-        energy_label = None
-        try:
-            energy = analyze_track_energy(audio_path)
-            energy_label = format_energy_label(energy)
-        except Exception as exc:
-            print(
-                f"    {Colors.BRIGHT_YELLOW}⚠️  Energy not analyzed: {exc}{Colors.RESET}"
-            )
+        energy_label = format_energy_label(energy) if energy is not None else None
 
         try:
             _tag_audio_from_filename(audio_path, genre, release_year, energy_label)
@@ -288,6 +282,7 @@ def download_youtube_tracks(
                 tag_metadata=tag_metadata,
                 genre=track.get('genre'),
                 year=track.get('release_year'),
+                energy=track.get('energy'),
             )
             if audio_path:
                 print(f"    {Colors.BRIGHT_GREEN}✅ Saved: {audio_path}{Colors.RESET}")

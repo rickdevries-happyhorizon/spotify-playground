@@ -20,6 +20,11 @@ def normalize_energy(value: Any) -> float | None:
     return round(energy, 3)
 
 
+def format_energy_label(energy: float) -> str:
+    """Format energy for Rekordbox Label (TPUB) field."""
+    return f'{energy:.2f}'
+
+
 def fetch_track_energies(sp, track_uris: list[str]) -> dict[str, float | None]:
     """Map Spotify track URI to energy score, or None when unavailable."""
     result: dict[str, float | None] = {uri: None for uri in track_uris}

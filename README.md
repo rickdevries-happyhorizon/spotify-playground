@@ -2,37 +2,93 @@
 
 Spotify playlist sync tool with a terminal menu, MySQL storage, and optional YouTube-to-AIFF downloads.
 
-This guide walks through setup on a **fresh MacBook** (no developer tools pre-installed).
+This guide is written for a **fresh Mac** with nothing installed yet. Follow the steps in order.
+
+---
+
+## Quick start (copy-paste)
+
+After you have the project folder on your Mac, run these commands in **Terminal**:
+
+```bash
+# 1. System tools (skip if already installed)
+brew install python mysql git ffmpeg node
+brew services start mysql
+
+# 2. Go to the project
+cd /path/to/spotify-playground
+
+# 3. Database
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS spotify_playground CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root spotify_playground < schema.sql
+
+# 4. Environment file
+cp .env.example .env
+
+# 5. Python packages (required — do this once)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Then edit `spotify_playlist/config.py` with your Spotify credentials (see [Spotify setup](#spotify-setup) below).
+
+Start the app:
+
+```bash
+cd /path/to/spotify-playground
+source .venv/bin/activate
+./run_sync.sh
+```
+
+`./run_sync.sh` loads `.env` automatically and uses the virtual environment. You do **not** need to run `pip install` again unless you pull new dependencies.
 
 ---
 
 ## What you need
 
-| Component | Required for | Install via |
-|-----------|--------------|-------------|
-| **Homebrew** | Easy installs on macOS | [brew.sh](https://brew.sh) |
+### Required (core app)
+
+| Component | Purpose | Install |
+|-----------|---------|---------|
+| **Homebrew** | Easy macOS installs | [brew.sh](https://brew.sh) |
 | **Python 3.10+** | Main app | `brew install python` |
 | **MySQL 8** | Database | `brew install mysql` |
-| **Git** | Clone the repo (optional) | `brew install git` |
-| **ffmpeg** | YouTube → AIFF downloads (menu option 3) | `brew install ffmpeg` |
-| **Node.js** | Reliable YouTube downloads with yt-dlp | `brew install node` |
-| **PHP 8+** | PHP web UI only (optional alternative to Flask) | `brew install php` |
+| **Python packages** | Spotify, MySQL, UI, etc. | `pip install -r requirements.txt` (inside `.venv`) |
 
-Python packages (installed with `pip`):
+### Optional (only for specific features)
 
-- `spotipy` — Spotify API
-- `pymysql` — MySQL
-- `tqdm` — progress bars
-- `flask` — new-tracks web UI
-- `mutagen` — WAV/AIFF metadata tagging
-- `yt-dlp` — YouTube downloads
-- `numbers-parser` — import from Apple Numbers (optional)
+| Component | Purpose | Install |
+|-----------|---------|---------|
+| **Git** | Clone the repo | `brew install git` |
+| **ffmpeg** | Menu option 3 — download YouTube as AIFF | `brew install ffmpeg` |
+| **Node.js** | More reliable YouTube downloads | `brew install node` |
+| **PHP 8+** | Alternative web UI instead of Flask | `brew install php` |
+| **Apple Numbers** | Import from `new.numbers` | Already on Mac |
+
+### Python packages (`requirements.txt`)
+
+All of these are installed with one command: `pip install -r requirements.txt`
+
+| Package | Used for |
+|---------|----------|
+| `spotipy` | Spotify API |
+| `pymysql` | MySQL database |
+| `tqdm` | Progress bars |
+| `flask` | New-tracks web UI (`run_new_tracks_todo.py`) |
+| `mutagen` | WAV/AIFF metadata tagging |
+| `Pillow` | Cover art in audio files |
+| `yt-dlp` | YouTube downloads (menu option 3) |
+| `numbers-parser` | Import from Apple Numbers (optional) |
 
 ---
 
-## 1. Install Homebrew and system tools
+## Step-by-step setup
 
-Open **Terminal** and run:
+### 1. Install Homebrew and system tools
+
+Open **Terminal** and install Homebrew if you do not have it:
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -40,40 +96,31 @@ Open **Terminal** and run:
 
 Follow the on-screen instructions (Homebrew may ask you to add it to your `PATH`).
 
-Then install the tools:
+Install the tools you need:
 
 ```bash
 brew install python mysql git ffmpeg node
-```
-
-Start MySQL and enable it on login:
-
-```bash
 brew services start mysql
 ```
 
 Verify:
 
 ```bash
-python3 --version   # should be 3.10 or higher
+python3 --version   # 3.10 or higher
 mysql --version
-ffmpeg -version
-node --version
+ffmpeg -version     # only needed for YouTube downloads
+node --version      # recommended for YouTube downloads
 ```
 
----
+### 2. Get the project
 
-## 2. Get the project
-
-Clone or copy the project folder to your Mac, then go into it:
+Clone or copy the project folder, then go into it:
 
 ```bash
 cd /path/to/spotify-playground
 ```
 
----
-
-## 3. Set up the database
+### 3. Set up the database
 
 Create the database and load the schema:
 
@@ -84,17 +131,21 @@ mysql -u root spotify_playground < schema.sql
 
 If your MySQL `root` user has a password, add `-p` to both commands.
 
----
+Check that it worked:
 
-## 4. Configure environment variables
+```bash
+mysql -u root spotify_playground -e "SHOW TABLES;"
+```
 
-Copy the example env file and edit it if needed:
+You should see tables like `new_tracks`, `destination_config`, and `source_playlists`.
+
+### 4. Configure environment variables
 
 ```bash
 cp .env.example .env
 ```
 
-Default values:
+Default values (usually fine for local development):
 
 ```
 MYSQL_HOST=127.0.0.1
@@ -104,21 +155,15 @@ MYSQL_PASSWORD=
 MYSQL_DATABASE=spotify_playground
 ```
 
-**Important:** Python scripts read these from your shell environment. The `./run_sync.sh` script loads `.env` automatically. For manual runs:
+**Note:** `./run_sync.sh` loads `.env` for you. If you run Python scripts directly (without the shell script), load env vars first:
 
 ```bash
-set -a
-source .env
-set +a
+set -a && source .env && set +a
 ```
 
-You can add those three lines to your `~/.zshrc` if you always work from this project, or run them each time you open a new Terminal tab.
+The PHP web UI also loads `.env` automatically.
 
-The PHP web UI loads `.env` automatically.
-
----
-
-## 5. Create a Python virtual environment
+### 5. Install Python packages
 
 From the project folder:
 
@@ -129,11 +174,13 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-You should see `(.venv)` at the start of your prompt when the virtual environment is active.
+You should see `(.venv)` at the start of your prompt. Activate the venv in every new Terminal tab before running the app:
 
----
+```bash
+source .venv/bin/activate
+```
 
-## 6. Configure Spotify API credentials
+### Spotify setup
 
 1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
 2. Create an app (or use an existing one)
@@ -144,7 +191,7 @@ You should see `(.venv)` at the start of your prompt when the virtual environmen
    ```
 
 4. Copy your **Client ID** and **Client Secret**
-5. Edit `spotify_playlist/config.py` and replace:
+5. Edit `spotify_playlist/config.py` and set:
 
    ```python
    CLIENT_ID = 'your-client-id'
@@ -154,18 +201,20 @@ You should see `(.venv)` at the start of your prompt when the virtual environmen
 
 Optional settings in the same file:
 
-- `YOUTUBE_DOWNLOAD_DIR` — folder for AIFF downloads (menu option 3)
-- `WAV_METADATA_DIR` — folder with WAV/AIFF files for metadata tagging (applied during YouTube download)
-- `CHECK_ARTIST_RELEASES` — sync new releases from followed artists
+| Setting | Purpose |
+|---------|---------|
+| `YOUTUBE_DOWNLOAD_DIR` | Folder for AIFF downloads (menu option 3) |
+| `WAV_METADATA_DIR` | Folder for Spotify metadata batch tagging |
+| `SPOTIFY_COVER_ART_DIR` | Folder for embedding Spotify cover art |
+| `YOUTUBE_URLS_FILE` | Text file with YouTube URLs (one per line) |
+| `CHECK_ARTIST_RELEASES` | Sync new releases from followed artists |
 
 ---
 
-## 7. Run the app
-
-Load env vars (if not already in your shell), activate the venv, then start:
+## Run the app
 
 ```bash
-set -a && source .env && set +a
+cd /path/to/spotify-playground
 source .venv/bin/activate
 ./run_sync.sh
 ```
@@ -173,10 +222,24 @@ source .venv/bin/activate
 Or without the shell script:
 
 ```bash
+set -a && source .env && set +a
+source .venv/bin/activate
 python3 playlist_sync.py
 ```
 
 On first run, your browser opens for Spotify login. After that, credentials are cached in `.spotipy_cache`.
+
+### Main menu
+
+| Option | What it does |
+|--------|--------------|
+| **1** | Sync source playlists into your destination playlist and fetch new artist releases |
+| **2** | Import new tracks since a date into the database (includes Spotify energy scores) |
+| **3** | Download tracks from the database as AIFF (YouTube URLs; energy written to file metadata) |
+| **4** | Configure source, destination, and tracking playlists |
+| **0** | Exit |
+
+**Suggested first-time flow:** option **4** (set playlists) → option **1** (sync) → option **2** (import tracks) → option **3** (download AIFF files).
 
 ### Other commands
 
@@ -184,7 +247,7 @@ On first run, your browser opens for Spotify login. After that, credentials are 
 |---------|---------|
 | `./run_sync.sh` | Interactive menu (recommended) |
 | `python3 playlist_sync.py --export` | Export new tracks with saved settings |
-| `python3 run_new_tracks_todo.py` | Web UI for managing new tracks (Flask, port 5050) |
+| `python3 run_new_tracks_todo.py` | Web UI for managing new tracks (Flask, http://127.0.0.1:5050) |
 | `python3 import_new_numbers.py` | Import tracks from `new.numbers` (Apple Numbers) |
 
 ### PHP web UI (optional)
@@ -200,40 +263,46 @@ Open http://127.0.0.1:8080/
 
 ---
 
-## 8. Optional: YouTube downloads
+## YouTube → AIFF downloads (menu option 3)
 
-For menu option **3 — Download YouTube to AIFF** you need:
+Requires:
 
-- `ffmpeg` (installed above)
-- `node` (recommended; yt-dlp uses it for YouTube extraction)
-- `yt-dlp` (installed via `requirements.txt`)
+- `ffmpeg` — `brew install ffmpeg`
+- `node` — recommended for reliable YouTube extraction
+- `yt-dlp` — installed via `requirements.txt`
 
-Create a URL list if you want batch downloads from a file:
+Set `YOUTUBE_DOWNLOAD_DIR` in `spotify_playlist/config.py` to your download folder.
+
+Tracks downloaded from the app database get **genre**, **release year**, and **energy** (from the database) embedded in the AIFF metadata. Energy comes from Spotify when you import tracks (menu option 2).
+
+For batch downloads from a text file instead of the database:
 
 ```bash
 cp youtube_urls.txt.example youtube_urls.txt
 # edit youtube_urls.txt — one URL per line
 ```
 
-Set `YOUTUBE_DOWNLOAD_DIR` in `spotify_playlist/config.py` to your preferred download folder.
-
 ---
 
 ## Troubleshooting
 
-### "Virtual environment not found"
+### "Virtual environment not found" or missing Python packages
 
-Create it (step 4):
+Create the venv and install everything:
 
 ```bash
+cd /path/to/spotify-playground
 python3 -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### "spotipy / pymysql / mutagen not found"
+Always activate the venv before running the app: `source .venv/bin/activate`
 
-Activate the venv and reinstall:
+### "spotipy / pymysql / mutagen / flask not found"
+
+You are probably not using the virtual environment. Run:
 
 ```bash
 source .venv/bin/activate
@@ -244,7 +313,7 @@ pip install -r requirements.txt
 
 - Check MySQL is running: `brew services list`
 - Start it: `brew services start mysql`
-- Verify `.env` values and that you ran `source .env` before Python
+- Verify `.env` values match your MySQL setup
 - Test: `mysql -u root spotify_playground -e "SHOW TABLES;"`
 
 ### "Invalid redirect URI" (Spotify)
@@ -257,7 +326,7 @@ http://127.0.0.1:8888/
 
 ### Port 8888 already in use
 
-Either close the app using that port, or change `REDIRECT_URI` in `config.py` (e.g. to `http://127.0.0.1:8889/`) and update Spotify Dashboard to match.
+Close the app using that port, or change `REDIRECT_URI` in `config.py` (e.g. to `http://127.0.0.1:8889/`) and update the Spotify Dashboard to match.
 
 ### "ffmpeg is not installed"
 
@@ -275,12 +344,14 @@ brew install node
 
 ---
 
-## Quick setup checklist
+## Setup checklist
 
-- [ ] Homebrew, Python, MySQL, ffmpeg, Node installed
-- [ ] MySQL running and schema imported
-- [ ] `.env` copied and configured *(optional if defaults work)*
-- [ ] `.venv` created; `pip install -r requirements.txt` done
-- [ ] Spotify Client ID/Secret and redirect URI set in `config.py`
-- [ ] `source .env` before running Python
+- [ ] Homebrew installed
+- [ ] Python 3.10+ and MySQL installed; MySQL running
+- [ ] Project folder on your Mac
+- [ ] Database created and `schema.sql` imported
+- [ ] `.env` copied from `.env.example`
+- [ ] `.venv` created and `pip install -r requirements.txt` completed
+- [ ] Spotify Client ID, Secret, and redirect URI set in `config.py`
 - [ ] `./run_sync.sh` starts and Spotify login works
+- [ ] *(Optional)* ffmpeg and Node installed for YouTube downloads
