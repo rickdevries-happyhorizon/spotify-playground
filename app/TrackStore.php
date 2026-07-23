@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 final class TrackStore
 {
-    public static function loadAll(): array
+    public static function loadAll(?string $genre = null): array
     {
         self::ensureOptionalColumns();
 
@@ -14,17 +14,66 @@ final class TrackStore
 
         $tracks = [];
         foreach ($stmt->fetchAll() as $row) {
+            $trackGenre = !empty($row['genre']) ? $row['genre'] : null;
+            if ($genre !== null) {
+                if ($genre === 'Uncategorized') {
+                    if ($trackGenre !== null) {
+                        continue;
+                    }
+                } elseif ($trackGenre !== $genre) {
+                    continue;
+                }
+            }
+
             $tracks[] = [
                 'id' => (int) $row['id'],
                 'track' => $row['track'],
                 'reference_url' => $row['reference_url'] ?: null,
-                'genre' => !empty($row['genre']) ? $row['genre'] : null,
+                'genre' => $trackGenre,
                 'release_year' => isset($row['release_year']) ? (int) $row['release_year'] : null,
                 'copy_title_count' => (int) ($row['copy_title_count'] ?? 0),
             ];
         }
 
         return $tracks;
+    }
+
+    public static function loadGenres(): array
+    {
+        $tracks = self::loadAll();
+        $counts = [];
+
+        foreach ($tracks as $track) {
+            $name = trim((string) ($track['genre'] ?? ''));
+            $key = $name !== '' ? $name : '__uncategorized__';
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
+        }
+
+        uksort($counts, static function (string $left, string $right): int {
+            if ($left === '__uncategorized__') {
+                return 1;
+            }
+
+            if ($right === '__uncategorized__') {
+                return -1;
+            }
+
+            return strcasecmp($left, $right);
+        });
+
+        $genres = [];
+        foreach ($counts as $key => $count) {
+            $genres[] = [
+                'slug' => $key === '__uncategorized__' ? 'Uncategorized' : $key,
+                'label' => $key === '__uncategorized__' ? 'Uncategorized' : $key,
+                'track_count' => $count,
+            ];
+        }
+
+        return [
+            'genres' => $genres,
+            'total' => count($tracks),
+        ];
     }
 
     public static function create(string $track, ?string $referenceUrl = null): array

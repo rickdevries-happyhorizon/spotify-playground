@@ -49,20 +49,6 @@
       font-size: 0.95rem;
     }
 
-    .stats {
-      display: flex;
-      gap: 1rem;
-      margin-top: 0.75rem;
-      font-size: 0.85rem;
-    }
-
-    .stats span {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 0.25rem 0.75rem;
-    }
-
     main {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -415,52 +401,138 @@
 
     .add-form button:hover { background: var(--accent-dim); }
     .add-form button:disabled { opacity: 0.55; cursor: wait; }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-bottom: 0.6rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .back-link:hover {
+      color: var(--accent);
+    }
+
+    .genre-screen {
+      padding: 1.25rem 2rem 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .genre-screen h2 {
+      margin: 0 0 1rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .genre-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.85rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .genre-card {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      padding: 1rem 1.1rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: inherit;
+      text-decoration: none;
+      transition: border-color 0.15s, transform 0.15s, background 0.15s;
+      cursor: pointer;
+    }
+
+    .genre-card:hover {
+      border-color: var(--accent);
+      background: #1a2330;
+      transform: translateY(-2px);
+    }
+
+    .genre-card:focus-visible {
+      outline: 2px solid rgba(29, 185, 84, 0.45);
+      outline-offset: 2px;
+    }
+
+    .genre-card__name {
+      font-weight: 600;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .genre-card__count {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .view[hidden] {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
   <header>
-    <h1>New Tracks To-Do</h1>
-    <p>Left: tracks with a reference URL. Right: tracks still missing one.</p>
-    <div class="stats">
-      <span id="stat-done">With URL: 0</span>
-      <span id="stat-todo">Without URL: 0</span>
-      <span id="stat-copy-title">Copy title clicks: 0</span>
-    </div>
+    <a class="back-link" id="back-link" href="/" hidden>← All genres</a>
+    <h1 id="page-title">New Tracks To-Do</h1>
+    <p id="page-subtitle">Choose a genre to manage reference URLs for its tracks.</p>
   </header>
 
-  <div class="banner loading" id="banner">Loading tracks from database…</div>
+  <div class="banner loading" id="banner">Loading…</div>
 
-  <section class="add-panel">
-    <h2>Add track</h2>
-    <form class="add-form" id="add-form">
-      <input type="text" name="track" placeholder="Artist - Track name" required />
-      <input type="url" name="reference_url" placeholder="Reference URL (optional)" />
-      <button type="submit">Add</button>
-    </form>
+  <section class="genre-screen view" id="genre-view">
+    <h2>Genres</h2>
+    <ul class="genre-grid" id="genre-grid"></ul>
   </section>
 
-  <main>
-    <section class="column column--done">
-      <div class="column-header">
-        <span>Has reference URL</span>
-        <span class="count" id="count-done">0</span>
-      </div>
-      <ul class="track-list" id="list-done"></ul>
+  <div class="view" id="tracks-view" hidden>
+    <section class="add-panel">
+      <h2>Add track</h2>
+      <form class="add-form" id="add-form">
+        <input type="text" name="track" placeholder="Artist - Track name" required />
+        <input type="url" name="reference_url" placeholder="Reference URL (optional)" />
+        <button type="submit">Add</button>
+      </form>
     </section>
 
-    <section class="column column--todo">
-      <div class="column-header">
-        <span>Needs reference URL</span>
-        <span class="count" id="count-todo">0</span>
-      </div>
-      <ul class="track-list" id="list-todo"></ul>
-    </section>
-  </main>
+    <main>
+      <section class="column column--done">
+        <div class="column-header">
+          <span>Has reference URL</span>
+          <span class="count" id="count-done">0</span>
+        </div>
+        <ul class="track-list" id="list-done"></ul>
+      </section>
+
+      <section class="column column--todo">
+        <div class="column-header">
+          <span>Needs reference URL</span>
+          <span class="count" id="count-todo">0</span>
+        </div>
+        <ul class="track-list" id="list-todo"></ul>
+      </section>
+    </main>
+  </div>
 
   <div class="status" id="status" role="status" aria-live="polite"></div>
   <div class="copy-toast" id="copy-toast" aria-live="polite"></div>
 
   <script>
+    const genreView = document.getElementById("genre-view");
+    const tracksView = document.getElementById("tracks-view");
+    const genreGrid = document.getElementById("genre-grid");
+    const pageTitle = document.getElementById("page-title");
+    const pageSubtitle = document.getElementById("page-subtitle");
+    const backLink = document.getElementById("back-link");
     const listDone = document.getElementById("list-done");
     const listTodo = document.getElementById("list-todo");
     const statusEl = document.getElementById("status");
@@ -469,7 +541,107 @@
     let statusTimer = null;
     let copyToastTimer = null;
     let lastHighlightedName = null;
-    let totalCopyTitleClicks = 0;
+    let currentGenre = null;
+
+    function genrePath(slug) {
+      return `/${encodeURIComponent(slug).replace(/%2F/g, "/")}`;
+    }
+
+    function parseGenreFromPath(pathname) {
+      const path = pathname.replace(/\/+$/, "") || "/";
+      if (path === "/") return null;
+      return decodeURIComponent(path.slice(1));
+    }
+
+    function showGenreView() {
+      currentGenre = null;
+      document.title = "New Tracks To-Do";
+      pageTitle.textContent = "New Tracks To-Do";
+      pageSubtitle.textContent = "Choose a genre to manage reference URLs for its tracks.";
+      backLink.hidden = true;
+      genreView.hidden = false;
+      tracksView.hidden = true;
+    }
+
+    function showTracksView(genre) {
+      currentGenre = genre;
+      document.title = `${genre} — New Tracks To-Do`;
+      pageTitle.textContent = genre;
+      pageSubtitle.textContent = "Left: tracks with a reference URL. Right: tracks still missing one.";
+      backLink.hidden = false;
+      genreView.hidden = true;
+      tracksView.hidden = false;
+    }
+
+    function navigateToGenre(genre, { replace = false } = {}) {
+      const path = genrePath(genre);
+      if (replace) {
+        history.replaceState({ genre }, "", path);
+      } else {
+        history.pushState({ genre }, "", path);
+      }
+      showTracksView(genre);
+      loadTracks(genre);
+    }
+
+    function navigateHome({ replace = false } = {}) {
+      if (replace) {
+        history.replaceState({ genre: null }, "", "/");
+      } else {
+        history.pushState({ genre: null }, "", "/");
+      }
+      showGenreView();
+      loadGenres();
+    }
+
+    function renderGenreList(genres) {
+      genreGrid.innerHTML = "";
+      if (!genres.length) {
+        const empty = document.createElement("li");
+        empty.className = "empty";
+        empty.textContent = "No genres found.";
+        genreGrid.appendChild(empty);
+        return;
+      }
+
+      for (const genre of genres) {
+        const item = document.createElement("li");
+        const link = document.createElement("a");
+        link.className = "genre-card";
+        link.href = genrePath(genre.slug);
+        link.innerHTML = `
+          <span class="genre-card__name">${escapeHtml(genre.label)}</span>
+          <span class="genre-card__count">${genre.track_count} track${genre.track_count === 1 ? "" : "s"}</span>
+        `;
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          navigateToGenre(genre.slug);
+        });
+        item.appendChild(link);
+        genreGrid.appendChild(item);
+      }
+    }
+
+    async function loadGenres() {
+      setBanner("Loading genres…", "loading");
+      try {
+        const response = await fetch("/api/genres");
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || "Could not load genres");
+        }
+
+        renderGenreList(data.genres || []);
+        if (!data.total) {
+          setBanner("No tracks found in new_tracks table.", "error");
+        } else {
+          setBanner("");
+        }
+      } catch (error) {
+        setBanner(`Failed to load genres: ${error.message}`, "error");
+        showStatus(error.message, "error");
+      }
+    }
 
     function setCopyTitleCount(nameEl, count) {
       nameEl.dataset.count = String(count);
@@ -491,25 +663,11 @@
       return Number(item.querySelector(".track-name")?.dataset.count || 0);
     }
 
-    function updateCopyTitleStat(delta = 0) {
-      totalCopyTitleClicks = Math.max(0, totalCopyTitleClicks + delta);
-      document.getElementById("stat-copy-title").textContent =
-        `Copy title clicks: ${totalCopyTitleClicks}`;
-    }
-
-    function sumCopyTitleCounts(tracks) {
-      return tracks.reduce(
-        (total, track) => total + Number(track.copy_title_count || 0),
-        0
-      );
-    }
-
     async function recordCopyTitleClick(item, trackId) {
       const nameEl = item.querySelector(".track-name");
       const previous = Number(nameEl.dataset.count || 0);
       const optimistic = previous + 1;
       setCopyTitleCount(nameEl, optimistic);
-      updateCopyTitleStat(1);
 
       try {
         const response = await fetch(`/api/tracks/${trackId}/copy-title`, {
@@ -523,7 +681,6 @@
         setCopyTitleCount(nameEl, Number(data.copy_title_count || optimistic));
       } catch (error) {
         setCopyTitleCount(nameEl, previous);
-        updateCopyTitleStat(-1);
         showStatus(error.message || "Could not save click count", "error");
       }
     }
@@ -667,7 +824,7 @@
 
       const safeUrl = track.reference_url ? escapeHtml(track.reference_url) : "";
       const copyTitleCount = Number(track.copy_title_count || 0);
-      const genreHtml = track.genre
+      const genreHtml = !currentGenre && track.genre
         ? `<div class="track-genre">${escapeHtml(track.genre)}</div>`
         : "";
       const energyHtml = track.energy != null
@@ -770,11 +927,7 @@
         launchConfetti(originX, originY);
 
         await new Promise((resolve) => setTimeout(resolve, 450));
-        const removedCount = getCopyTitleCount(item);
         item.remove();
-        if (removedCount > 0) {
-          updateCopyTitleStat(-removedCount);
-        }
         if (lastHighlightedName && !document.contains(lastHighlightedName)) {
           lastHighlightedName = null;
         }
@@ -862,14 +1015,13 @@
       const todoCount = listTodo.querySelectorAll(".track-item").length;
       document.getElementById("count-done").textContent = String(doneCount);
       document.getElementById("count-todo").textContent = String(todoCount);
-      document.getElementById("stat-done").textContent = `With URL: ${doneCount}`;
-      document.getElementById("stat-todo").textContent = `Without URL: ${todoCount}`;
     }
 
-    async function loadTracks() {
+    async function loadTracks(genre = currentGenre) {
       setBanner("Loading tracks from database…", "loading");
       try {
-        const response = await fetch("/api/tracks");
+        const query = genre ? `?genre=${encodeURIComponent(genre)}` : "";
+        const response = await fetch(`/api/tracks${query}`);
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           throw new Error(data.error || "Could not load tracks");
@@ -878,14 +1030,9 @@
         renderList(listDone, data.with_url);
         renderList(listTodo, data.without_url);
         updateCounts();
-        totalCopyTitleClicks = sumCopyTitleCounts([
-          ...(data.with_url || []),
-          ...(data.without_url || []),
-        ]);
-        updateCopyTitleStat();
 
         if (!data.total) {
-          setBanner("No tracks found in new_tracks table.", "error");
+          setBanner(`No tracks found for ${genre}.`, "error");
         } else {
           setBanner("");
         }
@@ -895,7 +1042,34 @@
       }
     }
 
-    loadTracks();
+    function bootFromPath() {
+      const genre = parseGenreFromPath(window.location.pathname);
+      if (genre) {
+        showTracksView(genre);
+        loadTracks(genre);
+      } else {
+        showGenreView();
+        loadGenres();
+      }
+    }
+
+    bootFromPath();
+
+    backLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      navigateHome();
+    });
+
+    window.addEventListener("popstate", (event) => {
+      const genre = event.state?.genre ?? parseGenreFromPath(window.location.pathname);
+      if (genre) {
+        showTracksView(genre);
+        loadTracks(genre);
+      } else {
+        showGenreView();
+        loadGenres();
+      }
+    });
 
     document.getElementById("add-form").addEventListener("submit", async (event) => {
       event.preventDefault();

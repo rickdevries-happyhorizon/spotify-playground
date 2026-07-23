@@ -27,12 +27,46 @@ def create_app() -> Flask:
     def index():
         return render_template("new_tracks_todo.html")
 
-    @app.get("/api/tracks")
-    def list_tracks():
+    @app.get("/api/genres")
+    def list_genres():
         try:
             tracks = load_new_tracks()
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
+        counts: dict[str, int] = {}
+        for track in tracks:
+            name = (track.get("genre") or "").strip()
+            key = name or "__uncategorized__"
+            counts[key] = counts.get(key, 0) + 1
+
+        genres = []
+        for key in sorted(counts, key=lambda k: (k == "__uncategorized__", k.lower())):
+            genres.append(
+                {
+                    "slug": "Uncategorized" if key == "__uncategorized__" else key,
+                    "label": "Uncategorized" if key == "__uncategorized__" else key,
+                    "track_count": counts[key],
+                }
+            )
+
+        return jsonify({"genres": genres, "total": len(tracks)})
+
+    @app.get("/api/tracks")
+    def list_tracks():
+        genre = request.args.get("genre")
+        try:
+            tracks = load_new_tracks()
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        if genre:
+            if genre == "Uncategorized":
+                tracks = [t for t in tracks if not (t.get("genre") or "").strip()]
+            else:
+                tracks = [
+                    t for t in tracks if (t.get("genre") or "").strip() == genre
+                ]
 
         with_url = [t for t in tracks if t.get("reference_url")]
         without_url = [t for t in tracks if not t.get("reference_url")]
@@ -41,6 +75,7 @@ def create_app() -> Flask:
                 "with_url": with_url,
                 "without_url": without_url,
                 "total": len(tracks),
+                "genre": genre,
             }
         )
 
@@ -102,6 +137,14 @@ def create_app() -> Flask:
         if not delete_new_track(track_id):
             return jsonify({"error": "Track not found"}), 404
         return jsonify({"id": track_id, "deleted": True})
+
+    @app.get("/<path:genre>")
+    def genre_page(genre: str):
+        if genre.startswith("api/"):
+            from flask import abort
+
+            abort(404)
+        return render_template("new_tracks_todo.html")
 
     return app
 

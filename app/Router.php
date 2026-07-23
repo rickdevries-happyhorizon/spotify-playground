@@ -6,13 +6,18 @@ final class Router
 {
     public static function handle(string $method, string $path): void
     {
-        if ($path === '/' && $method === 'GET') {
-            self::servePage();
+        if ($path === '/api/genres' && $method === 'GET') {
+            self::listGenres();
             return;
         }
 
         if ($path === '/api/tracks' && $method === 'GET') {
             self::listTracks();
+            return;
+        }
+
+        if ($method === 'GET' && !str_starts_with($path, '/api/')) {
+            self::servePage();
             return;
         }
 
@@ -60,10 +65,28 @@ final class Router
         readfile($template);
     }
 
-    private static function listTracks(): void
+    private static function listGenres(): void
     {
         try {
-            $tracks = TrackStore::loadAll();
+            $payload = TrackStore::loadGenres();
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+            return;
+        }
+
+        self::json($payload);
+    }
+
+    private static function listTracks(): void
+    {
+        $genre = $_GET['genre'] ?? null;
+        if ($genre !== null && !is_string($genre)) {
+            self::json(['error' => 'genre must be a string'], 400);
+            return;
+        }
+
+        try {
+            $tracks = TrackStore::loadAll($genre !== '' ? $genre : null);
         } catch (Throwable $e) {
             self::json(['error' => $e->getMessage()], 500);
             return;
@@ -76,6 +99,7 @@ final class Router
             'with_url' => $withUrl,
             'without_url' => $withoutUrl,
             'total' => count($tracks),
+            'genre' => $genre !== '' ? $genre : null,
         ]);
     }
 
