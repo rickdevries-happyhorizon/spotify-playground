@@ -15,6 +15,7 @@ const fetchProgressPercent = document.getElementById("fetch-progress-percent");
 const fetchPlaylistCard = document.getElementById("fetch-playlist-card");
 const fetchPlaylistArt = document.getElementById("fetch-playlist-art");
 const fetchPlaylistPlaceholder = document.getElementById("fetch-playlist-placeholder");
+const fetchPlaylistLabel = document.getElementById("fetch-playlist-label");
 const fetchPlaylistName = document.getElementById("fetch-playlist-name");
 const fetchSteps = document.getElementById("fetch-steps");
 const fetchResult = document.getElementById("fetch-result");
@@ -94,7 +95,7 @@ function getAppModules() {
     },
     {
       label: t("Fetch new tracks"),
-      description: t("Import new tracks from your Spotify playlists into the to-do list."),
+      description: t("Scan followed artists and tracking playlists, then import new tracks into the to-do list."),
       icon: "↓",
       path: FETCH_PATH,
       className: "app-card--fetch",
@@ -151,15 +152,19 @@ const FETCH_MIN_DURATION_MS = window.matchMedia("(prefers-reduced-motion: reduce
 const FETCH_POLL_MS = 500;
 const DOWNLOAD_POLL_MS = 500;
 const FETCH_PHASE_PROGRESS = {
-  queued: 4,
-  starting: 8,
-  playlist_start: 18,
-  fetching_tracks: 34,
-  playlist_done: 48,
-  playlist_skipped: 48,
-  playlist_error: 48,
-  fetching_energy: 72,
-  saving: 88,
+  queued: 2,
+  starting: 4,
+  artists_start: 6,
+  artists_scanning: 8,
+  artists_adding: 44,
+  artists_done: 46,
+  playlist_start: 48,
+  fetching_tracks: 55,
+  playlist_done: 68,
+  playlist_skipped: 68,
+  playlist_error: 68,
+  fetching_energy: 82,
+  saving: 92,
   done: 100,
   error: 100,
 };
@@ -826,18 +831,25 @@ function resetFetchScreen() {
 function setFetchStepState(phase) {
   const stepGroups = {
     starting: ["starting"],
-    playlist_start: ["starting", "playlists"],
-    fetching_tracks: ["starting", "playlists"],
-    playlist_done: ["starting", "playlists"],
-    playlist_skipped: ["starting", "playlists"],
-    playlist_error: ["starting", "playlists"],
-    fetching_energy: ["starting", "playlists", "energy"],
-    saving: ["starting", "playlists", "energy", "saving"],
-    done: ["starting", "playlists", "energy", "saving", "done"],
-    error: ["starting", "playlists", "energy", "saving", "done"],
+    artists_start: ["starting", "artists"],
+    artists_scanning: ["starting", "artists"],
+    artists_adding: ["starting", "artists"],
+    artists_done: ["starting", "artists"],
+    artists: ["starting", "artists"],
+    playlist_start: ["starting", "artists", "playlists"],
+    fetching_tracks: ["starting", "artists", "playlists"],
+    playlist_done: ["starting", "artists", "playlists"],
+    playlist_skipped: ["starting", "artists", "playlists"],
+    playlist_error: ["starting", "artists", "playlists"],
+    playlists: ["starting", "artists", "playlists"],
+    fetching_energy: ["starting", "artists", "playlists", "energy"],
+    energy: ["starting", "artists", "playlists", "energy"],
+    saving: ["starting", "artists", "playlists", "energy", "saving"],
+    done: ["starting", "artists", "playlists", "energy", "saving", "done"],
+    error: ["starting", "artists", "playlists", "energy", "saving", "done"],
   };
   const activeKeys = new Set(stepGroups[phase] || ["starting"]);
-  const order = ["starting", "playlists", "energy", "saving", "done"];
+  const order = ["starting", "artists", "playlists", "energy", "saving", "done"];
   let reachedActive = false;
 
   for (const key of order) {
@@ -860,6 +872,16 @@ function setFetchStepState(phase) {
 function computeFetchPercent(job) {
   const phase = job.phase || "starting";
   let percent = FETCH_PHASE_PROGRESS[phase] ?? 8;
+
+  if (phase === "artists_scanning") {
+    const index = Number(job.artist_index || 0);
+    const total = Number(job.artist_total || 1);
+    const sliceStart = FETCH_PHASE_PROGRESS.artists_scanning;
+    const sliceEnd = FETCH_PHASE_PROGRESS.artists_adding;
+    const slice = sliceEnd - sliceStart;
+    const artistProgress = total ? Math.min(1, Math.max(0, index / total)) : 0;
+    percent = Math.round(sliceStart + slice * artistProgress);
+  }
 
   if (
     phase === "playlist_start"
@@ -892,10 +914,21 @@ function applyFetchJobPresentation(job) {
   fetchMessage.textContent = job.message || t("Working…");
   setFetchStepState(phase);
 
-  if (job.playlist_name) {
+  const isArtistPhase = String(phase).startsWith("artists");
+  const cardName = isArtistPhase
+    ? (job.artist_name || job.playlist_name)
+    : job.playlist_name;
+
+  if (fetchPlaylistLabel) {
+    fetchPlaylistLabel.textContent = isArtistPhase
+      ? t("Current artist")
+      : t("Current playlist");
+  }
+
+  if (cardName) {
     fetchPlaylistCard.hidden = false;
-    fetchPlaylistName.textContent = job.playlist_name;
-    if (job.playlist_image_url) {
+    fetchPlaylistName.textContent = cardName;
+    if (!isArtistPhase && job.playlist_image_url) {
       fetchPlaylistArt.src = job.playlist_image_url;
       fetchPlaylistArt.hidden = false;
       fetchPlaylistPlaceholder.hidden = true;
@@ -957,42 +990,51 @@ function buildFetchFinishSteps(job) {
     ? `${playlistTotal} playlist${playlistTotal === 1 ? "" : "s"}`
     : "your playlists";
   const found = Number(job.tracks_found ?? job.result?.tracks_found ?? 0);
+  const artistNew = Number(job.result?.artist_sync?.releases_new ?? 0);
   const sinceDate = job.since_date ?? job.result?.since_date;
   const untilDate = job.until_date ?? job.result?.until_date;
   const dateRange = sinceDate && untilDate ? ` (${sinceDate} → ${untilDate})` : "";
 
   return [
     {
+      phase: "artists",
+      message: artistNew
+        ? `Synced ${artistNew} new artist release${artistNew === 1 ? "" : "s"}`
+        : "Followed artists checked",
+      percent: 46,
+      ms: Math.round(900 * pace),
+    },
+    {
       phase: "playlists",
       message: `Scanning ${playlistLabel}${dateRange}…`,
-      percent: 42,
-      ms: Math.round(1400 * pace),
+      percent: 58,
+      ms: Math.round(1100 * pace),
     },
     {
       phase: "playlists",
       message: found
         ? `Found ${found} track${found === 1 ? "" : "s"} across ${playlistLabel}`
         : `No new tracks in ${playlistLabel}${dateRange}`,
-      percent: 58,
-      ms: Math.round(1200 * pace),
+      percent: 68,
+      ms: Math.round(1000 * pace),
     },
     {
       phase: "energy",
       message: found ? "Fetching track energy from Spotify…" : "Verifying track metadata…",
-      percent: 74,
-      ms: Math.round(1100 * pace),
+      percent: 82,
+      ms: Math.round(900 * pace),
     },
     {
       phase: "saving",
       message: found ? "Saving new tracks to your to-do list…" : "Updating tracking date…",
-      percent: 88,
-      ms: Math.round(1000 * pace),
+      percent: 92,
+      ms: Math.round(800 * pace),
     },
     {
       phase: "done",
       message: "Wrapping up…",
       percent: 96,
-      ms: Math.round(800 * pace),
+      ms: Math.round(700 * pace),
     },
   ];
 }
@@ -1241,7 +1283,7 @@ function showFetchView() {
   currentFilter = null;
   document.title = t("Fetch tracks — {app_name}", { app_name: APP_NAME() });
   pageTitle.textContent = t("Fetch new tracks");
-  pageSubtitle.textContent = t("Importing the latest additions from your Spotify playlists.");
+  pageSubtitle.textContent = t("Scanning followed artists and tracking playlists for new tracks.");
   setPageCover(null);
   setSettingsLinkActive(false);
   hideAllViews();

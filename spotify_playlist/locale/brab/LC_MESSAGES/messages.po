@@ -23,19 +23,19 @@ msgid "Choose a tool to get started."
 msgstr "Kies 'n tool om te beginne."
 
 msgid "Loading…"
-msgstr "Bezig meej laden…"
+msgstr "Bezig met laden…"
 
 msgid "Settings"
-msgstr "Instellingen"
+msgstr "Instellinge"
 
 msgid "What would you like to do?"
-msgstr "Wat wilde doen?"
+msgstr "Wat wilste doen?"
 
 msgid "Control panel"
 msgstr "Controlepaneel"
 
 msgid "Tune the look, sync playlists, and set how new tracks are imported."
-msgstr "Pas 't uiterlijk aon, zet playlists klaar en bepaol hoe nieuwe tracks binnenkome."
+msgstr "Pas 't uiterlijk aan, zet playlists klaar en bepaol hoe nieuwe tracks binnenkome."
 
 msgid "Theme"
 msgstr "Thema"
@@ -68,7 +68,7 @@ msgid "Choose the language for labels and messages."
 msgstr "Kies de taal veur labels en berichte."
 
 msgid "English"
-msgstr "Engelands"
+msgstr "Engels"
 
 msgid "Dutch"
 msgstr "Nederlands"
@@ -202,6 +202,12 @@ msgstr "Huidige playlist"
 msgid "Prepare"
 msgstr "Voorbereiden"
 
+msgid "Scan artists"
+msgstr "Artiesten scannen"
+
+msgid "Current artist"
+msgstr "Huidige artiest"
+
 msgid "Scan playlists"
 msgstr "Playlists scannen"
 
@@ -237,6 +243,12 @@ msgstr "Nieuwe tracks ophalen"
 
 msgid "Import new tracks from your Spotify playlists into the to-do list."
 msgstr "Importeer nieuwe tracks uut je Spotify-playlists naor de to-do lijst."
+
+msgid "Scan followed artists and tracking playlists, then import new tracks into the to-do list."
+msgstr "Scan gevolgde artiesten en tracking-playlists, en importeer nieuwe tracks naor de to-do lijst."
+
+msgid "Scanning followed artists and tracking playlists for new tracks."
+msgstr "Gevolgde artiesten en tracking-playlists scannen op nieuwe tracks."
 
 msgid "Statistics"
 msgstr "Statistieke"
@@ -486,21 +498,3 @@ msgstr "Instellinge — {app_name}"
 
 msgid "{genre} — Track to-do — {app_name}"
 msgstr "{genre} — Track to-do — {app_name}"
-
-msgid "YouTube download"
-msgstr "YouTube-download"
-
-msgid "Downloading tracks"
-msgstr "Tracks downloaden"
-
-msgid "Preparing download…"
-msgstr "Download veurbereiden…"
-
-msgid "Current track"
-msgstr "Huidige track"
-
-msgid "Download tracks"
-msgstr "Tracks downloaden"
-
-msgid "Download again"
-msgstr "Opnieuw downloaden"
