@@ -1,43 +1,45 @@
-<section class="settings-card settings-card--playlists">
+<section class="settings-card settings-card--playlists magic-card" aria-labelledby="settings-playlists-heading">
   <div class="settings-card__accent" aria-hidden="true"></div>
+  <div class="magic-card__glow" aria-hidden="true"></div>
   <div class="settings-card__header">
     <span class="settings-card__icon" aria-hidden="true">🎵</span>
     <div>
-      <h3>{{ _("Playlists") }}</h3>
+      <h3 id="settings-playlists-heading">{{ _("Playlists") }}</h3>
       <p>{{ _("Configure destination, sources, and tracking playlists.") }}</p>
     </div>
   </div>
   <div class="settings-playlists-grid">
     <div class="settings-playlist-field settings-playlist-field--destination">
-      <h4 class="settings-playlist-field__title">{{ _("Destination playlist") }}</h4>
+      <h4 class="settings-playlist-field__title" id="destination-playlist-heading">{{ _("Destination playlist") }}</h4>
       <p class="settings-playlist-field__desc">{{ _("Where synced tracks land.") }}</p>
       <label class="settings-field">
+        <span class="sr-only">{{ _("Playlist URL") }}</span>
         <span class="playlist-meta" id="destination-playlist-meta" hidden></span>
-        <input type="text" name="destination_playlist" placeholder="https://open.spotify.com/playlist/…" />
+        <input type="text" name="destination_playlist" placeholder="https://open.spotify.com/playlist/…" autocomplete="off" aria-labelledby="destination-playlist-heading" />
       </label>
     </div>
 
     <div class="settings-playlist-field settings-playlist-field--source">
       <div class="settings-playlist-field__head">
         <div>
-          <h4 class="settings-playlist-field__title">{{ _("Source playlists") }}</h4>
+          <h4 class="settings-playlist-field__title" id="source-playlists-heading">{{ _("Source playlists") }}</h4>
           <p class="settings-playlist-field__desc">{{ _("Playlists to pull tracks from during sync.") }}</p>
         </div>
         <span class="settings-count" id="source-playlist-count">{{ _("0 playlists") }}</span>
       </div>
-      <div class="playlist-input-list" id="source-playlists-list"></div>
+      <div class="playlist-input-list" id="source-playlists-list" role="group" aria-labelledby="source-playlists-heading"></div>
       <button type="button" class="playlist-add-btn" id="add-source-playlist">{{ _("+ Add source playlist") }}</button>
     </div>
 
     <div class="settings-playlist-field settings-playlist-field--tracking">
       <div class="settings-playlist-field__head">
         <div>
-          <h4 class="settings-playlist-field__title">{{ _("Tracking playlists") }}</h4>
+          <h4 class="settings-playlist-field__title" id="tracking-playlists-heading">{{ _("Tracking playlists") }}</h4>
           <p class="settings-playlist-field__desc">{{ _("Playlists scanned when importing new tracks.") }}</p>
         </div>
         <span class="settings-count" id="tracking-playlist-count">{{ _("0 playlists") }}</span>
       </div>
-      <div class="playlist-input-list" id="tracking-playlists-list"></div>
+      <div class="playlist-input-list" id="tracking-playlists-list" role="group" aria-labelledby="tracking-playlists-heading"></div>
       <button type="button" class="playlist-add-btn" id="add-tracking-playlist">{{ _("+ Add tracking playlist") }}</button>
     </div>
   </div>

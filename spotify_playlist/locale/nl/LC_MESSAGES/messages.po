@@ -576,3 +576,21 @@ msgstr "Instellingen — {app_name}"
 
 msgid "{genre} — Track to-do — {app_name}"
 msgstr "{genre} — Track to-do — {app_name}"
+
+msgid "Just a moment"
+msgstr "Even geduld"
+
+msgid "Skip to main content"
+msgstr "Ga naar hoofdinhoud"
+
+msgid "Track name"
+msgstr "Tracknaam"
+
+msgid "Reference URL"
+msgstr "Referentie-URL"
+
+msgid "Playlist URL"
+msgstr "Afspeellijst-URL"
+
+msgid "Copy track title"
+msgstr "Tracktitel kopiëren"

@@ -14,8 +14,6 @@
   "Flat dark mode": "Flat dark mode",
   "Colorful": "Colorful",
   "Gradients, glow, motion": "Gradients, glow, motion",
-  "RetroUI": "RetroUI",
-  "Neo-brutalism": "Neo-brutalism",
   "Language": "Language",
   "Choose the language for labels and messages.": "Choose the language for labels and messages.",
   "English": "English",
@@ -93,8 +91,6 @@
   "Sync complete": "Sync complete",
   "Sync failed": "Sync failed",
   "Sync started…": "Sync started…",
-  "Resuming sync…": "Resuming sync…",
-  "Waiting for Spotify…": "Waiting for Spotify…",
   "Could not start sync": "Could not start sync",
   "Sync screen is unavailable. Restart the web server.": "Sync screen is unavailable. Restart the web server.",
   "Sync playlists — {app_name}": "Sync playlists — {app_name}",
@@ -189,5 +185,11 @@
   "Statistics — {app_name}": "Statistics — {app_name}",
   "Fetch tracks — {app_name}": "Fetch tracks — {app_name}",
   "Settings — {app_name}": "Settings — {app_name}",
-  "{genre} — Track to-do — {app_name}": "{genre} — Track to-do — {app_name}"
+  "{genre} — Track to-do — {app_name}": "{genre} — Track to-do — {app_name}",
+  "Just a moment": "Just a moment",
+  "Skip to main content": "Skip to main content",
+  "Track name": "Track name",
+  "Reference URL": "Reference URL",
+  "Playlist URL": "Playlist URL",
+  "Copy track title": "Copy track title"
 }

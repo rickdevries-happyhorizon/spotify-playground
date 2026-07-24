@@ -1,1 +1,12 @@
-<div class="banner loading" id="banner">{{ _("Loading…") }}</div>
+<div class="banner loading" id="banner" role="status" aria-live="polite" hidden>
+  <div class="banner__visual" aria-hidden="true">
+    <span class="banner__orb"></span>
+    <span class="banner__ring"></span>
+    <span class="banner__spark"></span>
+  </div>
+  <div class="banner__body">
+    <span class="banner__eyebrow">{{ _("Just a moment") }}</span>
+    <span class="banner__text">{{ _("Loading…") }}</span>
+    <span class="banner__shimmer" aria-hidden="true"></span>
+  </div>
+</div>

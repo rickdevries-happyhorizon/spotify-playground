@@ -9,11 +9,12 @@
   {% block head_extra %}{% endblock %}
 </head>
 <body>
+  <a class="skip-link" href="#main-content">{{ _("Skip to main content") }}</a>
   {% include "partials/header.html" %}
   {% include "partials/breadcrumbs.html" %}
-  <div class="page-content container">
+  <main id="main-content" class="page-content container" tabindex="-1">
     {% block content %}{% endblock %}
-  </div>
+  </main>
   {% include "partials/app_chrome.html" %}
   {% include "partials/i18n_bootstrap.html" %}
   <script src="/static/js/i18n.js"></script>

@@ -9,7 +9,8 @@ const fetchTitle = document.getElementById("fetch-title");
 const fetchMessage = document.getElementById("fetch-message");
 const fetchProgressBar = document.getElementById("fetch-progress-bar");
 const fetchProgressGlow = document.getElementById("fetch-progress-glow");
-const fetchProgressWrap = document.querySelector(".fetch-progress-wrap");
+const fetchProgressWrap = document.getElementById("fetch-progress-wrap")
+  || document.querySelector("#fetch-view .fetch-progress-wrap");
 const fetchProgressLabel = document.getElementById("fetch-progress-label");
 const fetchProgressPercent = document.getElementById("fetch-progress-percent");
 const fetchPlaylistCard = document.getElementById("fetch-playlist-card");
@@ -29,7 +30,8 @@ const downloadTitle = document.getElementById("download-title");
 const downloadMessage = document.getElementById("download-message");
 const downloadProgressBar = document.getElementById("download-progress-bar");
 const downloadProgressGlow = document.getElementById("download-progress-glow");
-const downloadProgressWrap = downloadView?.querySelector(".fetch-progress-wrap");
+const downloadProgressWrap = document.getElementById("download-progress-wrap")
+  || downloadView?.querySelector(".fetch-progress-wrap");
 const downloadProgressLabel = document.getElementById("download-progress-label");
 const downloadProgressPercent = document.getElementById("download-progress-percent");
 const downloadTrackCard = document.getElementById("download-track-card");
@@ -47,7 +49,8 @@ const syncTitle = document.getElementById("sync-title");
 const syncMessage = document.getElementById("sync-message");
 const syncProgressBar = document.getElementById("sync-progress-bar");
 const syncProgressGlow = document.getElementById("sync-progress-glow");
-const syncProgressWrap = syncView?.querySelector(".fetch-progress-wrap");
+const syncProgressWrap = document.getElementById("sync-progress-wrap")
+  || syncView?.querySelector(".fetch-progress-wrap");
 const syncProgressLabel = document.getElementById("sync-progress-label");
 const syncProgressPercent = document.getElementById("sync-progress-percent");
 const syncPlaylistCard = document.getElementById("sync-playlist-card");
@@ -238,17 +241,23 @@ function createPlaylistRow(entry = {}, { removable = true } = {}) {
   const field = document.createElement("label");
   field.className = "settings-field playlist-input-row__field";
 
+  const labelText = document.createElement("span");
+  labelText.className = "sr-only";
+  labelText.textContent = t("Playlist URL");
+
   const input = document.createElement("input");
   input.type = "text";
   input.className = "playlist-id-input";
   input.placeholder = "https://open.spotify.com/playlist/…";
   input.value = entry?.spotify_id || entry || "";
+  input.setAttribute("autocomplete", "off");
+  input.setAttribute("aria-label", t("Playlist URL"));
 
   const meta = document.createElement("span");
   meta.className = "playlist-meta";
   meta.hidden = true;
 
-  field.append(meta, input);
+  field.append(labelText, meta, input);
 
   const actions = document.createElement("div");
   actions.className = "playlist-input-row__actions";
@@ -547,12 +556,20 @@ function handleAppModuleClick(event, path) {
 function renderStartScreen() {
   if (appGrid.childElementCount) return;
 
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let index = 0;
+
   for (const module of getAppModules()) {
     const item = document.createElement("li");
     const link = document.createElement("a");
-    link.className = `app-card ${module.className}`;
+    link.className = `app-card magic-card ${module.className}`;
+    if (!reducedMotion) {
+      link.classList.add("blur-fade");
+      link.style.animationDelay = `${index * 70}ms`;
+    }
     link.href = module.path;
     link.innerHTML = `
+      <span class="magic-card__glow" aria-hidden="true"></span>
       <span class="app-card__icon" aria-hidden="true">${module.icon}</span>
       <span class="app-card__body">
         <span class="app-card__name">${escapeHtml(module.label)}</span>
@@ -560,9 +577,43 @@ function renderStartScreen() {
       </span>
     `;
     link.addEventListener("click", (event) => handleAppModuleClick(event, module.path));
+    enhanceMagicCard(link);
     item.appendChild(link);
     appGrid.appendChild(item);
+    index += 1;
   }
+}
+
+function enhanceMagicCard(element) {
+  if (!element || element.dataset.magicBound === "1") return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (window.matchMedia("(pointer: coarse)").matches) return;
+
+  element.dataset.magicBound = "1";
+  const glow = element.querySelector(".magic-card__glow");
+
+  element.addEventListener("pointermove", (event) => {
+    const rect = element.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    element.style.setProperty("--magic-x", `${x}%`);
+    element.style.setProperty("--magic-y", `${y}%`);
+    if (glow) {
+      glow.style.setProperty("--magic-x", `${x}%`);
+      glow.style.setProperty("--magic-y", `${y}%`);
+    }
+  });
+
+  element.addEventListener("pointerleave", () => {
+    element.style.setProperty("--magic-x", "50%");
+    element.style.setProperty("--magic-y", "50%");
+  });
+}
+
+function setProgressAria(wrap, percent) {
+  if (!wrap) return;
+  const value = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+  wrap.setAttribute("aria-valuenow", String(value));
 }
 
 function formatPercent(value) {
@@ -594,11 +645,11 @@ function renderStatistics({ genres, withUrl, withoutUrl }) {
       <span class="stats-card__label">${t("Total tracks")}</span>
       <strong class="stats-card__value">${total}</strong>
     </article>
-    <article class="stats-card stats-card--done">
+    <article class="stats-card">
       <span class="stats-card__label">${t("Has reference URL")}</span>
       <strong class="stats-card__value">${withUrl.length}</strong>
     </article>
-    <article class="stats-card stats-card--todo">
+    <article class="stats-card">
       <span class="stats-card__label">${t("Needs reference URL")}</span>
       <strong class="stats-card__value">${withoutUrl.length}</strong>
     </article>
@@ -877,6 +928,7 @@ function resetFetchScreen() {
   fetchMessage.textContent = t("Connecting to Spotify…");
   fetchProgressBar.style.width = "0%";
   fetchProgressGlow.style.left = "0%";
+  setProgressAria(fetchProgressWrap, 0);
   fetchProgressWrap?.classList.add("is-active");
   fetchProgressLabel.textContent = t("Starting…");
   fetchProgressPercent.textContent = "0%";
@@ -992,6 +1044,7 @@ function startFetchProgressAnimation() {
     fetchProgressBar.style.width = `${fetchDisplayPercent}%`;
     fetchProgressGlow.style.left = `${fetchDisplayPercent}%`;
     fetchProgressPercent.textContent = `${Math.round(fetchDisplayPercent)}%`;
+    setProgressAria(fetchProgressWrap, fetchDisplayPercent);
     fetchProgressRaf = requestAnimationFrame(tick);
   };
 
@@ -1109,6 +1162,7 @@ async function scheduleFetchSuccess(job) {
   fetchProgressBar.style.width = "100%";
   fetchProgressGlow.style.left = "100%";
   fetchProgressPercent.textContent = "100%";
+  setProgressAria(fetchProgressWrap, 100);
 
   const completedJob = pendingSuccessJob;
   pendingSuccessJob = null;
@@ -1171,6 +1225,7 @@ function renderFetchSuccess(job) {
   fetchProgressBar.style.width = "100%";
   fetchProgressGlow.style.left = "100%";
   fetchProgressPercent.textContent = "100%";
+  setProgressAria(fetchProgressWrap, 100);
   fetchProgressLabel.textContent = t("Done");
   fetchProgressWrap?.classList.remove("is-active");
   fetchPlaylistCard.hidden = true;
@@ -1353,6 +1408,7 @@ function resetDownloadScreen() {
   downloadMessage.textContent = t("Preparing download…");
   downloadProgressBar.style.width = "0%";
   downloadProgressGlow.style.left = "0%";
+  setProgressAria(downloadProgressWrap, 0);
   downloadProgressWrap?.classList.add("is-active");
   downloadProgressLabel.textContent = t("Starting…");
   downloadProgressPercent.textContent = "0%";
@@ -1430,6 +1486,7 @@ function startDownloadProgressAnimation() {
     downloadProgressBar.style.width = `${downloadDisplayPercent}%`;
     downloadProgressGlow.style.left = `${downloadDisplayPercent}%`;
     downloadProgressPercent.textContent = `${Math.round(downloadDisplayPercent)}%`;
+    setProgressAria(downloadProgressWrap, downloadDisplayPercent);
     downloadProgressRaf = requestAnimationFrame(tick);
   };
 
@@ -1471,6 +1528,7 @@ function renderDownloadSuccess(job) {
   downloadProgressBar.style.width = "100%";
   downloadProgressGlow.style.left = "100%";
   downloadProgressPercent.textContent = "100%";
+  setProgressAria(downloadProgressWrap, 100);
   downloadProgressLabel.textContent = t("Done");
   downloadProgressWrap?.classList.remove("is-active");
   downloadTrackCard.hidden = true;
@@ -1659,6 +1717,7 @@ function resetSyncPresentation() {
   syncMessage.textContent = t("Connecting to Spotify…");
   syncProgressBar.style.width = "0%";
   syncProgressGlow.style.left = "0%";
+  setProgressAria(syncProgressWrap, 0);
   syncProgressWrap?.classList.add("is-active");
   syncProgressLabel.textContent = t("Starting…");
   syncProgressPercent.textContent = "0%";
@@ -1767,6 +1826,7 @@ function startSyncProgressAnimation() {
     syncProgressBar.style.width = `${syncDisplayPercent}%`;
     syncProgressGlow.style.left = `${syncDisplayPercent}%`;
     syncProgressPercent.textContent = `${Math.round(syncDisplayPercent)}%`;
+    setProgressAria(syncProgressWrap, syncDisplayPercent);
     syncProgressRaf = requestAnimationFrame(tick);
   };
 
@@ -1859,6 +1919,7 @@ function renderSyncSuccess(job) {
   syncProgressBar.style.width = "100%";
   syncProgressGlow.style.left = "100%";
   syncProgressPercent.textContent = "100%";
+  setProgressAria(syncProgressWrap, 100);
   syncProgressLabel.textContent = t("Done");
   syncProgressWrap?.classList.remove("is-active");
   syncPlaylistCard.hidden = true;
@@ -2120,6 +2181,10 @@ function applyFilterView() {
   columnTodo.hidden = showDone;
   tabWithUrl.classList.toggle("active", showDone);
   tabWithoutUrl.classList.toggle("active", !showDone);
+  tabWithUrl.setAttribute("aria-selected", showDone ? "true" : "false");
+  tabWithoutUrl.setAttribute("aria-selected", showDone ? "false" : "true");
+  tabWithUrl.tabIndex = showDone ? 0 : -1;
+  tabWithoutUrl.tabIndex = showDone ? -1 : 0;
   tabWithUrl.href = genrePath(currentGenre, FILTER_WITH_URL);
   tabWithoutUrl.href = genrePath(currentGenre, FILTER_WITHOUT_URL);
 }
@@ -2336,8 +2401,36 @@ function navigateToGenreHub({ replace = false } = {}) {
   loadGenreHub(currentGenre);
 }
 
+function renderFilterSkeleton() {
+  filterGrid.innerHTML = "";
+  filterGrid.setAttribute("aria-busy", "true");
+
+  const status = document.createElement("li");
+  status.className = "sr-only";
+  status.setAttribute("role", "status");
+  status.textContent = t("Loading track counts…");
+  filterGrid.appendChild(status);
+
+  for (let i = 0; i < 2; i += 1) {
+    const item = document.createElement("li");
+    item.className = "filter-skeleton-item";
+    item.setAttribute("aria-hidden", "true");
+    item.innerHTML = `
+      <div class="filter-card filter-card--skeleton">
+        <span class="skeleton skeleton--art"></span>
+        <span class="filter-card__body">
+          <span class="skeleton skeleton--line skeleton--line-title"></span>
+          <span class="skeleton skeleton--line skeleton--line-meta"></span>
+        </span>
+      </div>
+    `;
+    filterGrid.appendChild(item);
+  }
+}
+
 function renderFilterChoices(withUrlCount, withoutUrlCount) {
   filterGrid.innerHTML = "";
+  filterGrid.removeAttribute("aria-busy");
   const genreImageUrl = genreImageBySlug[currentGenre] || null;
 
   const choices = [
@@ -2355,10 +2448,17 @@ function renderFilterChoices(withUrlCount, withoutUrlCount) {
     },
   ];
 
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let index = 0;
+
   for (const choice of choices) {
     const item = document.createElement("li");
     const link = document.createElement("a");
     link.className = `filter-card ${choice.className}`;
+    if (!reducedMotion) {
+      link.classList.add("blur-fade");
+      link.style.animationDelay = `${index * 60}ms`;
+    }
     link.href = genrePath(currentGenre, choice.filter);
     link.innerHTML = `
       ${artMarkup(genreImageUrl, "card-art", currentGenre || "")}
@@ -2373,11 +2473,13 @@ function renderFilterChoices(withUrlCount, withoutUrlCount) {
     });
     item.appendChild(link);
     filterGrid.appendChild(item);
+    index += 1;
   }
 }
 
 async function loadGenreHub(genre = currentGenre) {
-  setBanner(t("Loading track counts…"), "loading");
+  setBanner("");
+  renderFilterSkeleton();
   try {
     const response = await fetch(`/api/tracks?genre=${encodeURIComponent(genre)}`);
     const data = await response.json().catch(() => ({}));
@@ -2401,13 +2503,43 @@ async function loadGenreHub(genre = currentGenre) {
       setBanner("");
     }
   } catch (error) {
+    filterGrid.innerHTML = "";
+    filterGrid.removeAttribute("aria-busy");
     setBanner(t("Failed to load tracks: {message}", { message: error.message }), "error");
     showStatus(error.message, "error");
   }
 }
 
+function renderGenreSkeleton(count = 6) {
+  genreGrid.innerHTML = "";
+  genreGrid.setAttribute("aria-busy", "true");
+
+  const status = document.createElement("li");
+  status.className = "sr-only";
+  status.setAttribute("role", "status");
+  status.textContent = t("Loading genres…");
+  genreGrid.appendChild(status);
+
+  for (let i = 0; i < count; i += 1) {
+    const item = document.createElement("li");
+    item.className = "genre-skeleton-item";
+    item.setAttribute("aria-hidden", "true");
+    item.innerHTML = `
+      <div class="genre-card genre-card--skeleton">
+        <span class="skeleton skeleton--art"></span>
+        <span class="genre-card__body">
+          <span class="skeleton skeleton--line skeleton--line-title"></span>
+          <span class="skeleton skeleton--line skeleton--line-meta"></span>
+        </span>
+      </div>
+    `;
+    genreGrid.appendChild(item);
+  }
+}
+
 function renderGenreList(genres) {
   genreGrid.innerHTML = "";
+  genreGrid.removeAttribute("aria-busy");
   genreImageBySlug = {};
   if (!genres.length) {
     const empty = document.createElement("li");
@@ -2417,6 +2549,9 @@ function renderGenreList(genres) {
     return;
   }
 
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let index = 0;
+
   for (const genre of genres) {
     if (genre.image_url) {
       genreImageBySlug[genre.slug] = genre.image_url;
@@ -2424,6 +2559,10 @@ function renderGenreList(genres) {
     const item = document.createElement("li");
     const link = document.createElement("a");
     link.className = "genre-card";
+    if (!reducedMotion) {
+      link.classList.add("blur-fade");
+      link.style.animationDelay = `${Math.min(index, 12) * 45}ms`;
+    }
     link.href = genrePath(genre.slug);
     link.innerHTML = `
       ${artMarkup(genre.image_url, "card-art", genre.label)}
@@ -2438,11 +2577,13 @@ function renderGenreList(genres) {
     });
     item.appendChild(link);
     genreGrid.appendChild(item);
+    index += 1;
   }
 }
 
 async function loadGenres() {
-  setBanner(t("Loading genres…"), "loading");
+  setBanner("");
+  renderGenreSkeleton();
   try {
     const response = await fetch("/api/genres");
     const data = await response.json().catch(() => ({}));
@@ -2458,6 +2599,8 @@ async function loadGenres() {
       setBanner("");
     }
   } catch (error) {
+    genreGrid.innerHTML = "";
+    genreGrid.removeAttribute("aria-busy");
     setBanner(t("Failed to load genres: {message}", { message: error.message }), "error");
     showStatus(error.message, "error");
   }
@@ -2540,10 +2683,59 @@ function applyAllListSpacing() {
   applyListSpacing(listTodo);
 }
 
+let bannerHideTimer = null;
+let bannerShowFrame = 0;
+
 function setBanner(message, type = "loading") {
-  bannerEl.textContent = message;
+  if (!bannerEl) return;
+
+  clearTimeout(bannerHideTimer);
+  if (bannerShowFrame) {
+    cancelAnimationFrame(bannerShowFrame);
+    bannerShowFrame = 0;
+  }
+
+  const textEl = bannerEl.querySelector(".banner__text");
+  const eyebrowEl = bannerEl.querySelector(".banner__eyebrow");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const fadeMs = reducedMotion ? 0 : 320;
+
+  if (!message) {
+    bannerEl.classList.remove("is-visible");
+    bannerEl.classList.add("is-leaving");
+    bannerHideTimer = setTimeout(() => {
+      bannerEl.hidden = true;
+      bannerEl.classList.remove("is-leaving", "loading", "error", "is-visible");
+      bannerEl.className = "banner";
+      if (textEl) textEl.textContent = "";
+    }, fadeMs);
+    return;
+  }
+
+  const wasHidden = bannerEl.hidden || !bannerEl.classList.contains("is-visible");
+  bannerEl.hidden = false;
+  bannerEl.classList.remove("is-leaving");
   bannerEl.className = `banner ${type}`;
-  bannerEl.hidden = !message;
+  if (textEl) {
+    textEl.textContent = message;
+  } else {
+    bannerEl.textContent = message;
+  }
+  if (eyebrowEl) {
+    eyebrowEl.hidden = type !== "loading";
+    eyebrowEl.textContent = type === "loading" ? t("Just a moment") : "";
+  }
+
+  if (wasHidden) {
+    // Ensure the browser applies the hidden/start state before fading in.
+    void bannerEl.offsetWidth;
+    bannerShowFrame = requestAnimationFrame(() => {
+      bannerEl.classList.add("is-visible");
+      bannerShowFrame = 0;
+    });
+  } else {
+    bannerEl.classList.add("is-visible");
+  }
 }
 
 function showStatus(message, type = "success") {
@@ -2661,14 +2853,17 @@ function createTrackItem(track) {
       ${artMarkup(track.image_url, "track-art", track.track)}
       <div class="track-body">
         <div class="track-heading">
-          <div class="track-name" data-count="${copyTitleCount}" role="button" tabindex="0" title="${t('Click to copy title')}">${escapeHtml(track.track)}</div>
+          <div class="track-name" data-count="${copyTitleCount}" role="button" tabindex="0" title="${t("Click to copy title")}" aria-label="${escapeHtml(t("Copy track title"))}: ${escapeHtml(track.track)}">${escapeHtml(track.track)}</div>
           ${genreHtml}
           ${energyHtml}
         </div>
         <form class="track-form">
-          <input type="url" name="reference_url" placeholder="https://..." value="${safeUrl}" />
+          <label class="field-label">
+            <span class="sr-only">${t("Reference URL")}</span>
+            <input type="url" name="reference_url" placeholder="https://..." value="${safeUrl}" aria-label="${escapeHtml(t("Reference URL"))}" autocomplete="off" />
+          </label>
           <button type="submit">${t("Save")}</button>
-          <button type="button" class="remove">${t("Remove")}</button>
+          <button type="button" class="remove" aria-label="${escapeHtml(t("Remove"))}: ${escapeHtml(track.track)}">${t("Remove")}</button>
         </form>
       </div>
     </div>
@@ -3116,6 +3311,35 @@ tabWithoutUrl.addEventListener("click", (event) => {
   if (currentGenre) {
     navigateToFilter(currentGenre, FILTER_WITHOUT_URL);
   }
+});
+
+document.getElementById("filter-tabs")?.addEventListener("keydown", (event) => {
+  const tabs = [tabWithUrl, tabWithoutUrl].filter(Boolean);
+  if (!tabs.length) return;
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+
+  const currentIndex = tabs.indexOf(document.activeElement);
+  if (currentIndex < 0) return;
+
+  event.preventDefault();
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowRight") {
+    nextIndex = (currentIndex + 1) % tabs.length;
+  } else if (event.key === "ArrowLeft") {
+    nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  } else if (event.key === "Home") {
+    nextIndex = 0;
+  } else if (event.key === "End") {
+    nextIndex = tabs.length - 1;
+  }
+
+  const nextTab = tabs[nextIndex];
+  nextTab.focus();
+  nextTab.click();
+});
+
+document.querySelectorAll(".magic-card").forEach((card) => {
+  enhanceMagicCard(card);
 });
 
 window.addEventListener("popstate", async (event) => {

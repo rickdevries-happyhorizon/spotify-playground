@@ -16,14 +16,22 @@
       <h2 class="fetch-title" id="download-title">{{ _("Downloading tracks") }}</h2>
       <p class="fetch-message" id="download-message">{{ _("Preparing download…") }}</p>
 
-      <div class="fetch-progress-wrap">
+      <div
+        class="fetch-progress-wrap"
+        id="download-progress-wrap"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+        aria-labelledby="download-progress-label"
+      >
         <div class="fetch-progress-track">
           <div class="fetch-progress-bar" id="download-progress-bar"></div>
-          <div class="fetch-progress-glow" id="download-progress-glow"></div>
+          <div class="fetch-progress-glow" id="download-progress-glow" aria-hidden="true"></div>
         </div>
         <div class="fetch-progress-meta">
           <span id="download-progress-label">{{ _("Starting…") }}</span>
-          <span id="download-progress-percent">0%</span>
+          <span id="download-progress-percent" aria-hidden="true">0%</span>
         </div>
       </div>
 
@@ -44,13 +52,13 @@
       <div class="fetch-result" id="download-result" hidden>
         <div class="fetch-result__stats" id="download-result-stats"></div>
         <div class="fetch-result__actions">
-          <a class="fetch-action fetch-action--primary" id="download-go-todo" href="/todo">{{ _("View to-do list") }}</a>
+          <a class="fetch-action fetch-action--primary shimmer-button" id="download-go-todo" href="/todo">{{ _("View to-do list") }}</a>
           <button type="button" class="fetch-action fetch-action--ghost" id="download-run-again">{{ _("Download again") }}</button>
           <a class="fetch-action fetch-action--ghost" id="download-go-home" href="/">{{ _("Back to home") }}</a>
         </div>
       </div>
 
-      <div class="fetch-error" id="download-error" hidden>
+      <div class="fetch-error" id="download-error" hidden role="alert">
         <p id="download-error-message"></p>
         <div class="fetch-result__actions">
           <a class="fetch-action fetch-action--primary" id="download-go-settings" href="/settings">{{ _("Open settings") }}</a>

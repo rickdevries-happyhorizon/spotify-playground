@@ -1,13 +1,14 @@
-<section class="settings-card settings-card--theme">
+<section class="settings-card settings-card--theme magic-card" aria-labelledby="settings-theme-heading">
   <div class="settings-card__accent" aria-hidden="true"></div>
+  <div class="magic-card__glow" aria-hidden="true"></div>
   <div class="settings-card__header">
     <span class="settings-card__icon" aria-hidden="true">🎨</span>
     <div>
-      <h3>{{ _("Theme") }}</h3>
+      <h3 id="settings-theme-heading">{{ _("Theme") }}</h3>
       <p>{{ _("Pick the vibe for the whole app.") }}</p>
     </div>
   </div>
-  <div class="theme-cards">
+  <div class="theme-cards" role="radiogroup" aria-labelledby="settings-theme-heading">
     <label class="theme-card theme-card--light">
       <input type="radio" name="ui_skin" value="light" />
       <span class="theme-card__frame">

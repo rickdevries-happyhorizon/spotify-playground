@@ -16,14 +16,22 @@
       <h2 class="fetch-title" id="sync-title">{{ _("Syncing playlists") }}</h2>
       <p class="fetch-message" id="sync-message">{{ _("Connecting to Spotify…") }}</p>
 
-      <div class="fetch-progress-wrap">
+      <div
+        class="fetch-progress-wrap"
+        id="sync-progress-wrap"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+        aria-labelledby="sync-progress-label"
+      >
         <div class="fetch-progress-track">
           <div class="fetch-progress-bar" id="sync-progress-bar"></div>
-          <div class="fetch-progress-glow" id="sync-progress-glow"></div>
+          <div class="fetch-progress-glow" id="sync-progress-glow" aria-hidden="true"></div>
         </div>
         <div class="fetch-progress-meta">
           <span id="sync-progress-label">{{ _("Starting…") }}</span>
-          <span id="sync-progress-percent">0%</span>
+          <span id="sync-progress-percent" aria-hidden="true">0%</span>
         </div>
       </div>
 
@@ -47,13 +55,13 @@
       <div class="fetch-result" id="sync-result" hidden>
         <div class="fetch-result__stats" id="sync-result-stats"></div>
         <div class="fetch-result__actions">
-          <a class="fetch-action fetch-action--primary" id="sync-go-settings" href="/settings">{{ _("Open settings") }}</a>
+          <a class="fetch-action fetch-action--primary shimmer-button" id="sync-go-settings" href="/settings">{{ _("Open settings") }}</a>
           <button type="button" class="fetch-action fetch-action--ghost" id="sync-run-again">{{ _("Sync again") }}</button>
           <a class="fetch-action fetch-action--ghost" id="sync-go-home" href="/">{{ _("Back to home") }}</a>
         </div>
       </div>
 
-      <div class="fetch-error" id="sync-error" hidden>
+      <div class="fetch-error" id="sync-error" hidden role="alert">
         <p id="sync-error-message"></p>
         <div class="fetch-result__actions">
           <a class="fetch-action fetch-action--primary" id="sync-error-settings" href="/settings">{{ _("Open settings") }}</a>

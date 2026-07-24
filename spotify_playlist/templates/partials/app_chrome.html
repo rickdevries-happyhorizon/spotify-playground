@@ -1,4 +1,7 @@
-<div class="status" id="status" role="status" aria-live="polite"></div>
-<div class="copy-toast" id="copy-toast" aria-live="polite"></div>
+<div class="status" id="status" role="status" aria-live="polite" aria-atomic="true"></div>
+<div class="copy-toast" id="copy-toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<a class="settings-link" id="settings-link" href="/settings" title="{{ _("Settings") }}">⚙ {{ _("Settings") }}</a>
+<a class="settings-link" id="settings-link" href="/settings" aria-label="{{ _("Settings") }}">
+  <span aria-hidden="true">⚙</span>
+  <span>{{ _("Settings") }}</span>
+</a>

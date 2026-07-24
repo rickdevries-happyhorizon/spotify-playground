@@ -576,3 +576,21 @@ msgstr ""
 
 msgid "{genre} — Track to-do — {app_name}"
 msgstr ""
+
+msgid "Just a moment"
+msgstr ""
+
+msgid "Skip to main content"
+msgstr ""
+
+msgid "Track name"
+msgstr ""
+
+msgid "Reference URL"
+msgstr ""
+
+msgid "Playlist URL"
+msgstr ""
+
+msgid "Copy track title"
+msgstr ""

@@ -14,8 +14,6 @@
   "Flat dark mode": "Platte donkere modus",
   "Colorful": "Kleurrijk",
   "Gradients, glow, motion": "Verlopen, gloed, beweging",
-  "RetroUI": "RetroUI",
-  "Neo-brutalism": "Neo-brutalisme",
   "Language": "Taal",
   "Choose the language for labels and messages.": "Kies de taal voor labels en berichten.",
   "English": "Engels",
@@ -93,8 +91,6 @@
   "Sync complete": "Sync voltooid",
   "Sync failed": "Sync mislukt",
   "Sync started…": "Sync gestart…",
-  "Resuming sync…": "Sync hervatten…",
-  "Waiting for Spotify…": "Wachten op Spotify…",
   "Could not start sync": "Kon sync niet starten",
   "Sync screen is unavailable. Restart the web server.": "Sync-scherm niet beschikbaar. Herstart de webserver.",
   "Sync playlists — {app_name}": "Afspeellijsten synchroniseren — {app_name}",
@@ -189,5 +185,11 @@
   "Statistics — {app_name}": "Statistieken — {app_name}",
   "Fetch tracks — {app_name}": "Tracks ophalen — {app_name}",
   "Settings — {app_name}": "Instellingen — {app_name}",
-  "{genre} — Track to-do — {app_name}": "{genre} — Track to-do — {app_name}"
+  "{genre} — Track to-do — {app_name}": "{genre} — Track to-do — {app_name}",
+  "Just a moment": "Even geduld",
+  "Skip to main content": "Ga naar hoofdinhoud",
+  "Track name": "Tracknaam",
+  "Reference URL": "Referentie-URL",
+  "Playlist URL": "Afspeellijst-URL",
+  "Copy track title": "Tracktitel kopiëren"
 }

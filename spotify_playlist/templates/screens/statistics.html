@@ -1,9 +1,10 @@
-<section class="statistics-screen view" id="statistics-view" hidden>
+<section class="statistics-screen view" id="statistics-view" hidden aria-labelledby="stats-genre-heading">
   <div class="stats-summary" id="stats-summary"></div>
-  <section class="stats-section">
-    <h2>{{ _("By genre") }}</h2>
+  <section class="stats-section" aria-labelledby="stats-genre-heading">
+    <h2 id="stats-genre-heading">{{ _("By genre") }}</h2>
     <div class="stats-table-wrap">
       <table class="stats-table" id="stats-genre-table">
+        <caption class="sr-only">{{ _("By genre") }}</caption>
         <thead>
           <tr>
             <th scope="col">{{ _("Genre") }}</th>
