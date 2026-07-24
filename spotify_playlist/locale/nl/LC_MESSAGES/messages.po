@@ -238,6 +238,96 @@ msgstr "Nieuwe tracks ophalen"
 msgid "Import new tracks from your Spotify playlists into the to-do list."
 msgstr "Importeer nieuwe tracks uit je Spotify-afspeellijsten naar de to-do lijst."
 
+msgid "Scan tracking playlists for new additions and add them to your download to-do list."
+msgstr "Scan tracking-afspeellijsten op nieuwe toevoegingen en zet ze op je download to-do lijst."
+
+msgid "Scanning tracking playlists for new tracks to download."
+msgstr "Tracking-afspeellijsten scannen op nieuwe tracks om te downloaden."
+
+msgid "Sync playlists"
+msgstr "Afspeellijsten synchroniseren"
+
+msgid "Pull new tracks from source playlists into your destination playlist."
+msgstr "Haal nieuwe tracks uit bron-afspeellijsten en zet ze in je doel-afspeellijst."
+
+msgid "Pull new tracks from followed artists and source playlists into your destination playlist."
+msgstr "Haal nieuwe tracks uit gevolgde artiesten en bron-afspeellijsten en zet ze in je doel-afspeellijst."
+
+msgid "Moving new tracks from source playlists into your destination playlist."
+msgstr "Nieuwe tracks van bron-afspeellijsten naar je doel-afspeellijst verplaatsen."
+
+msgid "Scanning followed artists and source playlists since your sync start date."
+msgstr "Gevolgde artiesten en bron-afspeellijsten scannen sinds je sync-startdatum."
+
+msgid "Scan artists"
+msgstr "Artiesten scannen"
+
+msgid "Current artist"
+msgstr "Huidige artiest"
+
+msgid "From artists"
+msgstr "Van artiesten"
+
+msgid "Playlist sync"
+msgstr "Afspeellijst-sync"
+
+msgid "Syncing playlists"
+msgstr "Afspeellijsten synchroniseren"
+
+msgid "Scan sources"
+msgstr "Bronnen scannen"
+
+msgid "Add to destination"
+msgstr "Naar doel toevoegen"
+
+msgid "Sync again"
+msgstr "Opnieuw synchroniseren"
+
+msgid "Sync complete"
+msgstr "Sync voltooid"
+
+msgid "Sync failed"
+msgstr "Sync mislukt"
+
+msgid "Sync started…"
+msgstr "Sync gestart…"
+
+msgid "Could not start sync"
+msgstr "Kon sync niet starten"
+
+msgid "Sync screen is unavailable. Restart the web server."
+msgstr "Sync-scherm niet beschikbaar. Herstart de webserver."
+
+msgid "Sync playlists — {app_name}"
+msgstr "Afspeellijsten synchroniseren — {app_name}"
+
+msgid "1 track added to your destination playlist."
+msgstr "1 track toegevoegd aan je doel-afspeellijst."
+
+msgid "{count} tracks added to your destination playlist."
+msgstr "{count} tracks toegevoegd aan je doel-afspeellijst."
+
+msgid "New tracks were already in your destination playlist."
+msgstr "Nieuwe tracks stonden al in je doel-afspeellijst."
+
+msgid "No new source tracks found since {since_date}."
+msgstr "Geen nieuwe brontracks gevonden sinds {since_date}."
+
+msgid "No new source tracks found."
+msgstr "Geen nieuwe brontracks gevonden."
+
+msgid "Something went wrong while syncing playlists."
+msgstr "Er ging iets mis bij het synchroniseren van afspeellijsten."
+
+msgid "Added"
+msgstr "Toegevoegd"
+
+msgid "New found"
+msgstr "Nieuw gevonden"
+
+msgid "Sources"
+msgstr "Bronnen"
+
 msgid "Statistics"
 msgstr "Statistieken"
 
@@ -486,21 +576,3 @@ msgstr "Instellingen — {app_name}"
 
 msgid "{genre} — Track to-do — {app_name}"
 msgstr "{genre} — Track to-do — {app_name}"
-
-msgid "YouTube download"
-msgstr "YouTube-download"
-
-msgid "Downloading tracks"
-msgstr "Tracks downloaden"
-
-msgid "Preparing download…"
-msgstr "Download voorbereiden…"
-
-msgid "Current track"
-msgstr "Huidige track"
-
-msgid "Download tracks"
-msgstr "Tracks downloaden"
-
-msgid "Download again"
-msgstr "Opnieuw downloaden"

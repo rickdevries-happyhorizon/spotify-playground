@@ -36,6 +36,21 @@ final class Router
             return;
         }
 
+        if ($path === '/api/sync/playlists/active' && $method === 'GET') {
+            self::activePlaylistSync();
+            return;
+        }
+
+        if ($path === '/api/sync/playlists' && $method === 'POST') {
+            self::startPlaylistSync();
+            return;
+        }
+
+        if (preg_match('#^/api/sync/playlists/([a-f0-9-]+)$#', $path, $matches) === 1 && $method === 'GET') {
+            self::playlistSyncStatus($matches[1]);
+            return;
+        }
+
         if ($path === '/api/download/tracks' && $method === 'POST') {
             self::startTrackDownload();
             return;
@@ -200,6 +215,58 @@ final class Router
         } catch (Throwable $e) {
             self::json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    private static function activePlaylistSync(): void
+    {
+        try {
+            $job = SyncStore::findActive();
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+            return;
+        }
+
+        if ($job === null) {
+            self::json(['error' => 'No active sync job'], 404);
+            return;
+        }
+
+        self::json($job);
+    }
+
+    private static function startPlaylistSync(): void
+    {
+        $force = isset($_GET['force']) && $_GET['force'] === '1';
+
+        try {
+            self::json(SyncStore::start($force), 202);
+        } catch (InvalidArgumentException $e) {
+            $message = $e->getMessage();
+            $status = stripos($message, 'spotify') !== false ? 401 : 400;
+            self::json(['error' => $message], $status);
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    private static function playlistSyncStatus(string $jobId): void
+    {
+        try {
+            $job = SyncStore::status($jobId);
+        } catch (InvalidArgumentException $e) {
+            self::json(['error' => $e->getMessage()], 400);
+            return;
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+            return;
+        }
+
+        if ($job === null) {
+            self::json(['error' => 'Sync job not found'], 404);
+            return;
+        }
+
+        self::json($job);
     }
 
     private static function trackImportStatus(string $jobId): void

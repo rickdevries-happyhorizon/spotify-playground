@@ -238,6 +238,96 @@ msgstr ""
 msgid "Import new tracks from your Spotify playlists into the to-do list."
 msgstr ""
 
+msgid "Scan tracking playlists for new additions and add them to your download to-do list."
+msgstr ""
+
+msgid "Scanning tracking playlists for new tracks to download."
+msgstr ""
+
+msgid "Sync playlists"
+msgstr ""
+
+msgid "Pull new tracks from source playlists into your destination playlist."
+msgstr ""
+
+msgid "Pull new tracks from followed artists and source playlists into your destination playlist."
+msgstr ""
+
+msgid "Moving new tracks from source playlists into your destination playlist."
+msgstr ""
+
+msgid "Scanning followed artists and source playlists since your sync start date."
+msgstr ""
+
+msgid "Scan artists"
+msgstr ""
+
+msgid "Current artist"
+msgstr ""
+
+msgid "From artists"
+msgstr ""
+
+msgid "Playlist sync"
+msgstr ""
+
+msgid "Syncing playlists"
+msgstr ""
+
+msgid "Scan sources"
+msgstr ""
+
+msgid "Add to destination"
+msgstr ""
+
+msgid "Sync again"
+msgstr ""
+
+msgid "Sync complete"
+msgstr ""
+
+msgid "Sync failed"
+msgstr ""
+
+msgid "Sync started…"
+msgstr ""
+
+msgid "Could not start sync"
+msgstr ""
+
+msgid "Sync screen is unavailable. Restart the web server."
+msgstr ""
+
+msgid "Sync playlists — {app_name}"
+msgstr ""
+
+msgid "1 track added to your destination playlist."
+msgstr ""
+
+msgid "{count} tracks added to your destination playlist."
+msgstr ""
+
+msgid "New tracks were already in your destination playlist."
+msgstr ""
+
+msgid "No new source tracks found since {since_date}."
+msgstr ""
+
+msgid "No new source tracks found."
+msgstr ""
+
+msgid "Something went wrong while syncing playlists."
+msgstr ""
+
+msgid "Added"
+msgstr ""
+
+msgid "New found"
+msgstr ""
+
+msgid "Sources"
+msgstr ""
+
 msgid "Statistics"
 msgstr ""
 

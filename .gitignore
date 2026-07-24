@@ -4,4 +4,5 @@ __pycache__/
 *.py[cod]
 .spotipy_cache
 .import_jobs/
+.sync_jobs/
 .download_jobs/

@@ -238,6 +238,96 @@ msgstr "Fetch new tracks"
 msgid "Import new tracks from your Spotify playlists into the to-do list."
 msgstr "Import new tracks from your Spotify playlists into the to-do list."
 
+msgid "Scan tracking playlists for new additions and add them to your download to-do list."
+msgstr "Scan tracking playlists for new additions and add them to your download to-do list."
+
+msgid "Scanning tracking playlists for new tracks to download."
+msgstr "Scanning tracking playlists for new tracks to download."
+
+msgid "Sync playlists"
+msgstr "Sync playlists"
+
+msgid "Pull new tracks from source playlists into your destination playlist."
+msgstr "Pull new tracks from source playlists into your destination playlist."
+
+msgid "Pull new tracks from followed artists and source playlists into your destination playlist."
+msgstr "Pull new tracks from followed artists and source playlists into your destination playlist."
+
+msgid "Moving new tracks from source playlists into your destination playlist."
+msgstr "Moving new tracks from source playlists into your destination playlist."
+
+msgid "Scanning followed artists and source playlists since your sync start date."
+msgstr "Scanning followed artists and source playlists since your sync start date."
+
+msgid "Scan artists"
+msgstr "Scan artists"
+
+msgid "Current artist"
+msgstr "Current artist"
+
+msgid "From artists"
+msgstr "From artists"
+
+msgid "Playlist sync"
+msgstr "Playlist sync"
+
+msgid "Syncing playlists"
+msgstr "Syncing playlists"
+
+msgid "Scan sources"
+msgstr "Scan sources"
+
+msgid "Add to destination"
+msgstr "Add to destination"
+
+msgid "Sync again"
+msgstr "Sync again"
+
+msgid "Sync complete"
+msgstr "Sync complete"
+
+msgid "Sync failed"
+msgstr "Sync failed"
+
+msgid "Sync started…"
+msgstr "Sync started…"
+
+msgid "Could not start sync"
+msgstr "Could not start sync"
+
+msgid "Sync screen is unavailable. Restart the web server."
+msgstr "Sync screen is unavailable. Restart the web server."
+
+msgid "Sync playlists — {app_name}"
+msgstr "Sync playlists — {app_name}"
+
+msgid "1 track added to your destination playlist."
+msgstr "1 track added to your destination playlist."
+
+msgid "{count} tracks added to your destination playlist."
+msgstr "{count} tracks added to your destination playlist."
+
+msgid "New tracks were already in your destination playlist."
+msgstr "New tracks were already in your destination playlist."
+
+msgid "No new source tracks found since {since_date}."
+msgstr "No new source tracks found since {since_date}."
+
+msgid "No new source tracks found."
+msgstr "No new source tracks found."
+
+msgid "Something went wrong while syncing playlists."
+msgstr "Something went wrong while syncing playlists."
+
+msgid "Added"
+msgstr "Added"
+
+msgid "New found"
+msgstr "New found"
+
+msgid "Sources"
+msgstr "Sources"
+
 msgid "Statistics"
 msgstr "Statistics"
 
@@ -486,21 +576,3 @@ msgstr "Settings — {app_name}"
 
 msgid "{genre} — Track to-do — {app_name}"
 msgstr "{genre} — Track to-do — {app_name}"
-
-msgid "YouTube download"
-msgstr "YouTube download"
-
-msgid "Downloading tracks"
-msgstr "Downloading tracks"
-
-msgid "Preparing download…"
-msgstr "Preparing download…"
-
-msgid "Current track"
-msgstr "Current track"
-
-msgid "Download tracks"
-msgstr "Download tracks"
-
-msgid "Download again"
-msgstr "Download again"

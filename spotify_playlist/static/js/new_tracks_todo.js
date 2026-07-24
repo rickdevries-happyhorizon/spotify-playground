@@ -42,6 +42,27 @@ const downloadErrorMessage = document.getElementById("download-error-message");
 const downloadParticles = document.getElementById("download-particles");
 const downloadRunAgainBtn = document.getElementById("download-run-again");
 const downloadRetryBtn = document.getElementById("download-retry");
+const syncView = document.getElementById("sync-view");
+const syncTitle = document.getElementById("sync-title");
+const syncMessage = document.getElementById("sync-message");
+const syncProgressBar = document.getElementById("sync-progress-bar");
+const syncProgressGlow = document.getElementById("sync-progress-glow");
+const syncProgressWrap = syncView?.querySelector(".fetch-progress-wrap");
+const syncProgressLabel = document.getElementById("sync-progress-label");
+const syncProgressPercent = document.getElementById("sync-progress-percent");
+const syncPlaylistCard = document.getElementById("sync-playlist-card");
+const syncPlaylistArt = document.getElementById("sync-playlist-art");
+const syncPlaylistPlaceholder = document.getElementById("sync-playlist-placeholder");
+const syncPlaylistLabel = document.getElementById("sync-playlist-label");
+const syncPlaylistName = document.getElementById("sync-playlist-name");
+const syncSteps = document.getElementById("sync-steps");
+const syncResult = document.getElementById("sync-result");
+const syncResultStats = document.getElementById("sync-result-stats");
+const syncError = document.getElementById("sync-error");
+const syncErrorMessage = document.getElementById("sync-error-message");
+const syncParticles = document.getElementById("sync-particles");
+const syncRunAgainBtn = document.getElementById("sync-run-again");
+const syncRetryBtn = document.getElementById("sync-retry");
 const appGrid = document.getElementById("app-grid");
 const statsSummary = document.getElementById("stats-summary");
 const statsGenreBody = document.getElementById("stats-genre-body");
@@ -75,6 +96,7 @@ const FILTER_WITHOUT_URL = "without-url";
 const START_PATH = "/";
 const TODO_PATH = "/todo";
 const FETCH_PATH = "/fetch";
+const SYNC_PATH = "/sync";
 const DOWNLOAD_PATH = "/download";
 const STATISTICS_PATH = "/statistics";
 const SETTINGS_PATH = "/settings";
@@ -94,10 +116,17 @@ function getAppModules() {
     },
     {
       label: t("Fetch new tracks"),
-      description: t("Import new tracks from your Spotify playlists into the to-do list."),
+      description: t("Scan tracking playlists for new additions and add them to your download to-do list."),
       icon: "↓",
       path: FETCH_PATH,
       className: "app-card--fetch",
+    },
+    {
+      label: t("Sync playlists"),
+      description: t("Pull new tracks from followed artists and source playlists into your destination playlist."),
+      icon: "↻",
+      path: SYNC_PATH,
+      className: "app-card--sync",
     },
     {
       label: t("Download to AIFF"),
@@ -144,12 +173,36 @@ let activeDownloadJobId = null;
 let downloadStartedAt = 0;
 let downloadDisplayPercent = 0;
 let downloadTargetPercent = 0;
+let syncPollTimer = null;
+let syncProgressRaf = null;
+let activeSyncJobId = null;
+let syncJobMissingPolls = 0;
+let syncStartedAt = 0;
+let syncLastJobUpdatedAt = 0;
+let syncDisplayPercent = 0;
+let syncTargetPercent = 0;
 
 const FETCH_MIN_DURATION_MS = window.matchMedia("(prefers-reduced-motion: reduce)").matches
   ? 0
   : 6500;
 const FETCH_POLL_MS = 500;
 const DOWNLOAD_POLL_MS = 500;
+const SYNC_POLL_MS = 500;
+const SYNC_PHASE_PROGRESS = {
+  queued: 2,
+  starting: 4,
+  artists_start: 6,
+  artists_scanning: 10,
+  artists_done: 28,
+  sources_start: 30,
+  playlist_start: 32,
+  fetching_tracks: 44,
+  playlist_done: 58,
+  playlist_error: 58,
+  adding: 82,
+  done: 100,
+  error: 100,
+};
 const FETCH_PHASE_PROGRESS = {
   queued: 4,
   starting: 8,
@@ -383,6 +436,9 @@ function parsePath(pathname) {
   if (path === FETCH_PATH) {
     return { view: "fetch", genre: null, filter: null };
   }
+  if (path === SYNC_PATH) {
+    return { view: "sync", genre: null, filter: null };
+  }
   if (path === DOWNLOAD_PATH) {
     return { view: "download", genre: null, filter: null };
   }
@@ -461,6 +517,7 @@ function hideAllViews() {
   settingsView.hidden = true;
   statisticsView.hidden = true;
   fetchView.hidden = true;
+  if (syncView) syncView.hidden = true;
   if (downloadView) downloadView.hidden = true;
 }
 
@@ -472,6 +529,10 @@ function handleAppModuleClick(event, path) {
   }
   if (path === FETCH_PATH) {
     navigateToFetch();
+    return;
+  }
+  if (path === SYNC_PATH) {
+    navigateToSync();
     return;
   }
   if (path === DOWNLOAD_PATH) {
@@ -650,6 +711,10 @@ function handleBreadcrumbClick(event, href) {
     navigateToFetch();
     return;
   }
+  if (href === SYNC_PATH) {
+    navigateToSync();
+    return;
+  }
   if (href === DOWNLOAD_PATH) {
     navigateToDownload();
     return;
@@ -712,6 +777,8 @@ function updateBreadcrumbs() {
     crumbs.push({ label: t("Statistics"), href: STATISTICS_PATH, current: true });
   } else if (currentView === "fetch") {
     crumbs.push({ label: t("Fetch tracks"), href: FETCH_PATH, current: true });
+  } else if (currentView === "sync") {
+    crumbs.push({ label: t("Sync playlists"), href: SYNC_PATH, current: true });
   } else if (currentView === "download") {
     crumbs.push({ label: t("Download to AIFF"), href: DOWNLOAD_PATH, current: true });
   } else if (currentView === "home") {
@@ -1241,7 +1308,7 @@ function showFetchView() {
   currentFilter = null;
   document.title = t("Fetch tracks — {app_name}", { app_name: APP_NAME() });
   pageTitle.textContent = t("Fetch new tracks");
-  pageSubtitle.textContent = t("Importing the latest additions from your Spotify playlists.");
+  pageSubtitle.textContent = t("Scanning tracking playlists for new tracks to download.");
   setPageCover(null);
   setSettingsLinkActive(false);
   hideAllViews();
@@ -1565,6 +1632,412 @@ function navigateToDownload({ replace = false } = {}) {
     history.pushState(state, "", DOWNLOAD_PATH);
   }
   showDownloadView();
+}
+
+function renderSyncParticles() {
+  if (!syncParticles) return;
+  syncParticles.innerHTML = "";
+  for (let i = 0; i < 10; i += 1) {
+    const particle = document.createElement("li");
+    particle.style.setProperty("--delay", `${(i * 0.28).toFixed(2)}s`);
+    particle.style.setProperty("--x", `${20 + ((i * 37) % 60)}%`);
+    syncParticles.appendChild(particle);
+  }
+}
+
+function resetSyncPresentation() {
+  stopSyncPolling();
+  stopSyncProgressAnimation();
+  activeSyncJobId = null;
+  syncJobMissingPolls = 0;
+  syncStartedAt = 0;
+  syncLastJobUpdatedAt = 0;
+  syncDisplayPercent = 0;
+  syncTargetPercent = 0;
+  syncView.classList.remove("is-success", "is-error");
+  syncTitle.textContent = t("Syncing playlists");
+  syncMessage.textContent = t("Connecting to Spotify…");
+  syncProgressBar.style.width = "0%";
+  syncProgressGlow.style.left = "0%";
+  syncProgressWrap?.classList.add("is-active");
+  syncProgressLabel.textContent = t("Starting…");
+  syncProgressPercent.textContent = "0%";
+  syncPlaylistCard.hidden = true;
+  syncResult.hidden = true;
+  syncError.hidden = true;
+  syncResultStats.innerHTML = "";
+  for (const step of syncSteps.querySelectorAll(".fetch-step")) {
+    step.classList.remove("is-active", "is-done");
+  }
+  syncSteps.querySelector('[data-step="starting"]')?.classList.add("is-active");
+}
+
+function setSyncStepState(phase) {
+  const stepGroups = {
+    starting: ["starting"],
+    queued: ["starting"],
+    artists_start: ["starting", "artists"],
+    artists_scanning: ["starting", "artists"],
+    artists_done: ["starting", "artists"],
+    artists: ["starting", "artists"],
+    sources_start: ["starting", "artists", "sources"],
+    playlist_start: ["starting", "artists", "sources"],
+    fetching_tracks: ["starting", "artists", "sources"],
+    playlist_done: ["starting", "artists", "sources"],
+    playlist_error: ["starting", "artists", "sources"],
+    sources: ["starting", "artists", "sources"],
+    adding: ["starting", "artists", "sources", "adding"],
+    done: ["starting", "artists", "sources", "adding", "done"],
+    error: ["starting", "artists", "sources", "adding", "done"],
+  };
+  const activeKeys = new Set(stepGroups[phase] || ["starting"]);
+  const order = ["starting", "artists", "sources", "adding", "done"];
+  let reachedActive = false;
+
+  for (const key of order) {
+    const step = syncSteps.querySelector(`[data-step="${key}"]`);
+    if (!step) continue;
+    step.classList.remove("is-active", "is-done");
+    if (activeKeys.has(key)) {
+      if (!reachedActive) {
+        step.classList.add("is-active");
+        reachedActive = true;
+      } else {
+        step.classList.add("is-done");
+      }
+    } else if (phase === "done") {
+      step.classList.add("is-done");
+    }
+  }
+}
+
+function computeSyncPercent(job) {
+  const phase = job.phase || "starting";
+  let percent = SYNC_PHASE_PROGRESS[phase] ?? 8;
+
+  if (phase === "artists_scanning" || phase === "artists_start") {
+    const index = Number(job.artist_index || 0);
+    const total = Number(job.artist_total || 1);
+    const sliceStart = SYNC_PHASE_PROGRESS.artists_start;
+    const sliceEnd = SYNC_PHASE_PROGRESS.artists_done;
+    const slice = sliceEnd - sliceStart;
+    const artistProgress = total ? Math.min(1, Math.max(0, index / total)) : 0;
+    percent = Math.round(sliceStart + slice * artistProgress);
+  }
+
+  if (
+    phase === "playlist_start"
+    || phase === "fetching_tracks"
+    || phase === "playlist_done"
+  ) {
+    const index = Number(job.playlist_index || 0);
+    const total = Number(job.playlist_total || 1);
+    const sliceStart = SYNC_PHASE_PROGRESS.playlist_start;
+    const sliceEnd = SYNC_PHASE_PROGRESS.playlist_done;
+    const slice = sliceEnd - sliceStart;
+    const playlistProgress = total ? Math.min(1, Math.max(0, (index - 1) / total)) : 0;
+    percent = Math.round(sliceStart + slice * playlistProgress);
+    if (phase === "fetching_tracks") {
+      percent = Math.min(sliceEnd - 4, percent + Math.round(slice / total / 2));
+    }
+    if (phase === "playlist_done") {
+      percent = Math.round(sliceStart + slice * Math.min(1, index / total));
+    }
+  }
+
+  return percent;
+}
+
+function stopSyncProgressAnimation() {
+  if (syncProgressRaf) {
+    cancelAnimationFrame(syncProgressRaf);
+    syncProgressRaf = null;
+  }
+}
+
+function startSyncProgressAnimation() {
+  stopSyncProgressAnimation();
+
+  const tick = () => {
+    if (syncDisplayPercent < syncTargetPercent) {
+      const delta = Math.max(0.35, (syncTargetPercent - syncDisplayPercent) * 0.08);
+      syncDisplayPercent = Math.min(syncTargetPercent, syncDisplayPercent + delta);
+    }
+
+    syncProgressBar.style.width = `${syncDisplayPercent}%`;
+    syncProgressGlow.style.left = `${syncDisplayPercent}%`;
+    syncProgressPercent.textContent = `${Math.round(syncDisplayPercent)}%`;
+    syncProgressRaf = requestAnimationFrame(tick);
+  };
+
+  syncProgressRaf = requestAnimationFrame(tick);
+}
+
+function formatSyncMessage(job) {
+  const base = job.message || t("Working…");
+  if (job.status !== "running" || !syncLastJobUpdatedAt) {
+    return base;
+  }
+  const staleMs = Date.now() - syncLastJobUpdatedAt;
+  if (staleMs > 20000) {
+    return `${base} — ${t("Waiting for Spotify…")}`;
+  }
+  return base;
+}
+
+function updateSyncProgress(job) {
+  if (job.updated_at) {
+    const parsed = Date.parse(job.updated_at);
+    if (!Number.isNaN(parsed)) {
+      syncLastJobUpdatedAt = parsed;
+    }
+  }
+
+  const percent = computeSyncPercent(job);
+  syncTargetPercent = Math.max(syncTargetPercent, percent);
+  const message = formatSyncMessage(job);
+  syncProgressLabel.textContent = message;
+  syncMessage.textContent = message;
+  setSyncStepState(job.phase || "starting");
+
+  const isArtistPhase = String(job.phase || "").startsWith("artists");
+  const cardName = isArtistPhase
+    ? (job.artist_name || job.playlist_name)
+    : job.playlist_name;
+
+  if (syncPlaylistLabel) {
+    syncPlaylistLabel.textContent = isArtistPhase
+      ? t("Current artist")
+      : t("Current playlist");
+  }
+
+  if (cardName) {
+    syncPlaylistCard.hidden = false;
+    syncPlaylistName.textContent = cardName;
+    if (!isArtistPhase && job.playlist_image_url) {
+      syncPlaylistArt.src = job.playlist_image_url;
+      syncPlaylistArt.hidden = false;
+      syncPlaylistPlaceholder.hidden = true;
+    } else {
+      syncPlaylistArt.hidden = true;
+      syncPlaylistPlaceholder.hidden = false;
+    }
+  }
+}
+
+function renderSyncSuccess(job) {
+  syncView.classList.add("is-success");
+  syncView.classList.remove("is-error");
+  syncTitle.textContent = t("Sync complete");
+
+  const tracksAdded = Number(job.tracks_added ?? job.result?.tracks_added ?? 0);
+  const tracksNew = Number(job.tracks_new ?? job.result?.tracks_new ?? 0);
+  const artistNew = Number(job.artist_releases_new ?? job.result?.artist_releases_new ?? 0);
+  const playlistsChecked = Number(
+    job.playlists_checked
+    ?? job.result?.playlists_checked
+    ?? job.playlist_total
+    ?? job.result?.playlist_count
+    ?? 0
+  );
+  const sinceDate = job.since_date ?? job.result?.since_date;
+
+  if (tracksAdded > 0) {
+    syncMessage.textContent = tn(
+      "1 track added to your destination playlist.",
+      "{count} tracks added to your destination playlist.",
+      tracksAdded
+    );
+  } else if (tracksNew > 0) {
+    syncMessage.textContent = t("New tracks were already in your destination playlist.");
+  } else {
+    syncMessage.textContent = sinceDate
+      ? t("No new source tracks found since {since_date}.", { since_date: sinceDate })
+      : t("No new source tracks found.");
+  }
+
+  syncProgressBar.style.width = "100%";
+  syncProgressGlow.style.left = "100%";
+  syncProgressPercent.textContent = "100%";
+  syncProgressLabel.textContent = t("Done");
+  syncProgressWrap?.classList.remove("is-active");
+  syncPlaylistCard.hidden = true;
+  syncResult.hidden = false;
+  syncError.hidden = true;
+  setSyncStepState("done");
+
+  syncResultStats.innerHTML = `
+    <article class="fetch-stat">
+      <span class="fetch-stat__label">${t("Added")}</span>
+      <strong class="fetch-stat__value">${tracksAdded}</strong>
+    </article>
+    <article class="fetch-stat">
+      <span class="fetch-stat__label">${t("New found")}</span>
+      <strong class="fetch-stat__value">${tracksNew}</strong>
+    </article>
+    <article class="fetch-stat">
+      <span class="fetch-stat__label">${t("From artists")}</span>
+      <strong class="fetch-stat__value">${artistNew}</strong>
+    </article>
+    <article class="fetch-stat">
+      <span class="fetch-stat__label">${t("Sources")}</span>
+      <strong class="fetch-stat__value">${playlistsChecked || "—"}</strong>
+    </article>
+  `;
+
+  if (tracksAdded > 0) {
+    launchConfetti(window.innerWidth / 2, window.innerHeight / 3);
+  }
+}
+
+function renderSyncError(message) {
+  stopSyncProgressAnimation();
+  syncView.classList.add("is-error");
+  syncView.classList.remove("is-success");
+  syncTitle.textContent = t("Sync failed");
+  syncMessage.textContent = message || t("Something went wrong while syncing playlists.");
+  syncProgressWrap?.classList.remove("is-active");
+  syncPlaylistCard.hidden = true;
+  syncResult.hidden = true;
+  syncError.hidden = false;
+  syncErrorMessage.textContent = message || t("Something went wrong while syncing playlists.");
+}
+
+function stopSyncPolling() {
+  if (syncPollTimer) {
+    clearTimeout(syncPollTimer);
+    syncPollTimer = null;
+  }
+}
+
+async function pollSyncJob(jobId) {
+  try {
+    const response = await fetch(`/api/sync/playlists/${encodeURIComponent(jobId)}`);
+    const job = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 404 && syncJobMissingPolls < 12) {
+        syncJobMissingPolls += 1;
+        syncPollTimer = setTimeout(() => pollSyncJob(jobId), SYNC_POLL_MS);
+        return;
+      }
+      throw new Error(job.error || "Could not read sync progress");
+    }
+
+    syncJobMissingPolls = 0;
+
+    if (activeSyncJobId !== jobId) {
+      return;
+    }
+
+    updateSyncProgress(job);
+
+    if (job.status === "done") {
+      stopSyncPolling();
+      stopSyncProgressAnimation();
+      syncDisplayPercent = 100;
+      renderSyncSuccess(job);
+      return;
+    }
+
+    if (job.status === "error") {
+      stopSyncPolling();
+      renderSyncError(job.error || job.message || t("Sync failed"));
+      return;
+    }
+
+    syncPollTimer = setTimeout(() => pollSyncJob(jobId), SYNC_POLL_MS);
+  } catch (error) {
+    if (activeSyncJobId !== jobId) {
+      return;
+    }
+    stopSyncPolling();
+    renderSyncError(error.message || t("Sync failed"));
+  }
+}
+
+async function resumeOrStartPlaylistSync({ force = false } = {}) {
+  if (!syncView) {
+    showStatus(t("Sync screen is unavailable. Restart the web server."), "error");
+    return;
+  }
+
+  resetSyncPresentation();
+  syncStartedAt = Date.now();
+  startSyncProgressAnimation();
+  syncTargetPercent = Math.max(syncTargetPercent, SYNC_PHASE_PROGRESS.starting);
+  syncProgressLabel.textContent = t("Sync started…");
+  syncMessage.textContent = t("Connecting to Spotify…");
+
+  try {
+    if (!force) {
+      const activeResponse = await fetch("/api/sync/playlists/active");
+      if (activeResponse.ok) {
+        const activeJob = await activeResponse.json();
+        if (activeJob?.job_id) {
+          activeSyncJobId = activeJob.job_id;
+          syncMessage.textContent = t("Resuming sync…");
+          updateSyncProgress(activeJob);
+          pollSyncJob(activeJob.job_id);
+          return;
+        }
+      }
+    }
+
+    const response = await fetch(
+      force ? "/api/sync/playlists?force=1" : "/api/sync/playlists",
+      { method: "POST" },
+    );
+    const raw = await response.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = {};
+    }
+    if (!response.ok) {
+      throw new Error(data.error || raw || "Could not start sync");
+    }
+    if (!data.job_id) {
+      throw new Error("Sync job id missing from response");
+    }
+    activeSyncJobId = data.job_id;
+    pollSyncJob(data.job_id);
+  } catch (error) {
+    stopSyncProgressAnimation();
+    renderSyncError(error.message || t("Could not start sync"));
+  }
+}
+
+async function startPlaylistSync({ force = false } = {}) {
+  return resumeOrStartPlaylistSync({ force });
+}
+
+function showSyncView() {
+  restoreSettingsSkinIfNeeded();
+  currentView = "sync";
+  currentGenre = null;
+  currentFilter = null;
+  document.title = t("Sync playlists — {app_name}", { app_name: APP_NAME() });
+  pageTitle.textContent = t("Sync playlists");
+  pageSubtitle.textContent = t("Scanning followed artists and source playlists since your sync start date.");
+  setPageCover(null);
+  setSettingsLinkActive(false);
+  hideAllViews();
+  syncView.hidden = false;
+  setBanner("");
+  updateBreadcrumbs();
+  renderSyncParticles();
+  resumeOrStartPlaylistSync();
+}
+
+function navigateToSync({ replace = false } = {}) {
+  const state = { view: "sync", genre: null, filter: null };
+  if (replace) {
+    history.replaceState(state, "", SYNC_PATH);
+  } else {
+    history.pushState(state, "", SYNC_PATH);
+  }
+  showSyncView();
 }
 
 function showSettingsView() {
@@ -2475,6 +2948,10 @@ async function bootFromPath() {
     showFetchView();
     return;
   }
+  if (view === "sync") {
+    showSyncView();
+    return;
+  }
   if (view === "download") {
     showDownloadView();
     return;
@@ -2533,6 +3010,29 @@ document.getElementById("fetch-go-home")?.addEventListener("click", (event) => {
 });
 
 document.getElementById("fetch-go-settings")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  navigateToSettings();
+});
+
+syncRunAgainBtn?.addEventListener("click", () => {
+  startPlaylistSync({ force: true });
+});
+
+syncRetryBtn?.addEventListener("click", () => {
+  startPlaylistSync({ force: true });
+});
+
+document.getElementById("sync-go-home")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  navigateToStart();
+});
+
+document.getElementById("sync-go-settings")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  navigateToSettings();
+});
+
+document.getElementById("sync-error-settings")?.addEventListener("click", (event) => {
   event.preventDefault();
   navigateToSettings();
 });
@@ -2636,6 +3136,11 @@ window.addEventListener("popstate", async (event) => {
 
   if (view === "fetch") {
     showFetchView();
+    return;
+  }
+
+  if (view === "sync") {
+    showSyncView();
     return;
   }
 

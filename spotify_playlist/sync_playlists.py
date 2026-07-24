@@ -1,9 +1,12 @@
+from typing import Any, Callable
+
 import spotify_playlist.config as config
 from db_store import (
     backfill_playlist_names,
     load_historical_data,
     load_playlists_config,
     load_sync_start_date,
+    resolve_sync_days_back,
     resolve_sync_since_date,
     save_historical_data,
 )
@@ -12,33 +15,78 @@ from spotify_playlist.action_sound import play_action_done
 from spotify_playlist.add_tracks_to_playlist import add_tracks_to_playlist
 from spotify_playlist.colors import Colors
 from spotify_playlist.deps import SpotifyException
+from spotify_playlist.get_all_artist_releases import get_all_artist_releases
 from spotify_playlist.get_recent_playlist_tracks import get_recent_playlist_tracks
 from spotify_playlist.get_track_info import get_track_info
 from spotify_playlist.loading_progress import loading_bar
 
+ProgressCallback = Callable[[dict[str, Any]], None]
+ARTIST_RELEASES_KEY = "__artist_releases__"
 
-def sync_playlists(sp):
-    """Checks source playlists for new tracks and adds them to the destination playlist."""
-    # Reload configuration (may have been changed)
+
+def sync_playlists(
+    sp,
+    on_progress: ProgressCallback | None = None,
+    quiet: bool = False,
+    include_artist_releases: bool | None = None,
+) -> dict[str, Any]:
+    """Checks followed artists and source playlists, then adds new tracks to destination."""
+    result: dict[str, Any] = {
+        "playlist_count": 0,
+        "playlists_checked": 0,
+        "tracks_found": 0,
+        "tracks_new": 0,
+        "tracks_added": 0,
+        "artist_releases_found": 0,
+        "artist_releases_new": 0,
+        "artists_checked": 0,
+        "since_date": None,
+        "destination_playlist": None,
+    }
+
+    def log(message: str = "") -> None:
+        if not quiet:
+            print(message)
+
+    def report(**payload: Any) -> None:
+        if on_progress:
+            on_progress(payload)
+
+    if include_artist_releases is None:
+        include_artist_releases = config.CHECK_ARTIST_RELEASES
+
     playlists_config = load_playlists_config()
-    config.MIJN_DOEL_PLAYLIST_ID = playlists_config.get('destination_playlist', '')
-    config.BRON_PLAYLISTS = playlists_config.get('source_playlists', [])
-
-    # Validate configuration
-    if not config.BRON_PLAYLISTS:
-        print(f"{Colors.BRIGHT_YELLOW}⚠️  No source playlists configured in the database.{Colors.RESET}")
-        print(f"{Colors.DIM}   Add source playlists via the menu (playlist configuration) or populate playlist_source.{Colors.RESET}")
-        return
+    config.MIJN_DOEL_PLAYLIST_ID = playlists_config.get("destination_playlist", "")
+    config.BRON_PLAYLISTS = playlists_config.get("source_playlists", [])
 
     if not config.MIJN_DOEL_PLAYLIST_ID:
-        print(f"{Colors.BRIGHT_YELLOW}⚠️  No destination playlist configured in the database.{Colors.RESET}")
-        print(f"{Colors.DIM}   Set a destination playlist via the settings page or populate app_config.{Colors.RESET}")
-        return
+        message = "No destination playlist configured. Set it in Settings first."
+        log(f"{Colors.BRIGHT_YELLOW}⚠️  No destination playlist configured in the database.{Colors.RESET}")
+        log(f"{Colors.DIM}   Set a destination playlist via the settings page or populate app_config.{Colors.RESET}")
+        if quiet:
+            raise RuntimeError(message)
+        return result
 
-    backfill_playlist_names(sp)
+    if not config.BRON_PLAYLISTS and not include_artist_releases:
+        message = "No source playlists configured. Add them in Settings first."
+        log(f"{Colors.BRIGHT_YELLOW}⚠️  No source playlists configured in the database.{Colors.RESET}")
+        if quiet:
+            raise RuntimeError(message)
+        return result
+
+    result["playlist_count"] = len(config.BRON_PLAYLISTS)
+    result["destination_playlist"] = config.MIJN_DOEL_PLAYLIST_ID
+
+    if not quiet:
+        backfill_playlist_names(sp)
+    else:
+        try:
+            backfill_playlist_names(sp)
+        except Exception:
+            pass
 
     historische_nummers = load_historical_data(config.BRON_PLAYLISTS)
-    nieuwe_nummers_uris = []
+    nieuwe_nummers_uris: list[str] = []
     sync_since_date = resolve_sync_since_date()
     sync_start_saved = load_sync_start_date()
     sync_window_label = (
@@ -46,105 +94,228 @@ def sync_playlists(sp):
         if sync_start_saved
         else "in the last 7 days"
     )
+    result["since_date"] = sync_since_date.strftime("%Y-%m-%d")
 
-    print(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}🎵  Start Playlist Sync  🎵{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}\n")
+    log(f"\n{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}")
+    log(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}🎵  Start Playlist Sync  🎵{Colors.RESET}")
+    log(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}{'═'*70}{Colors.RESET}\n")
 
-    # Process each source playlist
+    report(
+        phase="starting",
+        message=f"Syncing since {result['since_date']}",
+        playlist_total=len(config.BRON_PLAYLISTS),
+        since_date=result["since_date"],
+    )
+
+    if include_artist_releases:
+        log(f"\n{Colors.BOLD}{Colors.BRIGHT_MAGENTA}{'═'*70}{Colors.RESET}")
+        log(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🎤  New Releases from Followed Artists  🎤{Colors.RESET}")
+        log(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}{'═'*70}{Colors.RESET}\n")
+        report(phase="artists_start", message="Scanning followed artists…")
+
+        try:
+            days_back = resolve_sync_days_back()
+            artist_releases = get_all_artist_releases(
+                sp,
+                days_back,
+                on_progress=lambda event: report(**event),
+                quiet=quiet,
+            )
+            result["artist_releases_found"] = len(artist_releases)
+
+            if artist_releases:
+                laatst_bekende_artist_releases = historische_nummers.get(ARTIST_RELEASES_KEY, set())
+                nieuwe_artist_uris = set(artist_releases.keys()) - laatst_bekende_artist_releases
+                result["artist_releases_new"] = len(nieuwe_artist_uris)
+                if nieuwe_artist_uris:
+                    log(
+                        f"{Colors.BRIGHT_GREEN}🎉 {len(nieuwe_artist_uris)} new artist releases to add{Colors.RESET}\n"
+                    )
+                    nieuwe_nummers_uris.extend(sorted(nieuwe_artist_uris))
+                historische_nummers[ARTIST_RELEASES_KEY] = set(artist_releases.keys())
+            else:
+                log(f"{Colors.DIM}🤷 No new releases found from followed artists.{Colors.RESET}\n")
+
+            report(
+                phase="artists_done",
+                message=(
+                    f"Artist sync — {result['artist_releases_new']} new release"
+                    f"{'' if result['artist_releases_new'] == 1 else 's'}"
+                ),
+                artist_releases_new=result["artist_releases_new"],
+                artist_releases_found=result["artist_releases_found"],
+            )
+        except SpotifyException as e:
+            message = f"Error fetching artist releases: {e}"
+            log(f"{Colors.BRIGHT_RED}❌ {message}{Colors.RESET}")
+            if e.http_status == 403:
+                log(
+                    f"{Colors.BRIGHT_YELLOW}   No permission to fetch followed artists. "
+                    f"Check your scope (user-follow-read).{Colors.RESET}"
+                )
+            if quiet:
+                raise
+        except Exception as e:
+            message = f"Unexpected error fetching artist releases: {e}"
+            log(f"{Colors.BRIGHT_RED}❌ {message}{Colors.RESET}")
+            if quiet:
+                raise
+
+    if config.BRON_PLAYLISTS:
+        report(
+            phase="sources_start",
+            message=f"Scanning source playlists {sync_window_label}",
+            playlist_total=len(config.BRON_PLAYLISTS),
+            since_date=result["since_date"],
+        )
+
     for idx, pl_id in enumerate(config.BRON_PLAYLISTS, 1):
         try:
-            print(f"{Colors.BRIGHT_CYAN}{Colors.BOLD}╔{'═'*68}╗{Colors.RESET}")
-            print(f"{Colors.BRIGHT_CYAN}{Colors.BOLD}║{Colors.RESET}  {Colors.BRIGHT_WHITE}📋 Playlist {idx}/{len(config.BRON_PLAYLISTS)}{Colors.RESET}  {Colors.DIM}ID: {pl_id[:20]}...{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-45)}║{Colors.RESET}")
-            print(f"{Colors.BRIGHT_CYAN}{Colors.BOLD}╠{'═'*68}╣{Colors.RESET}")
+            log(f"{Colors.BRIGHT_CYAN}{Colors.BOLD}╔{'═'*68}╗{Colors.RESET}")
+            log(
+                f"{Colors.BRIGHT_CYAN}{Colors.BOLD}║{Colors.RESET}  "
+                f"{Colors.BRIGHT_WHITE}📋 Playlist {idx}/{len(config.BRON_PLAYLISTS)}{Colors.RESET}  "
+                f"{Colors.DIM}ID: {pl_id[:20]}...{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-45)}║{Colors.RESET}"
+            )
+            log(f"{Colors.BRIGHT_CYAN}{Colors.BOLD}╠{'═'*68}╣{Colors.RESET}")
 
-            # Fetch playlist name for better feedback
+            playlist_name = "Unknown"
+            playlist_image_url = None
             try:
-                playlist_info = sp.playlist(pl_id, fields='name')
-                playlist_name = playlist_info['name']
-                print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BOLD}{Colors.BRIGHT_GREEN}🎼 {playlist_name}{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-len(playlist_name)-6)}║{Colors.RESET}")
+                playlist_info = sp.playlist(pl_id, fields="name,images")
+                playlist_name = playlist_info["name"]
+                images = playlist_info.get("images") or []
+                playlist_image_url = images[0].get("url") if images else None
+                log(
+                    f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BOLD}{Colors.BRIGHT_GREEN}🎼 {playlist_name}"
+                    f"{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-len(playlist_name)-6)}║{Colors.RESET}"
+                )
             except Exception:
-                playlist_name = "Unknown"
-                print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.DIM}Playlist name unavailable{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-30)}║{Colors.RESET}")
+                log(
+                    f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.DIM}Playlist name unavailable{Colors.RESET}  "
+                    f"{Colors.BRIGHT_CYAN}{' '*(68-30)}║{Colors.RESET}"
+                )
 
-            print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}")
+            report(
+                phase="playlist_start",
+                message=f"Checking {playlist_name}",
+                playlist_index=idx,
+                playlist_total=len(config.BRON_PLAYLISTS),
+                playlist_name=playlist_name,
+                playlist_image_url=playlist_image_url,
+            )
 
-            # Fetch tracks added since the configured sync start date
-            print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BRIGHT_YELLOW}⏳{Colors.RESET} {Colors.DIM}Checking tracks added {sync_window_label}...{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-50)}║{Colors.RESET}")
-            with loading_bar("Fetching recent tracks..."):
+            log(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}")
+            log(
+                f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BRIGHT_YELLOW}⏳{Colors.RESET} "
+                f"{Colors.DIM}Checking tracks added {sync_window_label}...{Colors.RESET}  "
+                f"{Colors.BRIGHT_CYAN}{' '*(68-50)}║{Colors.RESET}"
+            )
+            report(
+                phase="fetching_tracks",
+                message=f"Fetching tracks from {playlist_name}",
+                playlist_index=idx,
+                playlist_total=len(config.BRON_PLAYLISTS),
+                playlist_name=playlist_name,
+                playlist_image_url=playlist_image_url,
+            )
+            if quiet:
                 recent_tracks = get_recent_playlist_tracks(
                     sp,
                     pl_id,
                     since_date=sync_since_date,
                     return_track_info=True,
                 )
+            else:
+                with loading_bar("Fetching recent tracks..."):
+                    recent_tracks = get_recent_playlist_tracks(
+                        sp,
+                        pl_id,
+                        since_date=sync_since_date,
+                        return_track_info=True,
+                    )
             recent_uris = set(recent_tracks.keys())
-            print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BRIGHT_GREEN}✅{Colors.RESET} {Colors.BRIGHT_WHITE}Found {Colors.BOLD}{len(recent_uris)}{Colors.RESET}{Colors.BRIGHT_WHITE} tracks added {sync_window_label}{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-60)}║{Colors.RESET}")
+            result["tracks_found"] += len(recent_uris)
+            result["playlists_checked"] += 1
 
-            # Show recently added tracks
-            if recent_tracks:
-                print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}")
-                print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BRIGHT_MAGENTA}📀 Recently added tracks:{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-25)}║{Colors.RESET}")
-                for uri, track_info in sorted(recent_tracks.items(), key=lambda x: x[1]['name']):
-                    track_display = f"{track_info['name']} - {track_info['artists']}"
-                    # Truncate if too long
-                    if len(track_display) > 60:
-                        track_display = track_display[:57] + "..."
-                    print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}      {Colors.CYAN}•{Colors.RESET} {Colors.WHITE}{track_display}{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-len(track_display)-8)}║{Colors.RESET}")
-
-            # Determine which tracks are new (compare with historical data)
             laatst_bekende_uris = historische_nummers.get(pl_id, set())
             nieuwe_uris = recent_uris - laatst_bekende_uris
 
-            # Update historical data: add new tracks to existing set
-            # This preserves all historical tracks, not just the last 7 days
             if nieuwe_uris:
                 historische_nummers[pl_id] = laatst_bekende_uris.union(recent_uris)
-            else:
-                # If there are no new tracks, update only when we have no historical data yet
-                if pl_id not in historische_nummers:
-                    historische_nummers[pl_id] = recent_uris
+            elif pl_id not in historische_nummers:
+                historische_nummers[pl_id] = recent_uris
 
             if nieuwe_uris:
-                print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}")
-                print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BOLD}{Colors.BRIGHT_GREEN}🎉 {len(nieuwe_uris)} new tracks found!{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-30)}║{Colors.RESET}")
-                print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}")
-                print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.BRIGHT_MAGENTA}🆕 New tracks:{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-18)}║{Colors.RESET}")
-                for uri in sorted(nieuwe_uris, key=lambda u: recent_tracks.get(u, {}).get('name', '')):
-                    track_info = recent_tracks.get(uri, {})
-                    if track_info:
-                        track_display = f"{track_info['name']} - {track_info['artists']}"
-                        if len(track_display) > 60:
-                            track_display = track_display[:57] + "..."
-                        print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}      {Colors.BRIGHT_GREEN}•{Colors.RESET} {Colors.BRIGHT_WHITE}{track_display}{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-len(track_display)-8)}║{Colors.RESET}")
-                    else:
-                        # Fallback when track info is unavailable
-                        fallback_info = get_track_info(sp, uri)
-                        if len(fallback_info) > 60:
-                            fallback_info = fallback_info[:57] + "..."
-                        print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}      {Colors.BRIGHT_GREEN}•{Colors.RESET} {Colors.WHITE}{fallback_info}{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-len(fallback_info)-8)}║{Colors.RESET}")
                 nieuwe_nummers_uris.extend(list(nieuwe_uris))
-            else:
-                print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}")
-                print(f"{Colors.BRIGHT_CYAN}║{Colors.RESET}  {Colors.DIM}🤷 No new additions found.{Colors.RESET}  {Colors.BRIGHT_CYAN}{' '*(68-35)}║{Colors.RESET}")
 
-            print(f"{Colors.BRIGHT_CYAN}{Colors.BOLD}╚{'═'*68}╝{Colors.RESET}\n")
+            report(
+                phase="playlist_done",
+                message=f"{playlist_name}: {len(nieuwe_uris)} new",
+                playlist_index=idx,
+                playlist_total=len(config.BRON_PLAYLISTS),
+                playlist_name=playlist_name,
+                playlist_image_url=playlist_image_url,
+                tracks_found=result["tracks_found"],
+                tracks_new=len(nieuwe_nummers_uris),
+            )
 
         except SpotifyException as e:
-            print(f"{Colors.BRIGHT_RED}❌ Spotify API error while processing playlist {pl_id}: {e}{Colors.RESET}")
-            if e.http_status == 404:
-                print(f"{Colors.BRIGHT_YELLOW}   Playlist not found. Check whether the ID is correct.{Colors.RESET}")
-            elif e.http_status == 403:
-                print(f"{Colors.BRIGHT_YELLOW}   No access to this playlist. Check your permissions.{Colors.RESET}")
+            log(f"{Colors.BRIGHT_RED}❌ Spotify API error while processing playlist {pl_id}: {e}{Colors.RESET}")
+            report(
+                phase="playlist_error",
+                message=f"Error on playlist {idx}/{len(config.BRON_PLAYLISTS)}",
+                playlist_index=idx,
+                playlist_total=len(config.BRON_PLAYLISTS),
+            )
             continue
         except Exception as e:
-            print(f"{Colors.BRIGHT_RED}❌ Error while processing playlist {pl_id}: {e}{Colors.RESET}")
+            log(f"{Colors.BRIGHT_RED}❌ Error while processing playlist {pl_id}: {e}{Colors.RESET}")
+            report(
+                phase="playlist_error",
+                message=f"Error on playlist {idx}/{len(config.BRON_PLAYLISTS)}",
+                playlist_index=idx,
+                playlist_total=len(config.BRON_PLAYLISTS),
+            )
             continue
 
-    # Add new tracks to destination playlist
-    add_tracks_to_playlist(sp, nieuwe_nummers_uris, config.MIJN_DOEL_PLAYLIST_ID)
+    nieuwe_nummers_uris = list(dict.fromkeys(nieuwe_nummers_uris))
+    result["tracks_new"] = len(nieuwe_nummers_uris)
+    report(
+        phase="adding",
+        message=(
+            f"Adding {len(nieuwe_nummers_uris)} track"
+            f"{'' if len(nieuwe_nummers_uris) == 1 else 's'} to destination…"
+            if nieuwe_nummers_uris
+            else "No new tracks to add to destination"
+        ),
+        tracks_new=result["tracks_new"],
+        tracks_found=result["tracks_found"],
+    )
 
-    # Save state for next time
+    tracks_added = add_tracks_to_playlist(
+        sp,
+        nieuwe_nummers_uris,
+        config.MIJN_DOEL_PLAYLIST_ID,
+        quiet=quiet,
+    )
+    result["tracks_added"] = tracks_added
+
     save_historical_data(historische_nummers)
-    print(f"\n{Colors.BOLD}{Colors.BRIGHT_GREEN}✅ Playlist sync completed!{Colors.RESET}\n")
-    play_action_done()
+    log(f"\n{Colors.BOLD}{Colors.BRIGHT_GREEN}✅ Playlist sync completed!{Colors.RESET}\n")
+    if not quiet:
+        play_action_done()
+
+    report(
+        phase="done",
+        message="Playlist sync complete",
+        tracks_added=tracks_added,
+        tracks_new=result["tracks_new"],
+        tracks_found=result["tracks_found"],
+        playlists_checked=result["playlists_checked"],
+        playlist_total=result["playlist_count"],
+        since_date=result["since_date"],
+        artist_releases_new=result["artist_releases_new"],
+        artist_releases_found=result["artist_releases_found"],
+    )
+    return result

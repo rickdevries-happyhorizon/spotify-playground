@@ -93,13 +93,22 @@ final class ImportStore
             return null;
         }
 
-        $raw = file_get_contents($path);
-        if ($raw === false || trim($raw) === '') {
-            return null;
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $raw = file_get_contents($path);
+            if ($raw === false || trim($raw) === '') {
+                usleep(50000);
+                continue;
+            }
+
+            $job = json_decode($raw, true);
+            if (is_array($job)) {
+                return $job;
+            }
+
+            usleep(50000);
         }
 
-        $job = json_decode($raw, true);
-        return is_array($job) ? $job : null;
+        return null;
     }
 
     private static function generateUuid(): string

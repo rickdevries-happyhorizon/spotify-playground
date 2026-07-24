@@ -1,0 +1,65 @@
+<section class="fetch-screen view" id="sync-view" hidden>
+  <div class="fetch-stage">
+    <div class="fetch-visual" aria-hidden="true">
+      <div class="fetch-orbit fetch-orbit--outer"></div>
+      <div class="fetch-orbit fetch-orbit--inner"></div>
+      <div class="fetch-disc">
+        <span class="fetch-disc__groove"></span>
+        <span class="fetch-disc__groove fetch-disc__groove--2"></span>
+        <span class="fetch-disc__label">↻</span>
+      </div>
+      <ul class="fetch-particles" id="sync-particles"></ul>
+    </div>
+
+    <div class="fetch-content">
+      <p class="fetch-eyebrow" id="sync-eyebrow">{{ _("Playlist sync") }}</p>
+      <h2 class="fetch-title" id="sync-title">{{ _("Syncing playlists") }}</h2>
+      <p class="fetch-message" id="sync-message">{{ _("Connecting to Spotify…") }}</p>
+
+      <div class="fetch-progress-wrap">
+        <div class="fetch-progress-track">
+          <div class="fetch-progress-bar" id="sync-progress-bar"></div>
+          <div class="fetch-progress-glow" id="sync-progress-glow"></div>
+        </div>
+        <div class="fetch-progress-meta">
+          <span id="sync-progress-label">{{ _("Starting…") }}</span>
+          <span id="sync-progress-percent">0%</span>
+        </div>
+      </div>
+
+      <div class="fetch-playlist-card" id="sync-playlist-card" hidden>
+        <img class="fetch-playlist-card__art" id="sync-playlist-art" alt="" hidden />
+        <span class="fetch-playlist-card__placeholder" id="sync-playlist-placeholder" aria-hidden="true">↻</span>
+        <div class="fetch-playlist-card__body">
+          <span class="fetch-playlist-card__label" id="sync-playlist-label">{{ _("Current playlist") }}</span>
+          <strong class="fetch-playlist-card__name" id="sync-playlist-name"></strong>
+        </div>
+      </div>
+
+      <ul class="fetch-steps" id="sync-steps">
+        <li class="fetch-step" data-step="starting">{{ _("Prepare") }}</li>
+        <li class="fetch-step" data-step="artists">{{ _("Scan artists") }}</li>
+        <li class="fetch-step" data-step="sources">{{ _("Scan sources") }}</li>
+        <li class="fetch-step" data-step="adding">{{ _("Add to destination") }}</li>
+        <li class="fetch-step" data-step="done">{{ _("Complete") }}</li>
+      </ul>
+
+      <div class="fetch-result" id="sync-result" hidden>
+        <div class="fetch-result__stats" id="sync-result-stats"></div>
+        <div class="fetch-result__actions">
+          <a class="fetch-action fetch-action--primary" id="sync-go-settings" href="/settings">{{ _("Open settings") }}</a>
+          <button type="button" class="fetch-action fetch-action--ghost" id="sync-run-again">{{ _("Sync again") }}</button>
+          <a class="fetch-action fetch-action--ghost" id="sync-go-home" href="/">{{ _("Back to home") }}</a>
+        </div>
+      </div>
+
+      <div class="fetch-error" id="sync-error" hidden>
+        <p id="sync-error-message"></p>
+        <div class="fetch-result__actions">
+          <a class="fetch-action fetch-action--primary" id="sync-error-settings" href="/settings">{{ _("Open settings") }}</a>
+          <button type="button" class="fetch-action fetch-action--ghost" id="sync-retry">{{ _("Try again") }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

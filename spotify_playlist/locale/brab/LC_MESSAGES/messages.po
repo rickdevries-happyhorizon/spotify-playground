@@ -23,19 +23,19 @@ msgid "Choose a tool to get started."
 msgstr "Kies 'n tool om te beginne."
 
 msgid "Loading…"
-msgstr "Bezig meej laden…"
+msgstr "Bezig met laden…"
 
 msgid "Settings"
-msgstr "Instellingen"
+msgstr "Instellinge"
 
 msgid "What would you like to do?"
-msgstr "Wat wilde doen?"
+msgstr "Wat wilste doen?"
 
 msgid "Control panel"
 msgstr "Controlepaneel"
 
 msgid "Tune the look, sync playlists, and set how new tracks are imported."
-msgstr "Pas 't uiterlijk aon, zet playlists klaar en bepaol hoe nieuwe tracks binnenkome."
+msgstr "Pas 't uiterlijk aan, zet playlists klaar en bepaol hoe nieuwe tracks binnenkome."
 
 msgid "Theme"
 msgstr "Thema"
@@ -68,7 +68,7 @@ msgid "Choose the language for labels and messages."
 msgstr "Kies de taal veur labels en berichte."
 
 msgid "English"
-msgstr "Engelands"
+msgstr "Engels"
 
 msgid "Dutch"
 msgstr "Nederlands"
@@ -237,6 +237,96 @@ msgstr "Nieuwe tracks ophalen"
 
 msgid "Import new tracks from your Spotify playlists into the to-do list."
 msgstr "Importeer nieuwe tracks uut je Spotify-playlists naor de to-do lijst."
+
+msgid "Scan tracking playlists for new additions and add them to your download to-do list."
+msgstr "Scan tracking-playlists op nieuwe toevoegingen en zet ze op je download to-do lijst."
+
+msgid "Scanning tracking playlists for new tracks to download."
+msgstr "Tracking-playlists scannen op nieuwe tracks om te downloaden."
+
+msgid "Sync playlists"
+msgstr "Playlists synchroniseren"
+
+msgid "Pull new tracks from source playlists into your destination playlist."
+msgstr "Haol nieuwe tracks uut bron-playlists en zet ze in je doel-playlist."
+
+msgid "Pull new tracks from followed artists and source playlists into your destination playlist."
+msgstr "Haol nieuwe tracks uut gevolgde artiesten en bron-playlists en zet ze in je doel-playlist."
+
+msgid "Moving new tracks from source playlists into your destination playlist."
+msgstr "Nieuwe tracks van bron-playlists naor je doel-playlist verplaatsen."
+
+msgid "Scanning followed artists and source playlists since your sync start date."
+msgstr "Gevolgde artiesten en bron-playlists scannen sinds je sync-startdatum."
+
+msgid "Scan artists"
+msgstr "Artiesten scannen"
+
+msgid "Current artist"
+msgstr "Huidige artiest"
+
+msgid "From artists"
+msgstr "Van artiesten"
+
+msgid "Playlist sync"
+msgstr "Playlist-sync"
+
+msgid "Syncing playlists"
+msgstr "Playlists synchroniseren"
+
+msgid "Scan sources"
+msgstr "Bronnen scannen"
+
+msgid "Add to destination"
+msgstr "Naor doel toevoegen"
+
+msgid "Sync again"
+msgstr "Opniej synchroniseren"
+
+msgid "Sync complete"
+msgstr "Sync klaar"
+
+msgid "Sync failed"
+msgstr "Sync mislukt"
+
+msgid "Sync started…"
+msgstr "Sync gestart…"
+
+msgid "Could not start sync"
+msgstr "Kon sync niet starten"
+
+msgid "Sync screen is unavailable. Restart the web server."
+msgstr "Sync-scherm niet beschikbaar. Herstart de webserver."
+
+msgid "Sync playlists — {app_name}"
+msgstr "Playlists synchroniseren — {app_name}"
+
+msgid "1 track added to your destination playlist."
+msgstr "1 track toegevoegd aan je doel-playlist."
+
+msgid "{count} tracks added to your destination playlist."
+msgstr "{count} tracks toegevoegd aan je doel-playlist."
+
+msgid "New tracks were already in your destination playlist."
+msgstr "Nieuwe tracks stonden al in je doel-playlist."
+
+msgid "No new source tracks found since {since_date}."
+msgstr "Geen nieuwe brontracks gevonden sinds {since_date}."
+
+msgid "No new source tracks found."
+msgstr "Geen nieuwe brontracks gevonden."
+
+msgid "Something went wrong while syncing playlists."
+msgstr "Der ging iets mis bij 't synchroniseren van playlists."
+
+msgid "Added"
+msgstr "Toegevoegd"
+
+msgid "New found"
+msgstr "Nieuw gevonden"
+
+msgid "Sources"
+msgstr "Bronnen"
 
 msgid "Statistics"
 msgstr "Statistieke"
@@ -486,21 +576,3 @@ msgstr "Instellinge — {app_name}"
 
 msgid "{genre} — Track to-do — {app_name}"
 msgstr "{genre} — Track to-do — {app_name}"
-
-msgid "YouTube download"
-msgstr "YouTube-download"
-
-msgid "Downloading tracks"
-msgstr "Tracks downloaden"
-
-msgid "Preparing download…"
-msgstr "Download veurbereiden…"
-
-msgid "Current track"
-msgstr "Huidige track"
-
-msgid "Download tracks"
-msgstr "Tracks downloaden"
-
-msgid "Download again"
-msgstr "Opnieuw downloaden"

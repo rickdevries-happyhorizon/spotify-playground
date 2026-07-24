@@ -40,7 +40,9 @@ def _read_job_file(job_id: str) -> dict[str, Any] | None:
 def _write_job_file(job: dict[str, Any]) -> None:
     JOBS_DIR.mkdir(parents=True, exist_ok=True)
     path = _job_path(job["job_id"])
-    path.write_text(json.dumps(job, ensure_ascii=False), encoding="utf-8")
+    tmp_path = path.with_suffix(".json.tmp")
+    tmp_path.write_text(json.dumps(job, ensure_ascii=False), encoding="utf-8")
+    tmp_path.replace(path)
 
 
 def _snapshot_job(job: dict[str, Any]) -> dict[str, Any]:

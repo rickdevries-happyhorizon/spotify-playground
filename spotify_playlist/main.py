@@ -8,7 +8,6 @@ from spotify_playlist.import_new_tracks_menu import run_import_new_tracks_menu
 from spotify_playlist.run_export_new_tracks import run_export_new_tracks
 from spotify_playlist.show_menu import show_menu
 from spotify_playlist.start_screen import show_start_screen
-from spotify_playlist.sync_artist_releases import sync_artist_releases
 from spotify_playlist.sync_playlists import sync_playlists
 from spotify_playlist.download_youtube_wav import run_download_youtube_wav
 
@@ -43,11 +42,9 @@ def main():
             print("\n👋 Goodbye!")
             break
         elif choice == 1:
-            # Sync everything (playlists + artist releases)
+            # Sync followed artists + source playlists → destination
             sp = get_spotify_client()
             sync_playlists(sp)
-            if config.CHECK_ARTIST_RELEASES:
-                sync_artist_releases(sp)
         elif choice == 2:
             sp = get_spotify_client()
             run_import_new_tracks_menu(sp)

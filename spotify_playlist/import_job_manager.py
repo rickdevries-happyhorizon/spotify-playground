@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,16 +33,23 @@ def _read_job_file(job_id: str) -> dict[str, Any] | None:
     path = _job_path(job_id)
     if not path.is_file():
         return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
+    for _ in range(5):
+        try:
+            raw = path.read_text(encoding="utf-8")
+            if raw.strip():
+                return json.loads(raw)
+        except (OSError, json.JSONDecodeError):
+            pass
+        time.sleep(0.05)
+    return None
 
 
 def _write_job_file(job: dict[str, Any]) -> None:
     JOBS_DIR.mkdir(parents=True, exist_ok=True)
     path = _job_path(job["job_id"])
-    path.write_text(json.dumps(job, ensure_ascii=False), encoding="utf-8")
+    tmp_path = path.with_suffix(".json.tmp")
+    tmp_path.write_text(json.dumps(job, ensure_ascii=False), encoding="utf-8")
+    tmp_path.replace(path)
 
 
 def _snapshot_job(job: dict[str, Any]) -> dict[str, Any]:

@@ -68,6 +68,7 @@ require_once __DIR__ . '/AppConfig.php';
 require_once __DIR__ . '/Translator.php';
 require_once __DIR__ . '/SettingsStore.php';
 require_once __DIR__ . '/ImportStore.php';
+require_once __DIR__ . '/SyncStore.php';
 require_once __DIR__ . '/DownloadStore.php';
 require_once __DIR__ . '/BackgroundProcess.php';
 require_once __DIR__ . '/TemplateRenderer.php';

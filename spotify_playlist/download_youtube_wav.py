@@ -28,11 +28,25 @@ def _require_yt_dlp():
     return yt_dlp
 
 
-def _require_ffmpeg() -> None:
-    if not shutil.which('ffmpeg'):
+def _find_on_path_or_homebrew(name: str) -> str | None:
+    for candidate in (name, f"/opt/homebrew/bin/{name}", f"/usr/local/bin/{name}"):
+        path = candidate if os.path.isabs(candidate) else shutil.which(candidate)
+        if path and os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
+
+
+def _find_ffmpeg() -> str | None:
+    return _find_on_path_or_homebrew("ffmpeg")
+
+
+def _require_ffmpeg() -> str:
+    path = _find_ffmpeg()
+    if not path:
         raise FileNotFoundError(
             "ffmpeg is not installed. On macOS: brew install ffmpeg"
         )
+    return path
 
 
 def _build_youtube_ydl_opts(**extra) -> dict:
@@ -44,13 +58,19 @@ def _build_youtube_ydl_opts(**extra) -> dict:
         'no_warnings': False,
     }
 
-    node_path = shutil.which('node')
+    ffmpeg = _find_ffmpeg()
+    if ffmpeg:
+        opts['ffmpeg_location'] = os.path.dirname(ffmpeg)
+
+    node_path = _find_on_path_or_homebrew('node')
     if node_path:
         opts['js_runtimes'] = {'node': {'path': node_path}}
-    elif shutil.which('deno'):
-        opts['js_runtimes'] = {'deno': {'path': shutil.which('deno')}}
     else:
-        opts['remote_components'] = ['ejs:github']
+        deno_path = _find_on_path_or_homebrew('deno')
+        if deno_path:
+            opts['js_runtimes'] = {'deno': {'path': deno_path}}
+        else:
+            opts['remote_components'] = ['ejs:github']
 
     opts.update(extra)
     return opts
@@ -78,10 +98,10 @@ def _tag_audio_from_filename(
 
 def _convert_to_aiff(source_path: str, aiff_path: str) -> None:
     """Convert downloaded audio to AIFF in one ffmpeg pass, preserving sample rate."""
-    _require_ffmpeg()
+    ffmpeg = _require_ffmpeg()
     result = subprocess.run(
         [
-            'ffmpeg',
+            ffmpeg,
             '-y',
             '-i',
             source_path,
