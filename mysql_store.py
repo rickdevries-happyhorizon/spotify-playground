@@ -402,6 +402,8 @@ def _ensure_app_config_schema(conn) -> None:
                 "tracking_start_updated DATETIME NULL, "
                 "sync_start_date DATETIME NULL, "
                 "sync_start_updated DATETIME NULL, "
+                "locale VARCHAR(16) NOT NULL DEFAULT 'en', "
+                "artist_discovery_enabled TINYINT(1) NOT NULL DEFAULT 1, "
                 "CONSTRAINT fk_app_config_destination FOREIGN KEY (destination_playlist_ref_id) "
                 "REFERENCES playlist(id) ON DELETE SET NULL"
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
@@ -441,6 +443,11 @@ def _ensure_app_config_schema(conn) -> None:
                 cur.execute(
                     "ALTER TABLE app_config ADD COLUMN locale VARCHAR(16) NOT NULL DEFAULT 'en' "
                     "AFTER sync_start_updated"
+                )
+            if not _column_exists(conn, "app_config", "artist_discovery_enabled"):
+                cur.execute(
+                    "ALTER TABLE app_config ADD COLUMN artist_discovery_enabled "
+                    "TINYINT(1) NOT NULL DEFAULT 1 AFTER locale"
                 )
         conn.commit()
         try:
@@ -599,6 +606,45 @@ def save_locale(locale: str) -> None:
     except Exception as e:
         conn.rollback()
         print(f"Error saving locale: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def load_artist_discovery_enabled() -> bool:
+    conn = get_connection()
+    try:
+        _ensure_app_config_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT artist_discovery_enabled FROM app_config WHERE singleton = 1 LIMIT 1"
+            )
+            row = cur.fetchone()
+            if not row or row.get("artist_discovery_enabled") is None:
+                return True
+            return bool(int(row["artist_discovery_enabled"]))
+    except Exception as e:
+        print(f"Error loading artist discovery setting: {e}")
+        return True
+    finally:
+        conn.close()
+
+
+def save_artist_discovery_enabled(enabled: bool) -> None:
+    value = 1 if enabled else 0
+    conn = get_connection()
+    try:
+        _ensure_app_config_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO app_config (singleton, artist_discovery_enabled) VALUES (1, %s) "
+                "ON DUPLICATE KEY UPDATE artist_discovery_enabled = VALUES(artist_discovery_enabled)",
+                (value,),
+            )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error saving artist discovery setting: {e}")
         raise
     finally:
         conn.close()

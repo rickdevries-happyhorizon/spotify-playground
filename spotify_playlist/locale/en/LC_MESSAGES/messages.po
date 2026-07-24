@@ -259,11 +259,17 @@ msgstr "Pull new tracks from source playlists into your destination playlist."
 msgid "Pull new tracks from followed artists and source playlists into your destination playlist."
 msgstr "Pull new tracks from followed artists and source playlists into your destination playlist."
 
+msgid "Pull new tracks from followed artists, discovered artists, and source playlists into your destination playlist."
+msgstr "Pull new tracks from followed artists, discovered artists, and source playlists into your destination playlist."
+
 msgid "Moving new tracks from source playlists into your destination playlist."
 msgstr "Moving new tracks from source playlists into your destination playlist."
 
 msgid "Scanning followed artists and source playlists since your sync start date."
 msgstr "Scanning followed artists and source playlists since your sync start date."
+
+msgid "Scanning followed artists, discovered artists, and source playlists since your sync start date."
+msgstr "Scanning followed artists, discovered artists, and source playlists since your sync start date."
 
 msgid "Scan artists"
 msgstr "Scan artists"
@@ -273,6 +279,18 @@ msgstr "Current artist"
 
 msgid "From artists"
 msgstr "From artists"
+
+msgid "From discovery"
+msgstr "From discovery"
+
+msgid "Artist discovery"
+msgstr "Artist discovery"
+
+msgid "Find new artists from your tracking playlists and add recent releases to the destination playlist."
+msgstr "Find new artists from your tracking playlists and add recent releases to the destination playlist."
+
+msgid "Enable artist discovery during sync"
+msgstr "Enable artist discovery during sync"
 
 msgid "Playlist sync"
 msgstr "Playlist sync"

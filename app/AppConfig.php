@@ -55,6 +55,33 @@ final class AppConfig
         $stmt->execute(['locale' => $normalized]);
     }
 
+    public static function loadArtistDiscoveryEnabled(): bool
+    {
+        self::ensureSchema();
+
+        $stmt = Db::connection()->query(
+            'SELECT artist_discovery_enabled FROM app_config WHERE singleton = 1 LIMIT 1'
+        );
+        $row = $stmt->fetch();
+        if (!is_array($row) || !array_key_exists('artist_discovery_enabled', $row)) {
+            return true;
+        }
+
+        return (int) $row['artist_discovery_enabled'] === 1;
+    }
+
+    public static function saveArtistDiscoveryEnabled(bool $enabled): void
+    {
+        self::ensureSchema();
+
+        $stmt = Db::connection()->prepare(
+            'INSERT INTO app_config (singleton, artist_discovery_enabled) '
+            . 'VALUES (1, :enabled) '
+            . 'ON DUPLICATE KEY UPDATE artist_discovery_enabled = VALUES(artist_discovery_enabled)'
+        );
+        $stmt->execute(['enabled' => $enabled ? 1 : 0]);
+    }
+
     public static function ensureSchema(): void
     {
         SettingsStore::ensureSchema();

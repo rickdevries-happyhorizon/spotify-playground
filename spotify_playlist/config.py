@@ -28,6 +28,12 @@ BRON_PLAYLISTS = playlists_config.get('source_playlists', [])
 # Enable this to fetch new releases from followed artists
 CHECK_ARTIST_RELEASES = True
 
+# Artist discovery on/off is stored in app_config.artist_discovery_enabled (Settings UI).
+# These limits still apply when discovery is enabled.
+ARTIST_DISCOVERY_MAX_SEED_ARTISTS = 25
+ARTIST_DISCOVERY_MAX_CANDIDATES = 40
+ARTIST_DISCOVERY_MAX_TRACKS_PER_PLAYLIST = 150
+
 # Number of days back to search for new releases (e.g. last 7 days = 1 week)
 ARTIST_RELEASES_DAYS_BACK = 7
 

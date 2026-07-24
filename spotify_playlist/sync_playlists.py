@@ -3,6 +3,7 @@ from typing import Any, Callable
 import spotify_playlist.config as config
 from db_store import (
     backfill_playlist_names,
+    load_artist_discovery_enabled,
     load_historical_data,
     load_playlists_config,
     load_sync_start_date,
@@ -16,12 +17,21 @@ from spotify_playlist.add_tracks_to_playlist import add_tracks_to_playlist
 from spotify_playlist.colors import Colors
 from spotify_playlist.deps import SpotifyException
 from spotify_playlist.get_all_artist_releases import get_all_artist_releases
+from spotify_playlist.get_discovery_artist_releases import get_discovery_artist_releases
 from spotify_playlist.get_recent_playlist_tracks import get_recent_playlist_tracks
 from spotify_playlist.get_track_info import get_track_info
 from spotify_playlist.loading_progress import loading_bar
 
 ProgressCallback = Callable[[dict[str, Any]], None]
 ARTIST_RELEASES_KEY = "__artist_releases__"
+ARTIST_DISCOVERY_KEY = "__artist_discovery__"
+
+
+def _all_historical_uris(historical: dict[str, set[str]]) -> set[str]:
+    known: set[str] = set()
+    for uris in historical.values():
+        known |= uris
+    return known
 
 
 def sync_playlists(
@@ -29,8 +39,9 @@ def sync_playlists(
     on_progress: ProgressCallback | None = None,
     quiet: bool = False,
     include_artist_releases: bool | None = None,
+    include_artist_discovery: bool | None = None,
 ) -> dict[str, Any]:
-    """Checks followed artists and source playlists, then adds new tracks to destination."""
+    """Checks followed artists, discovery, and source playlists; adds new tracks to destination."""
     result: dict[str, Any] = {
         "playlist_count": 0,
         "playlists_checked": 0,
@@ -39,6 +50,9 @@ def sync_playlists(
         "tracks_added": 0,
         "artist_releases_found": 0,
         "artist_releases_new": 0,
+        "discovery_artists": 0,
+        "discovery_releases_found": 0,
+        "discovery_releases_new": 0,
         "artists_checked": 0,
         "since_date": None,
         "destination_playlist": None,
@@ -54,10 +68,13 @@ def sync_playlists(
 
     if include_artist_releases is None:
         include_artist_releases = config.CHECK_ARTIST_RELEASES
+    if include_artist_discovery is None:
+        include_artist_discovery = load_artist_discovery_enabled()
 
     playlists_config = load_playlists_config()
     config.MIJN_DOEL_PLAYLIST_ID = playlists_config.get("destination_playlist", "")
     config.BRON_PLAYLISTS = playlists_config.get("source_playlists", [])
+    tracking_playlists = playlists_config.get("tracking_playlists") or []
 
     if not config.MIJN_DOEL_PLAYLIST_ID:
         message = "No destination playlist configured. Set it in Settings first."
@@ -67,9 +84,13 @@ def sync_playlists(
             raise RuntimeError(message)
         return result
 
-    if not config.BRON_PLAYLISTS and not include_artist_releases:
-        message = "No source playlists configured. Add them in Settings first."
-        log(f"{Colors.BRIGHT_YELLOW}⚠️  No source playlists configured in the database.{Colors.RESET}")
+    discovery_enabled = include_artist_discovery and bool(tracking_playlists)
+    if not config.BRON_PLAYLISTS and not include_artist_releases and not discovery_enabled:
+        message = (
+            "Nothing to sync. Add source playlists, enable followed-artist sync, "
+            "or configure tracking playlists for artist discovery."
+        )
+        log(f"{Colors.BRIGHT_YELLOW}⚠️  {message}{Colors.RESET}")
         if quiet:
             raise RuntimeError(message)
         return result
@@ -160,6 +181,70 @@ def sync_playlists(
             log(f"{Colors.BRIGHT_RED}❌ {message}{Colors.RESET}")
             if quiet:
                 raise
+
+    if discovery_enabled:
+        log(f"\n{Colors.BOLD}{Colors.BRIGHT_MAGENTA}{'═'*70}{Colors.RESET}")
+        log(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}🧭  New Artists From Tracking Taste  🧭{Colors.RESET}")
+        log(f"{Colors.BOLD}{Colors.BRIGHT_MAGENTA}{'═'*70}{Colors.RESET}\n")
+        report(phase="discovery_start", message="Discovering artists from tracking taste…")
+
+        try:
+            days_back = resolve_sync_days_back()
+            discovery_releases = get_discovery_artist_releases(
+                sp,
+                tracking_playlists,
+                days_back,
+                max_seed_artists=config.ARTIST_DISCOVERY_MAX_SEED_ARTISTS,
+                max_candidates=config.ARTIST_DISCOVERY_MAX_CANDIDATES,
+                max_tracks_per_playlist=config.ARTIST_DISCOVERY_MAX_TRACKS_PER_PLAYLIST,
+                on_progress=lambda event: report(**event),
+                quiet=quiet,
+            )
+            result["discovery_releases_found"] = len(discovery_releases)
+
+            if discovery_releases:
+                known_uris = _all_historical_uris(historische_nummers)
+                discovery_known = historische_nummers.get(ARTIST_DISCOVERY_KEY, set())
+                nieuwe_discovery_uris = (
+                    set(discovery_releases.keys()) - known_uris - discovery_known
+                )
+                result["discovery_releases_new"] = len(nieuwe_discovery_uris)
+                if nieuwe_discovery_uris:
+                    log(
+                        f"{Colors.BRIGHT_GREEN}🎉 {len(nieuwe_discovery_uris)} discovery "
+                        f"releases to add{Colors.RESET}\n"
+                    )
+                    nieuwe_nummers_uris.extend(sorted(nieuwe_discovery_uris))
+                historische_nummers[ARTIST_DISCOVERY_KEY] = discovery_known.union(
+                    discovery_releases.keys()
+                )
+            else:
+                log(f"{Colors.DIM}🤷 No discovery releases found.{Colors.RESET}\n")
+
+            report(
+                phase="discovery_done",
+                message=(
+                    f"Discovery — {result['discovery_releases_new']} new release"
+                    f"{'' if result['discovery_releases_new'] == 1 else 's'}"
+                ),
+                discovery_releases_new=result["discovery_releases_new"],
+                discovery_releases_found=result["discovery_releases_found"],
+            )
+        except SpotifyException as e:
+            message = f"Error during artist discovery: {e}"
+            log(f"{Colors.BRIGHT_RED}❌ {message}{Colors.RESET}")
+            if quiet:
+                raise
+        except Exception as e:
+            message = f"Unexpected error during artist discovery: {e}"
+            log(f"{Colors.BRIGHT_RED}❌ {message}{Colors.RESET}")
+            if quiet:
+                raise
+    elif include_artist_discovery and not tracking_playlists:
+        log(
+            f"{Colors.DIM}🧭 Artist discovery skipped — no tracking playlists configured."
+            f"{Colors.RESET}\n"
+        )
 
     if config.BRON_PLAYLISTS:
         report(
@@ -317,5 +402,7 @@ def sync_playlists(
         since_date=result["since_date"],
         artist_releases_new=result["artist_releases_new"],
         artist_releases_found=result["artist_releases_found"],
+        discovery_releases_new=result["discovery_releases_new"],
+        discovery_releases_found=result["discovery_releases_found"],
     )
     return result

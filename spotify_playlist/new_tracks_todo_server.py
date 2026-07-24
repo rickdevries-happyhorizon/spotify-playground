@@ -13,6 +13,7 @@ from db_store import (
     delete_new_track,
     get_connection,
     increment_new_track_copy_title_count,
+    load_artist_discovery_enabled,
     load_genre_images,
     load_locale,
     load_new_tracks,
@@ -22,6 +23,7 @@ from db_store import (
     load_ui_skin,
     normalize_reference_url,
     resolve_genre_image,
+    save_artist_discovery_enabled,
     save_locale,
     save_playlists_config,
     save_sync_start_date,
@@ -102,6 +104,7 @@ def _build_settings_payload() -> dict:
         ],
         "tracking_start_date": start_date.strftime("%Y-%m-%d") if start_date else None,
         "sync_start_date": sync_start_date.strftime("%Y-%m-%d") if sync_start_date else None,
+        "artist_discovery_enabled": load_artist_discovery_enabled(),
     }
 
 
@@ -494,6 +497,15 @@ def create_app() -> Flask:
                     return jsonify({"error": str(e)}), 400
             else:
                 return jsonify({"error": "tracking_start_date must be a string or null"}), 400
+
+        if "artist_discovery_enabled" in data:
+            enabled = data.get("artist_discovery_enabled")
+            if not isinstance(enabled, bool):
+                return jsonify({"error": "artist_discovery_enabled must be a boolean"}), 400
+            try:
+                save_artist_discovery_enabled(enabled)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
 
         try:
             return jsonify(_build_settings_payload())

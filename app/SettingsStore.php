@@ -40,6 +40,7 @@ final class SettingsStore
             ),
             'tracking_start_date' => $startDate,
             'sync_start_date' => $syncStartDate,
+            'artist_discovery_enabled' => AppConfig::loadArtistDiscoveryEnabled(),
         ];
     }
 
@@ -140,6 +141,14 @@ final class SettingsStore
             } else {
                 throw new InvalidArgumentException('tracking_start_date must be a string or null');
             }
+        }
+
+        if (array_key_exists('artist_discovery_enabled', $data)) {
+            $enabled = $data['artist_discovery_enabled'];
+            if (!is_bool($enabled)) {
+                throw new InvalidArgumentException('artist_discovery_enabled must be a boolean');
+            }
+            AppConfig::saveArtistDiscoveryEnabled($enabled);
         }
 
         return self::load();
@@ -679,6 +688,7 @@ final class SettingsStore
         self::ensureAppConfigColumn($pdo, 'sync_start_date', 'DATETIME NULL');
         self::ensureAppConfigColumn($pdo, 'sync_start_updated', 'DATETIME NULL');
         self::ensureAppConfigColumn($pdo, 'locale', "VARCHAR(16) NOT NULL DEFAULT 'en'");
+        self::ensureAppConfigColumn($pdo, 'artist_discovery_enabled', 'TINYINT(1) NOT NULL DEFAULT 1');
 
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS playlist_source ('

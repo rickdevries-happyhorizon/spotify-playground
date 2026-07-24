@@ -25,5 +25,16 @@
         <input type="date" name="tracking_start_date" />
       </label>
     </div>
+    <div class="settings-date-field settings-date-field--toggle">
+      <h4 class="settings-date-field__title">{{ _("Artist discovery") }}</h4>
+      <p class="settings-date-field__desc">{{ _("Find new artists from your tracking playlists and add recent releases to the destination playlist.") }}</p>
+      <label class="settings-toggle">
+        <input type="checkbox" name="artist_discovery_enabled" />
+        <span class="settings-toggle__control" aria-hidden="true">
+          <span class="settings-toggle__knob"></span>
+        </span>
+        <span class="settings-toggle__label">{{ _("Enable artist discovery during sync") }}</span>
+      </label>
+    </div>
   </div>
 </section>

@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from db_store import load_playlists_config
+from db_store import load_artist_discovery_enabled, load_playlists_config
 
 from spotify_playlist.spotify_api_client import get_quiet_spotify_client
 from spotify_playlist.sync_playlists import sync_playlists
@@ -74,6 +74,9 @@ def _snapshot_job(job: dict[str, Any]) -> dict[str, Any]:
         "artist_name": job.get("artist_name"),
         "artist_releases_found": job.get("artist_releases_found"),
         "artist_releases_new": job.get("artist_releases_new"),
+        "discovery_releases_found": job.get("discovery_releases_found"),
+        "discovery_releases_new": job.get("discovery_releases_new"),
+        "discovery_artists": job.get("discovery_artists"),
         "since_date": job.get("since_date"),
         "result": job.get("result"),
         "error": job.get("error"),
@@ -118,6 +121,9 @@ def _on_progress(job_id: str, event: dict[str, Any]) -> None:
         "artist_name",
         "artist_releases_found",
         "artist_releases_new",
+        "discovery_releases_found",
+        "discovery_releases_new",
+        "discovery_artists",
         "since_date",
     ):
         if key in event:
@@ -180,6 +186,10 @@ def run_sync_job(job_id: str) -> None:
             tracks_added=result.get("tracks_added", 0),
             playlists_checked=result.get("playlists_checked", 0),
             playlist_total=result.get("playlist_count", 0),
+            artist_releases_new=result.get("artist_releases_new", 0),
+            artist_releases_found=result.get("artist_releases_found", 0),
+            discovery_releases_new=result.get("discovery_releases_new", 0),
+            discovery_releases_found=result.get("discovery_releases_found", 0),
             since_date=result.get("since_date"),
         )
     except Exception as exc:
@@ -254,13 +264,15 @@ def create_sync_job(*, force: bool = False) -> tuple[str | None, str | None]:
 
     config = load_playlists_config()
     source_playlists = config.get("source_playlists") or []
+    tracking_playlists = config.get("tracking_playlists") or []
     destination = (config.get("destination_playlist") or "").strip()
     if not destination:
         return None, "No destination playlist configured. Set it in Settings first."
-    if not source_playlists and not app_config.CHECK_ARTIST_RELEASES:
+    discovery_enabled = load_artist_discovery_enabled() and bool(tracking_playlists)
+    if not source_playlists and not app_config.CHECK_ARTIST_RELEASES and not discovery_enabled:
         return None, (
-            "No source playlists configured. Add source playlists in Settings, "
-            "or enable followed-artist sync."
+            "Nothing to sync. Add source playlists, enable followed-artist sync, "
+            "or configure tracking playlists for artist discovery."
         )
 
     try:

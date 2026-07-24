@@ -259,11 +259,17 @@ msgstr "Haol nieuwe tracks uut bron-playlists en zet ze in je doel-playlist."
 msgid "Pull new tracks from followed artists and source playlists into your destination playlist."
 msgstr "Haol nieuwe tracks uut gevolgde artiesten en bron-playlists en zet ze in je doel-playlist."
 
+msgid "Pull new tracks from followed artists, discovered artists, and source playlists into your destination playlist."
+msgstr "Haol nieuwe tracks uut gevolgde artiesten, ontdekte artiesten en bron-playlists en zet ze in je doel-playlist."
+
 msgid "Moving new tracks from source playlists into your destination playlist."
 msgstr "Nieuwe tracks van bron-playlists naor je doel-playlist verplaatsen."
 
 msgid "Scanning followed artists and source playlists since your sync start date."
 msgstr "Gevolgde artiesten en bron-playlists scannen sinds je sync-startdatum."
+
+msgid "Scanning followed artists, discovered artists, and source playlists since your sync start date."
+msgstr "Gevolgde artiesten, ontdekte artiesten en bron-playlists scannen sinds je sync-startdatum."
 
 msgid "Scan artists"
 msgstr "Artiesten scannen"
@@ -273,6 +279,18 @@ msgstr "Huidige artiest"
 
 msgid "From artists"
 msgstr "Van artiesten"
+
+msgid "From discovery"
+msgstr "Van discovery"
+
+msgid "Artist discovery"
+msgstr "Artiestenontdekking"
+
+msgid "Find new artists from your tracking playlists and add recent releases to the destination playlist."
+msgstr "Ontdek nieuwe artiesten via je tracking-playlists en zet recente releases in je doel-playlist."
+
+msgid "Enable artist discovery during sync"
+msgstr "Artiestenontdekking aanzetten tijdens sync"
 
 msgid "Playlist sync"
 msgstr "Playlist-sync"

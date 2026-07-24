@@ -126,7 +126,7 @@ function getAppModules() {
     },
     {
       label: t("Sync playlists"),
-      description: t("Pull new tracks from followed artists and source playlists into your destination playlist."),
+      description: t("Pull new tracks from followed artists, discovered artists, and source playlists into your destination playlist."),
       icon: "↻",
       path: SYNC_PATH,
       className: "app-card--sync",
@@ -201,13 +201,17 @@ const SYNC_PHASE_PROGRESS = {
   starting: 4,
   artists_start: 6,
   artists_scanning: 10,
-  artists_done: 28,
-  sources_start: 30,
-  playlist_start: 32,
-  fetching_tracks: 44,
-  playlist_done: 58,
-  playlist_error: 58,
-  adding: 82,
+  artists_done: 22,
+  discovery_start: 23,
+  discovery_candidates: 24,
+  discovery_scanning: 26,
+  discovery_done: 34,
+  sources_start: 36,
+  playlist_start: 38,
+  fetching_tracks: 48,
+  playlist_done: 62,
+  playlist_error: 62,
+  adding: 84,
   done: 100,
   error: 100,
 };
@@ -1779,6 +1783,10 @@ function setSyncStepState(phase) {
     artists_scanning: ["starting", "artists"],
     artists_done: ["starting", "artists"],
     artists: ["starting", "artists"],
+    discovery_start: ["starting", "artists"],
+    discovery_candidates: ["starting", "artists"],
+    discovery_scanning: ["starting", "artists"],
+    discovery_done: ["starting", "artists"],
     sources_start: ["starting", "artists", "sources"],
     playlist_start: ["starting", "artists", "sources"],
     fetching_tracks: ["starting", "artists", "sources"],
@@ -1819,6 +1827,20 @@ function computeSyncPercent(job) {
     const total = Number(job.artist_total || 1);
     const sliceStart = SYNC_PHASE_PROGRESS.artists_start;
     const sliceEnd = SYNC_PHASE_PROGRESS.artists_done;
+    const slice = sliceEnd - sliceStart;
+    const artistProgress = total ? Math.min(1, Math.max(0, index / total)) : 0;
+    percent = Math.round(sliceStart + slice * artistProgress);
+  }
+
+  if (
+    phase === "discovery_scanning"
+    || phase === "discovery_start"
+    || phase === "discovery_candidates"
+  ) {
+    const index = Number(job.artist_index || 0);
+    const total = Number(job.artist_total || 1);
+    const sliceStart = SYNC_PHASE_PROGRESS.discovery_start;
+    const sliceEnd = SYNC_PHASE_PROGRESS.discovery_done;
     const slice = sliceEnd - sliceStart;
     const artistProgress = total ? Math.min(1, Math.max(0, index / total)) : 0;
     percent = Math.round(sliceStart + slice * artistProgress);
@@ -1900,7 +1922,8 @@ function updateSyncProgress(job) {
   syncMessage.textContent = message;
   setSyncStepState(job.phase || "starting");
 
-  const isArtistPhase = String(job.phase || "").startsWith("artists");
+  const phase = String(job.phase || "");
+  const isArtistPhase = phase.startsWith("artists") || phase.startsWith("discovery");
   const cardName = isArtistPhase
     ? (job.artist_name || job.playlist_name)
     : job.playlist_name;
@@ -1933,6 +1956,9 @@ function renderSyncSuccess(job) {
   const tracksAdded = Number(job.tracks_added ?? job.result?.tracks_added ?? 0);
   const tracksNew = Number(job.tracks_new ?? job.result?.tracks_new ?? 0);
   const artistNew = Number(job.artist_releases_new ?? job.result?.artist_releases_new ?? 0);
+  const discoveryNew = Number(
+    job.discovery_releases_new ?? job.result?.discovery_releases_new ?? 0
+  );
   const playlistsChecked = Number(
     job.playlists_checked
     ?? job.result?.playlists_checked
@@ -1979,6 +2005,10 @@ function renderSyncSuccess(job) {
     <article class="fetch-stat">
       <span class="fetch-stat__label">${t("From artists")}</span>
       <strong class="fetch-stat__value">${artistNew}</strong>
+    </article>
+    <article class="fetch-stat">
+      <span class="fetch-stat__label">${t("From discovery")}</span>
+      <strong class="fetch-stat__value">${discoveryNew}</strong>
     </article>
     <article class="fetch-stat">
       <span class="fetch-stat__label">${t("Sources")}</span>
@@ -2120,7 +2150,7 @@ function showSyncView() {
   currentFilter = null;
   document.title = t("Sync playlists — {app_name}", { app_name: APP_NAME() });
   pageTitle.textContent = t("Sync playlists");
-  pageSubtitle.textContent = t("Scanning followed artists and source playlists since your sync start date.");
+  pageSubtitle.textContent = t("Scanning followed artists, discovered artists, and source playlists since your sync start date.");
   setPageCover(null);
   setSettingsLinkActive(false);
   hideAllViews();
@@ -2356,6 +2386,9 @@ function populateSettingsForm(settings) {
   renderPlaylistList(trackingPlaylistsList, settings.tracking_playlists);
   settingsForm.sync_start_date.value = settings.sync_start_date || "";
   settingsForm.tracking_start_date.value = settings.tracking_start_date || "";
+  if (settingsForm.artist_discovery_enabled) {
+    settingsForm.artist_discovery_enabled.checked = settings.artist_discovery_enabled !== false;
+  }
   updateSettingsCounts();
   markSettingsClean();
 }
@@ -2395,6 +2428,7 @@ async function saveSettings(event) {
     tracking_playlists: collectPlaylistValues(trackingPlaylistsList),
     sync_start_date: settingsForm.sync_start_date.value.trim() || null,
     tracking_start_date: settingsForm.tracking_start_date.value.trim() || null,
+    artist_discovery_enabled: Boolean(settingsForm.artist_discovery_enabled?.checked),
   };
 
   try {
