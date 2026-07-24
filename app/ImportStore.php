@@ -46,10 +46,9 @@ final class ImportStore
     {
         $settings = SettingsStore::load();
         $trackingPlaylists = $settings['tracking_playlists'] ?? [];
-        $destination = $settings['destination_playlist']['spotify_id'] ?? '';
-        if ($trackingPlaylists === [] && $destination === '') {
+        if ($trackingPlaylists === []) {
             throw new InvalidArgumentException(
-                'No tracking or destination playlist configured. Add them in Settings first.'
+                'No tracking playlists configured. Add them in Settings first.'
             );
         }
 

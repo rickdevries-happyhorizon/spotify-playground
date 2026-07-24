@@ -9,12 +9,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import spotify_playlist.config as config
 from db_store import load_playlists_config
 
 from spotify_playlist.export_new_tracks_since_date import export_new_tracks_since_date
 from spotify_playlist.spotify_api_client import get_quiet_spotify_client
-from spotify_playlist.sync_artist_releases import sync_artist_releases
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 JOBS_DIR = PROJECT_ROOT / ".import_jobs"
@@ -56,9 +54,6 @@ def _snapshot_job(job: dict[str, Any]) -> dict[str, Any]:
         "playlist_total": job.get("playlist_total"),
         "playlist_name": job.get("playlist_name"),
         "playlist_image_url": job.get("playlist_image_url"),
-        "artist_index": job.get("artist_index"),
-        "artist_total": job.get("artist_total"),
-        "artist_name": job.get("artist_name"),
         "tracks_found": job.get("tracks_found"),
         "total_tracks_found": job.get("total_tracks_found"),
         "total_processed": job.get("total_processed"),
@@ -99,9 +94,6 @@ def _on_progress(job_id: str, event: dict[str, Any]) -> None:
         "playlist_total",
         "playlist_name",
         "playlist_image_url",
-        "artist_index",
-        "artist_total",
-        "artist_name",
         "tracks_found",
         "total_tracks_found",
         "total_processed",
@@ -116,43 +108,20 @@ def _on_progress(job_id: str, event: dict[str, Any]) -> None:
     _update_job(job_id, **updates)
 
 
-def playlists_for_import(playlists_config: dict[str, Any] | None = None) -> list[str]:
-    """Tracking playlists plus destination (so artist releases land in new_tracks)."""
-    config_data = playlists_config if playlists_config is not None else load_playlists_config()
-    playlist_ids = list(config_data.get("tracking_playlists") or [])
-    destination = (config_data.get("destination_playlist") or "").strip()
-    if destination and destination not in playlist_ids:
-        playlist_ids = [destination, *playlist_ids]
-    return playlist_ids
-
-
-def run_import_job(job_id: str, tracking_playlists: list[str] | None = None) -> None:
-    """Execute artist sync + playlist import and persist progress to the job file."""
+def run_import_job(job_id: str, tracking_playlists: list[str]) -> None:
+    """Execute the import and persist progress to the job file."""
     try:
         sp = get_quiet_spotify_client()
 
         def progress(event: dict[str, Any]) -> None:
             _on_progress(job_id, event)
 
-        artist_result: dict[str, Any] | None = None
-        if config.CHECK_ARTIST_RELEASES:
-            artist_result = sync_artist_releases(sp, on_progress=progress, quiet=True)
-
-        playlist_ids = tracking_playlists if tracking_playlists is not None else playlists_for_import()
-        if not playlist_ids:
-            raise RuntimeError(
-                "No tracking or destination playlist configured. Add them in Settings first."
-            )
-
         result = export_new_tracks_since_date(
             sp,
-            playlist_ids,
+            tracking_playlists,
             on_progress=progress,
             quiet=True,
         )
-        if artist_result is not None:
-            result["artist_sync"] = artist_result
-
         _update_job(
             job_id,
             status="done",
@@ -178,10 +147,10 @@ def run_import_job(job_id: str, tracking_playlists: list[str] | None = None) -> 
 
 def create_import_job() -> tuple[str | None, str | None]:
     """Validate config, create a job file, and start a background import thread."""
-    playlists_config = load_playlists_config()
-    playlist_ids = playlists_for_import(playlists_config)
-    if not playlist_ids:
-        return None, "No tracking or destination playlist configured. Add them in Settings first."
+    config = load_playlists_config()
+    tracking_playlists = config.get("tracking_playlists") or []
+    if not tracking_playlists:
+        return None, "No tracking playlists configured. Add them in Settings first."
 
     try:
         get_quiet_spotify_client()
@@ -203,7 +172,7 @@ def create_import_job() -> tuple[str | None, str | None]:
 
     thread = threading.Thread(
         target=run_import_job,
-        args=(job_id, playlist_ids),
+        args=(job_id, tracking_playlists),
         daemon=True,
     )
     thread.start()

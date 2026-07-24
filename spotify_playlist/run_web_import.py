@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import sys
 
-from spotify_playlist.import_job_manager import get_import_job, playlists_for_import, run_import_job
+from db_store import load_playlists_config
+
+from spotify_playlist.import_job_manager import get_import_job, run_import_job
 
 
 def main() -> int:
@@ -17,11 +19,12 @@ def main() -> int:
         print(f"Import job not found: {job_id}", file=sys.stderr)
         return 1
 
-    playlist_ids = playlists_for_import()
-    if not playlist_ids:
+    config = load_playlists_config()
+    tracking_playlists = config.get("tracking_playlists") or []
+    if not tracking_playlists:
         return 1
 
-    run_import_job(job_id, playlist_ids)
+    run_import_job(job_id, tracking_playlists)
     return 0
 
 

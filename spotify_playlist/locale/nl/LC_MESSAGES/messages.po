@@ -202,12 +202,6 @@ msgstr "Huidige afspeellijst"
 msgid "Prepare"
 msgstr "Voorbereiden"
 
-msgid "Scan artists"
-msgstr "Artiesten scannen"
-
-msgid "Current artist"
-msgstr "Huidige artiest"
-
 msgid "Scan playlists"
 msgstr "Afspeellijsten scannen"
 
@@ -243,12 +237,6 @@ msgstr "Nieuwe tracks ophalen"
 
 msgid "Import new tracks from your Spotify playlists into the to-do list."
 msgstr "Importeer nieuwe tracks uit je Spotify-afspeellijsten naar de to-do lijst."
-
-msgid "Scan followed artists and tracking playlists, then import new tracks into the to-do list."
-msgstr "Scan gevolgde artiesten en tracking-afspeellijsten, en importeer nieuwe tracks naar de to-do lijst."
-
-msgid "Scanning followed artists and tracking playlists for new tracks."
-msgstr "Gevolgde artiesten en tracking-afspeellijsten scannen op nieuwe tracks."
 
 msgid "Statistics"
 msgstr "Statistieken"
@@ -498,3 +486,21 @@ msgstr "Instellingen — {app_name}"
 
 msgid "{genre} — Track to-do — {app_name}"
 msgstr "{genre} — Track to-do — {app_name}"
+
+msgid "YouTube download"
+msgstr "YouTube-download"
+
+msgid "Downloading tracks"
+msgstr "Tracks downloaden"
+
+msgid "Preparing download…"
+msgstr "Download voorbereiden…"
+
+msgid "Current track"
+msgstr "Huidige track"
+
+msgid "Download tracks"
+msgstr "Tracks downloaden"
+
+msgid "Download again"
+msgstr "Opnieuw downloaden"
