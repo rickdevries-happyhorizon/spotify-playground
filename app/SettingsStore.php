@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 final class SettingsStore
 {
-    private const VALID_SKINS = ['light', 'dark', 'colorful'];
+    private const VALID_SKINS = ['light', 'dark', 'colorful', 'retroui'];
 
     public static function load(): array
     {
@@ -60,7 +60,7 @@ final class SettingsStore
                 $normalized = 'light';
             }
             if (!in_array($normalized, self::VALID_SKINS, true)) {
-                throw new InvalidArgumentException("ui_skin must be 'light', 'dark', or 'colorful'");
+                throw new InvalidArgumentException("ui_skin must be 'light', 'dark', 'colorful', or 'retroui'");
             }
 
             AppConfig::saveUiSkin($normalized);

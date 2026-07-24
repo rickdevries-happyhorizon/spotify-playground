@@ -370,7 +370,7 @@ def save_tracking_start_date(start_date: Any) -> None:
         conn.close()
 
 
-_VALID_UI_SKINS = frozenset({"light", "dark", "colorful"})
+_VALID_UI_SKINS = frozenset({"light", "dark", "colorful", "retroui"})
 _VALID_LOCALES = frozenset({"en", "nl", "brab"})
 
 

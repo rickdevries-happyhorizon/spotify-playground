@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 final class AppConfig
 {
-    private const VALID_SKINS = ['light', 'dark', 'colorful'];
+    private const VALID_SKINS = ['light', 'dark', 'colorful', 'retroui'];
     private const VALID_LOCALES = ['en', 'nl', 'brab'];
 
     public static function loadUiSkin(): string
