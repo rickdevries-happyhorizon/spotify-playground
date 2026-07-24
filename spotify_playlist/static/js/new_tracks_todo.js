@@ -159,7 +159,7 @@ let currentView = "start";
 const sourcePlaylistCount = document.getElementById("source-playlist-count");
 const trackingPlaylistCount = document.getElementById("tracking-playlist-count");
 const playlistLookupTimers = new WeakMap();
-let savedSettingsSkin = "colorful";
+let savedSettingsSkin = "light";
 let savedSettingsLocale = window.__LOCALE__ || "en";
 let fetchPollTimer = null;
 let fetchFinishTimer = null;
@@ -184,6 +184,11 @@ let syncStartedAt = 0;
 let syncLastJobUpdatedAt = 0;
 let syncDisplayPercent = 0;
 let syncTargetPercent = 0;
+let urlFinderWaverInterval = null;
+let urlFinderWaverHideTimer = null;
+const URL_FINDER_WAVER_INTERVAL_MS = 60 * 1000;
+const URL_FINDER_WAVER_DURATION_MS = 5 * 1000;
+const urlFinderWaver = document.getElementById("url-finder-waver");
 
 const FETCH_MIN_DURATION_MS = window.matchMedia("(prefers-reduced-motion: reduce)").matches
   ? 0
@@ -519,6 +524,7 @@ function setSettingsLinkActive(active) {
 }
 
 function hideAllViews() {
+  stopUrlFinderWaver();
   startView.hidden = true;
   genreView.hidden = true;
   genreHubView.hidden = true;
@@ -528,6 +534,40 @@ function hideAllViews() {
   fetchView.hidden = true;
   if (syncView) syncView.hidden = true;
   if (downloadView) downloadView.hidden = true;
+}
+
+function playUrlFinderWaver() {
+  if (!urlFinderWaver || tracksView.hidden) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  urlFinderWaver.classList.remove("is-waving");
+  // Restart CSS animation if it was already playing.
+  void urlFinderWaver.offsetWidth;
+  urlFinderWaver.classList.add("is-waving");
+
+  if (urlFinderWaverHideTimer) clearTimeout(urlFinderWaverHideTimer);
+  urlFinderWaverHideTimer = setTimeout(() => {
+    urlFinderWaver.classList.remove("is-waving");
+    urlFinderWaverHideTimer = null;
+  }, URL_FINDER_WAVER_DURATION_MS);
+}
+
+function startUrlFinderWaver() {
+  if (!urlFinderWaver) return;
+  stopUrlFinderWaver();
+  urlFinderWaverInterval = setInterval(playUrlFinderWaver, URL_FINDER_WAVER_INTERVAL_MS);
+}
+
+function stopUrlFinderWaver() {
+  if (urlFinderWaverInterval) {
+    clearInterval(urlFinderWaverInterval);
+    urlFinderWaverInterval = null;
+  }
+  if (urlFinderWaverHideTimer) {
+    clearTimeout(urlFinderWaverHideTimer);
+    urlFinderWaverHideTimer = null;
+  }
+  urlFinderWaver?.classList.remove("is-waving");
 }
 
 function handleAppModuleClick(event, path) {
@@ -2137,7 +2177,7 @@ function markSettingsClean(message = t("Ready to save")) {
 }
 
 function previewSelectedTheme() {
-  const selectedSkin = settingsForm.querySelector('input[name="ui_skin"]:checked')?.value || "colorful";
+  const selectedSkin = settingsForm.querySelector('input[name="ui_skin"]:checked')?.value || "light";
   document.documentElement.dataset.skin = selectedSkin;
 }
 
@@ -2173,6 +2213,7 @@ function showTracksView(genre, filter) {
   tracksView.hidden = false;
   applyFilterView();
   updateBreadcrumbs();
+  startUrlFinderWaver();
 }
 
 function applyFilterView() {
@@ -2293,7 +2334,7 @@ function restoreSettingsSkinIfNeeded() {
 }
 
 function populateSettingsForm(settings) {
-  const skin = settings.ui_skin || "colorful";
+  const skin = settings.ui_skin || "light";
   const locale = settings.locale || "en";
   savedSettingsSkin = skin;
   savedSettingsLocale = locale;
@@ -2329,7 +2370,7 @@ async function loadSettings() {
     }
 
     populateSettingsForm(data);
-    document.documentElement.dataset.skin = data.ui_skin || "colorful";
+    document.documentElement.dataset.skin = data.ui_skin || "light";
     setBanner("");
   } catch (error) {
     setBanner(t("Failed to load settings: {message}", { message: error.message }), "error");
@@ -2343,7 +2384,7 @@ async function saveSettings(event) {
   button.disabled = true;
   settingsDockText.textContent = t("Saving…");
 
-  const selectedSkin = settingsForm.querySelector('input[name="ui_skin"]:checked')?.value || "colorful";
+  const selectedSkin = settingsForm.querySelector('input[name="ui_skin"]:checked')?.value || "light";
   const selectedLocale = settingsForm.querySelector('input[name="locale"]:checked')?.value || "en";
   const previousLocale = savedSettingsLocale;
   const payload = {
@@ -2764,12 +2805,14 @@ function launchConfetti(x, y) {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
-  const skin = document.documentElement.dataset.skin || "colorful";
+  const skin = document.documentElement.dataset.skin || "light";
   const colors = skin === "light"
     ? ["#000000", "#333333", "#666666", "#999999", "#cccccc", "#ffffff"]
     : skin === "dark"
       ? ["#444444", "#666666", "#888888", "#aaaaaa", "#cccccc", "#f0f0f0"]
-      : ["#39ff14", "#a855ff", "#ff2bd6", "#c8ffb8", "#ff9de8", "#f4f0ff"];
+      : skin === "retroui"
+        ? ["#ffdb33", "#000000", "#ff6b6b", "#7c3aed", "#ffffff", "#fffbeb"]
+        : ["#0054e3", "#3c81f3", "#7eb85a", "#ece9d8", "#ffffff", "#ffcc00"];
   const particles = Array.from({ length: 90 }, () => ({
     x,
     y,

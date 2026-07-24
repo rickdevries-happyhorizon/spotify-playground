@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 final class SettingsStore
 {
-    private const VALID_SKINS = ['light', 'dark', 'colorful', 'retroui'];
+    private const VALID_SKINS = ['light', 'dark', 'retroui', 'winxp'];
 
     public static function load(): array
     {
@@ -54,13 +54,13 @@ final class SettingsStore
             }
 
             $normalized = strtolower(trim($skin));
-            if ($normalized === 'neon') {
-                $normalized = 'colorful';
+            if ($normalized === 'neon' || $normalized === 'colorful') {
+                $normalized = 'winxp';
             } elseif ($normalized === 'simple') {
                 $normalized = 'light';
             }
             if (!in_array($normalized, self::VALID_SKINS, true)) {
-                throw new InvalidArgumentException("ui_skin must be 'light', 'dark', 'colorful', or 'retroui'");
+                throw new InvalidArgumentException("ui_skin must be 'light', 'dark', 'retroui', or 'winxp'");
             }
 
             AppConfig::saveUiSkin($normalized);
@@ -667,10 +667,11 @@ final class SettingsStore
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS app_config ('
             . 'singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY, '
-            . 'ui_skin VARCHAR(32) NOT NULL DEFAULT \'colorful\''
+            . 'ui_skin VARCHAR(32) NOT NULL DEFAULT \'light\''
             . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
-        $pdo->exec("INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'colorful')");
+        $pdo->exec("INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'light')");
+        $pdo->exec("UPDATE app_config SET ui_skin = 'winxp' WHERE ui_skin IN ('colorful', 'neon')");
 
         self::ensureAppConfigColumn($pdo, 'destination_playlist_ref_id', 'INT UNSIGNED NULL');
         self::ensureAppConfigColumn($pdo, 'tracking_start_date', 'DATETIME NULL');

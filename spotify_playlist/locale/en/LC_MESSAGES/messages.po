@@ -55,11 +55,17 @@ msgstr "Dark"
 msgid "Flat dark mode"
 msgstr "Flat dark mode"
 
-msgid "Colorful"
-msgstr "Colorful"
+msgid "RetroUI"
+msgstr "RetroUI"
 
-msgid "Gradients, glow, motion"
-msgstr "Gradients, glow, motion"
+msgid "Neo-brutalism"
+msgstr "Neo-brutalism"
+
+msgid "Windows XP"
+msgstr "Windows XP"
+
+msgid "Classic Luna desktop"
+msgstr "Classic Luna desktop"
 
 msgid "Language"
 msgstr "Language"

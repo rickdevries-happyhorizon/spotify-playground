@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 final class AppConfig
 {
-    private const VALID_SKINS = ['light', 'dark', 'colorful', 'retroui'];
+    private const VALID_SKINS = ['light', 'dark', 'retroui', 'winxp'];
     private const VALID_LOCALES = ['en', 'nl', 'brab'];
 
     public static function loadUiSkin(): string
@@ -62,15 +62,15 @@ final class AppConfig
 
     private static function normalizeUiSkin(?string $skin): string
     {
-        $value = strtolower(trim((string) ($skin ?? 'colorful')));
+        $value = strtolower(trim((string) ($skin ?? 'light')));
 
-        if ($value === 'neon') {
-            $value = 'colorful';
+        if ($value === 'neon' || $value === 'colorful') {
+            $value = 'winxp';
         } elseif ($value === 'simple') {
             $value = 'light';
         }
 
-        return in_array($value, self::VALID_SKINS, true) ? $value : 'colorful';
+        return in_array($value, self::VALID_SKINS, true) ? $value : 'light';
     }
 
     private static function normalizeLocale(?string $locale): string

@@ -370,17 +370,17 @@ def save_tracking_start_date(start_date: Any) -> None:
         conn.close()
 
 
-_VALID_UI_SKINS = frozenset({"light", "dark", "colorful", "retroui"})
+_VALID_UI_SKINS = frozenset({"light", "dark", "retroui", "winxp"})
 _VALID_LOCALES = frozenset({"en", "nl", "brab"})
 
 
 def _normalize_ui_skin(skin: Optional[str]) -> str:
-    value = (skin or "colorful").strip().lower()
-    if value == "neon":
-        value = "colorful"
+    value = (skin or "light").strip().lower()
+    if value in {"neon", "colorful"}:
+        value = "winxp"
     elif value == "simple":
         value = "light"
-    return value if value in _VALID_UI_SKINS else "colorful"
+    return value if value in _VALID_UI_SKINS else "light"
 
 
 def _normalize_locale(locale: Optional[str]) -> str:
@@ -396,7 +396,7 @@ def _ensure_app_config_schema(conn) -> None:
             cur.execute(
                 "CREATE TABLE app_config ("
                 "singleton TINYINT UNSIGNED NOT NULL PRIMARY KEY, "
-                "ui_skin VARCHAR(32) NOT NULL DEFAULT 'colorful', "
+                "ui_skin VARCHAR(32) NOT NULL DEFAULT 'light', "
                 "destination_playlist_ref_id INT UNSIGNED NULL, "
                 "tracking_start_date DATETIME NULL, "
                 "tracking_start_updated DATETIME NULL, "
@@ -407,7 +407,7 @@ def _ensure_app_config_schema(conn) -> None:
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
             )
             cur.execute(
-                "INSERT INTO app_config (singleton, ui_skin) VALUES (1, 'colorful')"
+                "INSERT INTO app_config (singleton, ui_skin) VALUES (1, 'light')"
             )
         conn.commit()
     else:
@@ -462,7 +462,10 @@ def _ensure_app_config_schema(conn) -> None:
 
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'colorful')"
+                "INSERT IGNORE INTO app_config (singleton, ui_skin) VALUES (1, 'light')"
+            )
+            cur.execute(
+                "UPDATE app_config SET ui_skin = 'winxp' WHERE ui_skin IN ('colorful', 'neon')"
             )
         conn.commit()
 
@@ -539,7 +542,7 @@ def load_ui_skin() -> str:
             return _normalize_ui_skin((row or {}).get("ui_skin"))
     except Exception as e:
         print(f"Error loading UI skin: {e}")
-        return "colorful"
+        return "light"
     finally:
         conn.close()
 

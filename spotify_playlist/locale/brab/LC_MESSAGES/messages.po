@@ -55,11 +55,17 @@ msgstr "Donker"
 msgid "Flat dark mode"
 msgstr "Platte donkere modus"
 
-msgid "Colorful"
-msgstr "Kleurrijk"
+msgid "RetroUI"
+msgstr "RetroUI"
 
-msgid "Gradients, glow, motion"
-msgstr "Verlopen, gloed, beweging"
+msgid "Neo-brutalism"
+msgstr "Neo-brutalisme"
+
+msgid "Windows XP"
+msgstr "Windows XP"
+
+msgid "Classic Luna desktop"
+msgstr "Klassiek Luna-bureaublad"
 
 msgid "Language"
 msgstr "Taal"

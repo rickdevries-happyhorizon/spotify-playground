@@ -16,8 +16,8 @@ def manage_ui_skin():
         print(f"\n{Colors.BRIGHT_WHITE}Choose a skin:{Colors.RESET}")
         print(f"  {Colors.BRIGHT_GREEN}1.{Colors.RESET} light  {Colors.DIM}(clean black and white){Colors.RESET}")
         print(f"  {Colors.BRIGHT_GREEN}2.{Colors.RESET} dark  {Colors.DIM}(flat dark mode){Colors.RESET}")
-        print(f"  {Colors.BRIGHT_GREEN}3.{Colors.RESET} colorful  {Colors.DIM}(animated gradients and glow effects){Colors.RESET}")
-        print(f"  {Colors.BRIGHT_GREEN}4.{Colors.RESET} retroui  {Colors.DIM}(neo-brutalism: bold borders, hard shadows){Colors.RESET}")
+        print(f"  {Colors.BRIGHT_GREEN}3.{Colors.RESET} retroui  {Colors.DIM}(neo-brutalism: bold borders, hard shadows){Colors.RESET}")
+        print(f"  {Colors.BRIGHT_GREEN}4.{Colors.RESET} winxp  {Colors.DIM}(classic Windows XP Luna desktop){Colors.RESET}")
         print(f"  {Colors.DIM}0.{Colors.RESET} Back to main menu")
         print(f"\n{Colors.DIM}{'-' * 70}{Colors.RESET}")
 
@@ -35,9 +35,9 @@ def manage_ui_skin():
         elif choice == "2":
             skin = "dark"
         elif choice == "3":
-            skin = "colorful"
-        elif choice == "4":
             skin = "retroui"
+        elif choice == "4":
+            skin = "winxp"
         else:
             print(f"{Colors.BRIGHT_RED}❌ Invalid choice.{Colors.RESET}\n")
             continue
