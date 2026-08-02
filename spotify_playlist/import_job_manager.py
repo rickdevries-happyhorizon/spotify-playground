@@ -70,6 +70,7 @@ def _snapshot_job(job: dict[str, Any]) -> dict[str, Any]:
         "since_date": job.get("since_date"),
         "until_date": job.get("until_date"),
         "result": job.get("result"),
+        "energy_unavailable": job.get("energy_unavailable"),
         "error": job.get("error"),
         "created_at": job.get("created_at"),
         "updated_at": job.get("updated_at"),
@@ -109,6 +110,7 @@ def _on_progress(job_id: str, event: dict[str, Any]) -> None:
         "skipped",
         "since_date",
         "until_date",
+        "energy_unavailable",
     ):
         if key in event:
             updates[key] = event[key]
@@ -142,6 +144,7 @@ def run_import_job(job_id: str, tracking_playlists: list[str]) -> None:
             tracks_found=result.get("tracks_found", 0),
             since_date=result.get("since_date"),
             until_date=result.get("until_date"),
+            energy_unavailable=result.get("energy_unavailable", False),
         )
     except Exception as exc:
         _update_job(

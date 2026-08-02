@@ -6,3 +6,4 @@ __pycache__/
 .import_jobs/
 .sync_jobs/
 .download_jobs/
+frontend/node_modules/

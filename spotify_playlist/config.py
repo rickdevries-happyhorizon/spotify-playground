@@ -46,5 +46,10 @@ SPOTIFY_COVER_ART_DIR = '/Volumes/ShortJack/music'
 # Directory for YouTube to AIFF downloads (optional)
 YOUTUBE_DOWNLOAD_DIR = '/Users/rickdevries/downloads'
 
+# Browser to read YouTube login cookies from (for age-restricted videos).
+# Use chrome, safari, firefox, brave, edge, chromium, or auto (first installed browser).
+# Set to None or '' to disable.
+YOUTUBE_COOKIES_FROM_BROWSER = 'auto'
+
 # Text file with YouTube URLs, one per line (optional)
 YOUTUBE_URLS_FILE = 'youtube_urls.txt'

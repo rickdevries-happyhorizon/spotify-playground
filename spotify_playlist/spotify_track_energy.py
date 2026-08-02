@@ -5,6 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from spotify_playlist.audio_batch import spotify_call_with_retry
+from spotify_playlist.deps import SpotifyException
+
+
+class AudioFeaturesUnavailableError(Exception):
+    """Raised when Spotify blocks the audio-features endpoint (HTTP 403)."""
 
 
 def normalize_energy(value: Any) -> float | None:
@@ -35,7 +40,14 @@ def fetch_track_energies(sp, track_uris: list[str]) -> dict[str, float | None]:
     batch_size = 100
     for offset in range(0, len(unique_uris), batch_size):
         batch = unique_uris[offset : offset + batch_size]
-        features_list = spotify_call_with_retry(lambda b=batch: sp.audio_features(b))
+        try:
+            features_list = spotify_call_with_retry(lambda b=batch: sp.audio_features(b))
+        except SpotifyException as exc:
+            if getattr(exc, 'http_status', None) == 403:
+                raise AudioFeaturesUnavailableError(
+                    'Spotify audio-features is not available for this app'
+                ) from exc
+            raise
         if not features_list:
             continue
         for uri, features in zip(batch, features_list):

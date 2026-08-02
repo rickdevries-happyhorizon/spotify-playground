@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import subprocess
+from pathlib import Path
 from typing import Callable, Optional
 
 from db_store import delete_new_track, load_new_tracks
@@ -49,6 +50,30 @@ def _require_ffmpeg() -> str:
     return path
 
 
+def _resolve_youtube_cookies_browser() -> tuple[str, ...] | None:
+    """Return yt-dlp cookiesfrombrowser tuple, or None when disabled."""
+    from spotify_playlist import config
+
+    raw = (getattr(config, 'YOUTUBE_COOKIES_FROM_BROWSER', None) or '').strip().lower()
+    if raw in ('', 'none', 'false', '0', 'off'):
+        return None
+    if raw != 'auto':
+        return (raw,)
+
+    home = Path.home()
+    for browser, profile_dir in (
+        ('chrome', home / 'Library/Application Support/Google/Chrome'),
+        ('brave', home / 'Library/Application Support/BraveSoftware/Brave-Browser'),
+        ('edge', home / 'Library/Application Support/Microsoft Edge'),
+        ('firefox', home / 'Library/Application Support/Firefox/Profiles'),
+        ('chromium', home / 'Library/Application Support/Chromium'),
+        ('safari', home / 'Library/Safari'),
+    ):
+        if profile_dir.is_dir():
+            return (browser,)
+    return ('chrome',)
+
+
 def _build_youtube_ydl_opts(**extra) -> dict:
     """Base yt-dlp options for reliable YouTube extraction."""
     opts: dict = {
@@ -57,6 +82,10 @@ def _build_youtube_ydl_opts(**extra) -> dict:
         'quiet': False,
         'no_warnings': False,
     }
+
+    cookies_browser = _resolve_youtube_cookies_browser()
+    if cookies_browser:
+        opts['cookiesfrombrowser'] = cookies_browser
 
     ffmpeg = _find_ffmpeg()
     if ffmpeg:
@@ -287,6 +316,13 @@ def download_youtube_tracks(
     error_count = 0
     last_error: str | None = None
 
+    cookies_browser = _resolve_youtube_cookies_browser()
+    if cookies_browser:
+        print(
+            f"{Colors.DIM}Using YouTube login cookies from "
+            f"{cookies_browser[0]}{Colors.RESET}"
+        )
+
     if on_progress:
         on_progress(
             {
@@ -356,6 +392,9 @@ def download_youtube_tracks(
             error_count += 1
 
         if on_progress:
+            message = f"Downloading {track_name} ({index}/{len(tracks)})"
+            if error_count:
+                message = f"{message} — {error_count} failed"
             on_progress(
                 {
                     "phase": "downloading",
@@ -365,7 +404,7 @@ def download_youtube_tracks(
                     "success_count": success_count,
                     "error_count": error_count,
                     "last_error": last_error,
-                    "message": last_error or f"Downloaded {success_count}, failed {error_count}",
+                    "message": message,
                 }
             )
 

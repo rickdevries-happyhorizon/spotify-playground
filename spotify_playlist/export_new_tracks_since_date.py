@@ -15,7 +15,7 @@ from spotify_playlist.colors import Colors
 from spotify_playlist.deps import SpotifyException
 from spotify_playlist.get_playlist_tracks_since_date import get_playlist_tracks_since_date
 from spotify_playlist.loading_progress import loading_bar
-from spotify_playlist.spotify_track_energy import fetch_track_energies
+from spotify_playlist.spotify_track_energy import AudioFeaturesUnavailableError, fetch_track_energies
 
 ProgressCallback = Callable[[dict[str, Any]], None]
 
@@ -53,6 +53,7 @@ def export_new_tracks_since_date(
         "playlists_checked": 0,
         "since_date": None,
         "until_date": None,
+        "energy_unavailable": False,
     }
 
     def log(message: str = "", **style) -> None:
@@ -283,11 +284,30 @@ def export_new_tracks_since_date(
                 total_processed=len(all_new_tracks),
             )
 
-            if quiet:
-                energies = fetch_track_energies(sp, track_uris)
-            else:
-                with loading_bar("Fetching track energy from Spotify..."):
+            energies: dict[str, float | None] = {uri: None for uri in track_uris}
+            try:
+                if quiet:
                     energies = fetch_track_energies(sp, track_uris)
+                else:
+                    with loading_bar("Fetching track energy from Spotify..."):
+                        energies = fetch_track_energies(sp, track_uris)
+            except AudioFeaturesUnavailableError:
+                result["energy_unavailable"] = True
+                log(
+                    f"{Colors.BRIGHT_YELLOW}⚠️  Track energy unavailable — Spotify no longer allows "
+                    f"new apps to use the audio-features API. Continuing without energy scores."
+                    f"{Colors.RESET}"
+                )
+                _report(
+                    on_progress,
+                    phase="fetching_energy",
+                    message=(
+                        "Energy unavailable (Spotify API restriction); "
+                        "continuing without energy scores"
+                    ),
+                    total_processed=len(all_new_tracks),
+                    energy_unavailable=True,
+                )
 
             found = 0
             for entry, uri in zip(all_new_tracks, track_uris):
@@ -295,7 +315,10 @@ def export_new_tracks_since_date(
                 if entry['energy'] is not None:
                     found += 1
 
-            log(f"{Colors.DIM}   Energy fetched for {found}/{len(all_new_tracks)} tracks{Colors.RESET}")
+            if result["energy_unavailable"]:
+                log(f"{Colors.DIM}   Energy skipped for {len(all_new_tracks)} tracks{Colors.RESET}")
+            else:
+                log(f"{Colors.DIM}   Energy fetched for {found}/{len(all_new_tracks)} tracks{Colors.RESET}")
 
             _report(
                 on_progress,

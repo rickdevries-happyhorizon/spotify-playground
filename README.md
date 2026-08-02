@@ -258,6 +258,27 @@ php -S 127.0.0.1:8080 -t public
 
 Open http://127.0.0.1:8080/
 
+The PHP UI now serves a **React.js frontend** (source in `frontend/`). Build it once:
+
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+For development with hot reload, run PHP and Vite in separate terminals — see [frontend/README.md](frontend/README.md).
+
+### Database backup
+
+Before major changes, back up MySQL:
+
+```bash
+brew services start mysql   # if not running
+./scripts/backup_database.sh
+```
+
+Backups are written to `backups/`.
+
 ---
 
 ## YouTube → AIFF downloads (menu option 3)

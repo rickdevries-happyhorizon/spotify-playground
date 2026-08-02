@@ -71,6 +71,11 @@ final class Router
             return;
         }
 
+        if ($method === 'GET' && str_starts_with($path, '/assets/')) {
+            self::serveReactAsset($path);
+            return;
+        }
+
         if ($method === 'GET' && !str_starts_with($path, '/api/')) {
             self::servePage();
             return;
@@ -109,6 +114,13 @@ final class Router
 
     private static function servePage(): void
     {
+        $reactIndex = project_root() . '/public/app/index.html';
+        if (is_file($reactIndex) && is_readable($reactIndex)) {
+            header('Content-Type: text/html; charset=UTF-8');
+            readfile($reactIndex);
+            return;
+        }
+
         try {
             $locale = AppConfig::loadLocale();
             Translator::setLocale($locale);
@@ -133,6 +145,38 @@ final class Router
 
         header('Content-Type: text/html; charset=UTF-8');
         echo $html;
+    }
+
+    private static function serveReactAsset(string $path): void
+    {
+        $relative = ltrim(substr($path, strlen('/assets/')), '/');
+        if ($relative === '' || str_contains($relative, '..')) {
+            self::json(['error' => 'Not found'], 404);
+            return;
+        }
+
+        $file = project_root() . '/public/app/assets/' . $relative;
+        if (!is_file($file) || !is_readable($file)) {
+            self::json(['error' => 'Not found'], 404);
+            return;
+        }
+
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        $types = [
+            'css' => 'text/css; charset=UTF-8',
+            'js' => 'application/javascript; charset=UTF-8',
+            'map' => 'application/json; charset=UTF-8',
+            'svg' => 'image/svg+xml',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'webp' => 'image/webp',
+            'woff' => 'font/woff',
+            'woff2' => 'font/woff2',
+        ];
+
+        header('Content-Type: ' . ($types[$ext] ?? 'application/octet-stream'));
+        readfile($file);
     }
 
     private static function serveStatic(string $path): void
