@@ -1,10 +1,16 @@
 /** Thin fetch wrapper for the PHP REST API. */
 
 async function parseJson(response) {
+  const text = await response.text();
   try {
-    return await response.json();
+    return JSON.parse(text);
   } catch {
-    return {};
+    if (text.trimStart().startsWith('<!')) {
+      throw new Error(
+        'API returned HTML instead of JSON. Restart the Vite dev server (npm run dev) and ensure the PHP API is running on port 8080.',
+      );
+    }
+    throw new Error('API returned an invalid JSON response.');
   }
 }
 
