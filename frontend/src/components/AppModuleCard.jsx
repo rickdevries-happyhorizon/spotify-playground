@@ -56,7 +56,7 @@ export function useAppModules() {
     },
     {
       label: t('Statistics'),
-      description: t('Overview of tracks, completion, and activity.'),
+      description: t('Your most played tracks and artists on Spotify.'),
       icon: '📊',
       path: '/statistics',
       className: 'app-card--stats',

@@ -26,6 +26,11 @@ final class Router
             return;
         }
 
+        if ($path === '/api/listening-stats' && $method === 'GET') {
+            self::getListeningStats();
+            return;
+        }
+
         if ($path === '/api/import/tracks' && $method === 'POST') {
             self::startTrackImport();
             return;
@@ -226,6 +231,17 @@ final class Router
     {
         try {
             self::json(SettingsStore::load());
+        } catch (Throwable $e) {
+            self::json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    private static function getListeningStats(): void
+    {
+        try {
+            self::json(ListeningStatsStore::load());
+        } catch (InvalidArgumentException $e) {
+            self::json(['error' => $e->getMessage()], 401);
         } catch (Throwable $e) {
             self::json(['error' => $e->getMessage()], 500);
         }

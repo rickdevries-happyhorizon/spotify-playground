@@ -80,6 +80,10 @@ export function lookupPlaylist(id) {
   return apiGet(`/api/playlists/lookup?id=${encodeURIComponent(id)}`);
 }
 
+export function fetchListeningStats() {
+  return apiGet('/api/listening-stats');
+}
+
 // --- Jobs ---
 
 export function startImport() {

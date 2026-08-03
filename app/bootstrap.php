@@ -67,6 +67,7 @@ require_once __DIR__ . '/TrackStore.php';
 require_once __DIR__ . '/AppConfig.php';
 require_once __DIR__ . '/Translator.php';
 require_once __DIR__ . '/SettingsStore.php';
+require_once __DIR__ . '/ListeningStatsStore.php';
 require_once __DIR__ . '/ImportStore.php';
 require_once __DIR__ . '/SyncStore.php';
 require_once __DIR__ . '/DownloadStore.php';
