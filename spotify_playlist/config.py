@@ -47,9 +47,9 @@ SPOTIFY_COVER_ART_DIR = '/Volumes/ShortJack/music'
 YOUTUBE_DOWNLOAD_DIR = '/Users/rickdevries/downloads'
 
 # Browser to read YouTube login cookies from (for age-restricted videos).
-# Use chrome, safari, firefox, brave, edge, chromium, or auto (first installed browser).
-# Set to None or '' to disable.
-YOUTUBE_COOKIES_FROM_BROWSER = 'auto'
+# Use chrome, safari, firefox, brave, edge, chromium, or auto (first readable browser).
+# Set to None or '' to disable. Needs Full Disk Access for Chrome/Safari on macOS.
+YOUTUBE_COOKIES_FROM_BROWSER = None
 
 # Text file with YouTube URLs, one per line (optional)
 YOUTUBE_URLS_FILE = 'youtube_urls.txt'

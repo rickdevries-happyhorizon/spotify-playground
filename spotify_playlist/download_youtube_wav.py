@@ -50,6 +50,26 @@ def _require_ffmpeg() -> str:
     return path
 
 
+def _browser_cookie_db_readable(browser: str, profile_dir: Path) -> bool:
+    """True when a browser profile looks present and its cookie DB is readable."""
+    if not profile_dir.is_dir():
+        return False
+    try:
+        if browser == 'safari':
+            cookies = Path.home() / 'Library/Cookies/Cookies.binarycookies'
+            return cookies.is_file() and os.access(cookies, os.R_OK)
+        if browser == 'firefox':
+            return any(profile_dir.glob('*/cookies.sqlite'))
+        # Chromium-based: Cookies may live in Profile/ or Profile/Network/
+        for pattern in ('*/Cookies', '*/Network/Cookies'):
+            for candidate in profile_dir.glob(pattern):
+                if candidate.is_file() and os.access(candidate, os.R_OK):
+                    return True
+        return False
+    except OSError:
+        return False
+
+
 def _resolve_youtube_cookies_browser() -> tuple[str, ...] | None:
     """Return yt-dlp cookiesfrombrowser tuple, or None when disabled."""
     from spotify_playlist import config
@@ -69,9 +89,9 @@ def _resolve_youtube_cookies_browser() -> tuple[str, ...] | None:
         ('chromium', home / 'Library/Application Support/Chromium'),
         ('safari', home / 'Library/Safari'),
     ):
-        if profile_dir.is_dir():
+        if _browser_cookie_db_readable(browser, profile_dir):
             return (browser,)
-    return ('chrome',)
+    return None
 
 
 def _build_youtube_ydl_opts(**extra) -> dict:
